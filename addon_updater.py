@@ -1033,7 +1033,7 @@ class Singleton_updater(object):
 		# if post_update false, skip this function
 		# else, unload/reload addon & trigger popup
 		if self._auto_reload_post_update == False:
-			print("Restart blender to reload addon and complete update")
+			print("Restart SNaP to complete update")
 			return
 
 		if self._verbose: print("Reloading addon...")

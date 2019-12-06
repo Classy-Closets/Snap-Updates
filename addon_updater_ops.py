@@ -126,7 +126,7 @@ class addon_updater_install_popup(bpy.types.Operator):
 		items=[
 			("install","Update Now","Install update now"),
 			("ignore","Ignore", "Ignore this update to prevent future popups"),
-			("defer","Defer","Defer choice till next blender session")
+			("defer","Defer","Defer choice till next SNaP session")
 		],
 		options={'HIDDEN'}
 	)
@@ -410,13 +410,13 @@ class addon_updater_install_manually(bpy.types.Operator):
 			col.scale_y = 0.7
 			col.label(text="There was an issue trying to auto-install",icon="ERROR")
 			col.label(text="Press the download button below and install",icon="BLANK1")
-			col.label(text="the zip file like a normal addon.",icon="BLANK1")
+			col.label(text="the zip file.",icon="BLANK1")
 		else:
 			col = layout.column()
 			col.scale_y = 0.7
-			col.label(text="Install the addon manually")
+			col.label(text="Install manually")
 			col.label(text="Press the download button below and install")
-			col.label(text="the zip file like a normal addon.")
+			col.label(text="the zip file.")
 
 		# if check hasn't happened, i.e. accidentally called this menu
 		# allow to check here
@@ -489,29 +489,29 @@ class addon_updater_updated_successful(bpy.types.Operator):
 			if "just_restored" in saved and saved["just_restored"] == True:
 				col = layout.column()
 				col.scale_y = 0.7
-				col.label(text="Addon restored", icon="RECOVER_LAST")
-				col.label(text="Restart blender to reload.",icon="BLANK1")
+				col.label(text="SNaP restored", icon="RECOVER_LAST")
+				col.label(text="Restart SNaP to complete update.",icon="BLANK1")
 				updater.json_reset_restore()
 			else:
 				col = layout.column()
 				col.scale_y = 0.7
-				col.label(text="Addon successfully installed", icon="FILE_TICK")
-				col.label(text="Restart blender to reload.", icon="BLANK1")
+				col.label(text="SNaP successfully installed", icon="FILE_TICK")
+				col.label(text="Restart SNaP to complete update.", icon="BLANK1")
 
 		else:
 			# reload addon, but still recommend they restart blender
 			if "just_restored" in saved and saved["just_restored"] == True:
 				col = layout.column()
 				col.scale_y = 0.7
-				col.label(text="Addon restored", icon="RECOVER_LAST")
-				col.label(text="Consider restarting blender to fully reload.",
+				col.label(text="SNaP restored", icon="RECOVER_LAST")
+				col.label(text="Restart SNaP to complete update.",
 					icon="BLANK1")
 				updater.json_reset_restore()
 			else:
 				col = layout.column()
 				col.scale_y = 0.7
-				col.label(text="Addon successfully installed", icon="FILE_TICK")
-				col.label(text="Consider restarting blender to fully reload.",
+				col.label(text="SNaP successfully installed", icon="FILE_TICK")
+				col.label(text="Restart SNaP to complete update.",
 					icon="BLANK1")
 
 	def execute(self, context):
@@ -834,7 +834,7 @@ def update_notice_box_ui(self, context):
 			box = layout.box()
 			col = box.column()
 			col.scale_y = 0.7
-			col.label(text="Restart blender", icon="ERROR")
+			col.label(text="Restart SNaP", icon="ERROR")
 			col.label(text="to complete update")
 			return
 
@@ -899,7 +899,7 @@ def update_settings_ui(self, context, element=None):
 	if updater.auto_reload_post_update == False:
 		saved_state = updater.json
 		if "just_updated" in saved_state and saved_state["just_updated"] == True:
-			row.label(text="Restart blender to complete update", icon="ERROR")
+			row.label(text="Restart SNaP to complete update", icon="ERROR")
 			return
 
 	split = layout_split(row, factor=0.3)
@@ -996,7 +996,7 @@ def update_settings_ui(self, context, element=None):
 		split.enabled = False
 		split.scale_y = 2
 		split.operator(addon_updater_check_now.bl_idname,
-						text="Addon is up to date")
+						text="SNaP is up to date")
 		split = subcol.split(align=True)
 		split.scale_y = 2
 		split.operator(addon_updater_check_now.bl_idname,
@@ -1059,7 +1059,7 @@ def update_settings_ui_condensed(self, context, element=None):
 	if updater.auto_reload_post_update == False:
 		saved_state = updater.json
 		if "just_updated" in saved_state and saved_state["just_updated"] == True:
-			row.label(text="Restart blender to complete update", icon="ERROR")
+			row.label(text="Restart SNaP to complete update", icon="ERROR")
 			return
 
 	col = row.column()
@@ -1135,7 +1135,7 @@ def update_settings_ui_condensed(self, context, element=None):
 		split.enabled = False
 		split.scale_y = 2
 		split.operator(addon_updater_check_now.bl_idname,
-						text="Addon is up to date")
+						text="SNaP is up to date")
 		split = subcol.split(align=True)
 		split.scale_y = 2
 		split.operator(addon_updater_check_now.bl_idname,

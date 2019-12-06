@@ -2,7 +2,7 @@
 bl_info = {
     "name": "SNaP",
     "author": "Ryan Montes",
-    "version": (0, 0, 2),
+    "version": (1, 0, 0),
     "blender": (2, 7, 8),
     "location": "Tools Shelf",
     "description": "SNaP",
@@ -97,7 +97,7 @@ class PREFS_Snap(bpy.types.AddonPreferences):
     updater_intrval_days = bpy.props.IntProperty(
         name='Days',
         description="Number of days between checking for updates",
-        default=7,
+        default=0,
         min=0,
         max=31
     )

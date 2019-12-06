@@ -1,2 +1,0 @@
-# Snap-Updates
-Snap-Updates
