@@ -245,10 +245,10 @@ class Drawer_Stack(fd_types.Assembly):
         
         top_shelf = common_parts.add_shelf(self)
         top_shelf.x_loc(value = 0)
-        top_shelf.y_loc(value = 0)
-        top_shelf.z_loc('Drawer_Stack_Height+Shelf_Thickness-Top_Overlay+IF(Lift_Drawers_From_Bottom,Bottom_Drawer_Space,0)',
-                        [Drawer_Stack_Height,Shelf_Thickness,Top_Overlay,Lift_Drawers_From_Bottom,Bottom_Drawer_Space])
-        top_shelf.x_rot(value = 0)
+        top_shelf.y_loc('dim_y', [dim_y])
+        top_shelf.z_loc('Drawer_Stack_Height-Top_Overlay+IF(Lift_Drawers_From_Bottom,Bottom_Drawer_Space,0)',
+                        [Drawer_Stack_Height,Top_Overlay,Lift_Drawers_From_Bottom,Bottom_Drawer_Space])
+        top_shelf.x_rot(value = 180)
         top_shelf.y_rot(value = 0)
         top_shelf.z_rot(value = 0)
         top_shelf.x_dim('dim_x',[dim_x])
@@ -275,10 +275,10 @@ class Drawer_Stack(fd_types.Assembly):
         
         bottom_shelf = common_parts.add_shelf(self)
         bottom_shelf.x_loc(value = 0)
-        bottom_shelf.y_loc(value = 0)
-        bottom_shelf.z_loc('IF(Lift_Drawers_From_Bottom,Bottom_Drawer_Space,0)',
+        bottom_shelf.y_loc('dim_y', [dim_y])
+        bottom_shelf.z_loc('IF(Lift_Drawers_From_Bottom,Bottom_Drawer_Space,0)-Shelf_Thickness',
                         [Drawer_Stack_Height,Shelf_Thickness,Top_Overlay,Lift_Drawers_From_Bottom,Bottom_Drawer_Space])
-        bottom_shelf.x_rot(value = 0)
+        bottom_shelf.x_rot(value = 180)
         bottom_shelf.y_rot(value = 0)
         bottom_shelf.z_rot(value = 0)
         bottom_shelf.x_dim('dim_x',[dim_x])
