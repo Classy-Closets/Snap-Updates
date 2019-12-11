@@ -5,7 +5,7 @@ from . import data_pull_hardware
 from . import data_drawer_wood
 from mv import unit
 
-LIBRARY_DATA_DIR = path.join(path.dirname(bpy.app.binary_path),"data","libraries")
+LIBRARY_DATA_DIR = path.join(path.dirname(bpy.app.binary_path),"data","libraries","Library-Classy_Closets")
 ASSEMBLY_DIR = path.join(LIBRARY_DATA_DIR,"Closet Assemblies")
 HANGING_RODS_DIR = path.join(ASSEMBLY_DIR,"Hanging Rods")
 

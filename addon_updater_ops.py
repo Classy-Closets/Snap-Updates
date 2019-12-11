@@ -249,8 +249,7 @@ class addon_updater_check_now(bpy.types.Operator):
 class addon_updater_update_now(bpy.types.Operator):
 	bl_label = "Update "+updater.addon+" addon now"
 	bl_idname = updater.addon+".updater_update_now"
-	bl_description = "Update to the latest version of the {x} addon".format(
-														x=updater.addon)
+	bl_description = "Update to the latest version"
 	bl_options = {'REGISTER', 'INTERNAL'}
 
 	# if true, run clean install - ie remove all files before adding new
@@ -490,13 +489,13 @@ class addon_updater_updated_successful(bpy.types.Operator):
 				col = layout.column()
 				col.scale_y = 0.7
 				col.label(text="SNaP restored", icon="RECOVER_LAST")
-				col.label(text="Restart SNaP to complete update.",icon="BLANK1")
+				col.label(text="Restart to complete update.",icon="BLANK1")
 				updater.json_reset_restore()
 			else:
 				col = layout.column()
 				col.scale_y = 0.7
 				col.label(text="SNaP successfully installed", icon="FILE_TICK")
-				col.label(text="Restart SNaP to complete update.", icon="BLANK1")
+				col.label(text="Restart to complete update.", icon="BLANK1")
 
 		else:
 			# reload addon, but still recommend they restart blender
@@ -504,14 +503,14 @@ class addon_updater_updated_successful(bpy.types.Operator):
 				col = layout.column()
 				col.scale_y = 0.7
 				col.label(text="SNaP restored", icon="RECOVER_LAST")
-				col.label(text="Restart SNaP to complete update.",
+				col.label(text="Restart to complete update.",
 					icon="BLANK1")
 				updater.json_reset_restore()
 			else:
 				col = layout.column()
 				col.scale_y = 0.7
 				col.label(text="SNaP successfully installed", icon="FILE_TICK")
-				col.label(text="Restart SNaP to complete update.",
+				col.label(text="Restart to complete update.",
 					icon="BLANK1")
 
 	def execute(self, context):
@@ -834,35 +833,38 @@ def update_notice_box_ui(self, context):
 			box = layout.box()
 			col = box.column()
 			col.scale_y = 0.7
-			col.label(text="Restart SNaP", icon="ERROR")
-			col.label(text="to complete update")
+			col.label(text=" SNaP sucessfully updated to version: " + str(updater.update_version), icon="FILE_TICK")
+			col.label(text="    Restart to complete update")
 			return
 
 	# if user pressed ignore, don't draw the box
-	if "ignore" in updater.json and updater.json["ignore"] == True:
-		return
+	# if "ignore" in updater.json and updater.json["ignore"] == True:
+	# 	return
 	if updater.update_ready != True:
 		return
 
 	layout = self.layout
 	box = layout.box()
 	col = box.column(align=True)
-	col.label(text="Update ready!",icon="ERROR")
+	col.label(text="An Update is Available!",icon="INFO")
 	col.separator()
-	row = col.row(align=True)
-	split = row.split(align=True)
-	colL = split.column(align=True)
-	colL.scale_y = 1.5
-	colL.operator(addon_updater_ignore.bl_idname,icon="X",text="Ignore")
-	colR = split.column(align=True)
-	colR.scale_y = 1.5
+	# row = col.row(align=True)
+	# split = row.split(align=True)
+	# colL = split.column(align=True)
+	# colL.scale_y = 1.5
+	# colL.operator(addon_updater_ignore.bl_idname,icon="X",text="Ignore")
+	# colR = split.column(align=True)
+	# colR.scale_y = 1.5
+
 	if updater.manual_only==False:
-		colR.operator(addon_updater_update_now.bl_idname,
-						text="Update", icon="LOOP_FORWARDS")
-		col.operator("wm.url_open", text="Open website").url = updater.website
-		#col.operator("wm.url_open",text="Direct download").url=updater.update_link
-		col.operator(addon_updater_install_manually.bl_idname,
-			text="Install manually")
+		col.operator(addon_updater_update_now.bl_idname,
+						text="Update now to version: " + str(updater.update_version), icon="LOOP_FORWARDS")
+
+		# col.operator("wm.url_open", text="Open website").url = updater.website
+		# #col.operator("wm.url_open",text="Direct download").url=updater.update_link
+
+		# col.operator(addon_updater_install_manually.bl_idname,
+		# 	text="Install manually")
 	else:
 		#col.operator("wm.url_open",text="Direct download").url=updater.update_link
 		col.operator("wm.url_open", text="Get it now").url = updater.website
@@ -899,7 +901,7 @@ def update_settings_ui(self, context, element=None):
 	if updater.auto_reload_post_update == False:
 		saved_state = updater.json
 		if "just_updated" in saved_state and saved_state["just_updated"] == True:
-			row.label(text="Restart SNaP to complete update", icon="ERROR")
+			row.label(text="Restart to complete update", icon="ERROR")
 			return
 
 	split = layout_split(row, factor=0.3)
@@ -1059,7 +1061,7 @@ def update_settings_ui_condensed(self, context, element=None):
 	if updater.auto_reload_post_update == False:
 		saved_state = updater.json
 		if "just_updated" in saved_state and saved_state["just_updated"] == True:
-			row.label(text="Restart SNaP to complete update", icon="ERROR")
+			row.label(text="Restart to complete update", icon="ERROR")
 			return
 
 	col = row.column()
@@ -1282,7 +1284,7 @@ def register(bl_info):
 
 	# Optional, consider turning off for production or allow as an option
 	# This will print out additional debugging info to the console
-	updater.verbose = True # make False for production default
+	updater.verbose = False # make False for production default
 
 	# Optional, customize where the addon updater processing subfolder is,
 	# essentially a staging folder used by the updater on its own
@@ -1295,7 +1297,7 @@ def register(bl_info):
 	updater.backup_current = True # True by default
 
 	# Sample ignore patterns for when creating backup of current during update
-	updater.backup_ignore_patterns = ["__pycache__"]
+	updater.backup_ignore_patterns = ["__pycache__", "*.png"]
 	# Alternate example patterns
 	# updater.backup_ignore_patterns = [".git", "__pycache__", "*.bat", ".gitignore", "*.exe"]
 
@@ -1309,7 +1311,7 @@ def register(bl_info):
 	# as a part of the pattern list below so they will always be overwritten by an
 	# update. If a pattern file is not found in new update, no action is taken
 	# This does NOT detele anything, only defines what is allowed to be overwritten
-	updater.overwrite_patterns = ["*.png","*.jpg","README.md","LICENSE.txt"]
+	updater.overwrite_patterns = ["README.md","LICENSE.txt"]
 	# updater.overwrite_patterns = []
 	# other examples:
 	# ["*"] means ALL files/folders will be overwritten by update, was the behavior pre updater v1.0.4
@@ -1347,7 +1349,7 @@ def register(bl_info):
 	# which enables pulling down release logs/notes, as well as specify installs from
 	# release-attached zips (instead of just the auto-packaged code generated with
 	# a release/tag). Setting has no impact on BitBucket or GitLab repos
-	updater.use_releases = False
+	updater.use_releases = True
 	# note: Releases always have a tag, but a tag may not always be a release
 	# Therefore, setting True above will filter out any non-annoted tags
 	# note 2: Using this option will also display the release name instead of

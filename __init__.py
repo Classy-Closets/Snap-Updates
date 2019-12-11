@@ -78,6 +78,34 @@ def query_db(SQL):
     return rows
 
 
+class OBJECT_PT_UpdaterPanel(bpy.types.Panel):
+    """Panel to demo popup notice and ignoring functionality"""
+    bl_label = "SNaP Updater"
+    bl_idname = "OBJECT_PT_hello"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'TOOLS' if bpy.app.version < (2, 80) else 'UI'
+    bl_context = "objectmode"
+    bl_category = "SNaP"
+
+    def draw_header(self, context):
+        layout = self.layout
+        layout.label('',icon='LOAD_FACTORY')        
+
+    def draw(self, context):
+        layout = self.layout
+
+        # Call to check for update in background
+        # note: built-in checks ensure it runs at most once
+        # and will run in the background thread, not blocking
+        # or hanging blender
+        # Internally also checks to see if auto-check enabled
+        # and if the time interval has passed
+        # addon_updater_ops.check_for_update_background()
+        box = layout.box()
+        box.label("SNaP Version: " + str(bl_info['version']))
+        addon_updater_ops.update_notice_box_ui(self, context)
+
+
 class PREFS_Snap(bpy.types.AddonPreferences):
     bl_idname = __name__
 
@@ -155,27 +183,45 @@ def assign_material_pointers(scene=None):
     if "snap_db" in bpy.context.user_preferences.addons.keys():
         bpy.ops.db_materials.assign_materials(only_update_pointers=True)   
  
-bpy.app.handlers.load_post.append(assign_material_pointers)    
+bpy.app.handlers.load_post.append(assign_material_pointers)
+
+@bpy.app.handlers.persistent
+def check_for_update(scene=None):
+    if "snap_db" in bpy.context.user_preferences.addons.keys():
+        addon_updater_ops.check_for_update_background()   
+ 
+bpy.app.handlers.load_post.append(check_for_update)
+
+
+classes = (
+	PREFS_Snap,
+	OBJECT_PT_UpdaterPanel
+)
 
 
 def register():
     addon_updater_ops.register(bl_info)
-    bpy.utils.register_class(PREFS_Snap)
     snap_import.register()
     snap_export.register()
     closet_materials.register()
     closet_materials_ui.register()
     closet_materials_ops.register()
 
+    for cls in classes:
+        addon_updater_ops.make_annotations(cls) # to avoid blender 2.8 warnings
+        bpy.utils.register_class(cls)    
+
 
 def unregister():
     addon_updater_ops.unregister()
-    bpy.utils.unregister_class(PREFS_Snap)
     snap_import.unregister()
     snap_export.unregister()
     closet_materials.unregister()
     closet_materials_ui.unregister()
     closet_materials_ops.unregister()
+
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)    
 
 if __name__ == "__main__":
     register()
