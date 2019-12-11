@@ -744,7 +744,7 @@ class Closet_Carcass(fd_types.Assembly):
         Depth = self.get_var('Opening ' + str(i) + ' Depth','Depth')
         Floor = self.get_var('Opening ' + str(i) + ' Floor Mounted','Floor')
         Add_Backing = self.get_var('Opening ' + str(i) + ' Add Backing', 'Add_Backing')
-        Back_Thickness = self.get_var('Back Thickness')
+        Back_Thickness = self.get_var("Opening " + str(i) + " Backing Thickness", 'Back_Thickness')
         Toe_Kick_Height = self.get_var('Toe Kick Height')
         Shelf_Thickness = self.get_var('Shelf Thickness')
         
@@ -757,14 +757,15 @@ class Closet_Carcass(fd_types.Assembly):
             Left_Side_Wall_Filler = self.get_var('Left Side Wall Filler')
             X_Loc = self.get_var('Left Side Thickness','X_Loc')
             opening.x_loc('Left_Side_Wall_Filler+X_Loc',[Left_Side_Wall_Filler,X_Loc])
-        opening.y_loc('-Depth-IF(Add_Backing,Back_Thickness,0)',[Depth,Add_Backing,Back_Thickness])
+        opening.y_loc('-Depth',[Depth])
         opening.z_loc('IF(Floor,Toe_Kick_Height+Shelf_Thickness,Product_Height-Height+Shelf_Thickness)',
                       [Floor,Toe_Kick_Height,Shelf_Thickness,Product_Height,Height])
         opening.x_rot(value = 0)
         opening.y_rot(value = 0)
         opening.z_rot(value = 0)
         opening.x_dim('Width',[Width])
-        opening.y_dim("fabs(Depth)",[Depth])
+        opening.y_dim("fabs(Depth)-IF(AND(Add_Backing,Back_Thickness==1),INCH(0.75),0)",[Depth, Back_Thickness, Add_Backing])
+
         if props.use_plant_on_top:
             opening.z_dim('Height-Shelf_Thickness',[Height,Shelf_Thickness,Floor,Toe_Kick_Height,Product_Height])
         else:

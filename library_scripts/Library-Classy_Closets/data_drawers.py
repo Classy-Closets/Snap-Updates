@@ -184,8 +184,8 @@ class Drawer_Stack(fd_types.Assembly):
         self.add_prompt(name="Open",prompt_type='PERCENTAGE',value=0,tab_index=0)
         self.add_prompt(name="Lift Drawers From Bottom",prompt_type='CHECKBOX',value=False,tab_index=0)
         self.add_prompt(name="Bottom Drawer Space",prompt_type='DISTANCE',value=0,tab_index=0)     
-        self.add_prompt(name="Remove Bottom Shelf",prompt_type='CHECKBOX',value=True,tab_index=0)
-        self.add_prompt(name="Remove Top Shelf",prompt_type='CHECKBOX',value=False,tab_index=0)
+        self.add_prompt(name="Remove Bottom Shelf",prompt_type='CHECKBOX',value=False,tab_index=0)
+        self.add_prompt(name="Remove Top Shelf",prompt_type='CHECKBOX',value=True,tab_index=0)
         self.add_prompt(name="Shelf Thickness",prompt_type='DISTANCE',value=unit.inch(0.75),tab_index=1)
         self.add_prompt(name="Drawer Quantity",prompt_type='QUANTITY',value=3,tab_index=0)
         self.add_prompt(name="Drawer Stack Height",prompt_type='DISTANCE',value=0,tab_index=0)
@@ -254,7 +254,7 @@ class Drawer_Stack(fd_types.Assembly):
         top_shelf.x_dim('dim_x',[dim_x])
         top_shelf.y_dim('dim_y',[dim_y])
         top_shelf.z_dim('-Shelf_Thickness',[Shelf_Thickness])
-        top_shelf.prompt('Hide','IF(Remove_Top_Shelf,True,False)',[Remove_Top_Shelf])
+        top_shelf.prompt('Hide','IF(Remove_Top_Shelf,False,True)',[Remove_Top_Shelf])
         top_shelf.prompt('Is Locked Shelf',value=True)
         
         second_shelf = common_parts.add_shelf(self)
@@ -284,7 +284,7 @@ class Drawer_Stack(fd_types.Assembly):
         bottom_shelf.x_dim('dim_x',[dim_x])
         bottom_shelf.y_dim('dim_y',[dim_y])
         bottom_shelf.z_dim('-Shelf_Thickness',[Shelf_Thickness])
-        bottom_shelf.prompt('Hide','IF(Remove_Bottom_Shelf,True,False)',[Remove_Bottom_Shelf])
+        bottom_shelf.prompt('Hide','IF(Remove_Bottom_Shelf,False,True)',[Remove_Bottom_Shelf])
         bottom_shelf.prompt('Is Locked Shelf',value=True)
         
         opening = common_parts.add_opening(self)
@@ -563,9 +563,9 @@ class PROMPTS_Drawer_Prompts(bpy.types.Operator):
                     
                     row = propbox.row()
                     if remove_top_shelf:
-                        remove_top_shelf.draw_prompt(row,split_text=False)                        
+                        row.prop(remove_top_shelf,"CheckBoxValue",text="Top KD")
                     if remove_bottom_shelf:
-                        remove_bottom_shelf.draw_prompt(row,split_text=False)                    
+                        row.prop(remove_bottom_shelf,"CheckBoxValue",text="Bottom KD")
                     
                     row = propbox.row()
                     if inset_front:
