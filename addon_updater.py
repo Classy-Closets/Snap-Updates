@@ -733,10 +733,10 @@ class Singleton_updater(object):
 			if self._engine.token != None:
 				if self._engine.name == "gitlab":
 					request.add_header('PRIVATE-TOKEN',self._engine.token)
-			if self._engine.name == "github":
-				request.add_header('Authorization','token %s' % self._engine.token)					
-			else:
-				if self._verbose: print("Tokens not setup for selected engine yet")
+				if self._engine.name == "github":
+					request.add_header('Authorization','token %s' % self._engine.token)					
+				else:
+					if self._verbose: print("Tokens not setup for selected engine yet")
 			self.urlretrieve(urllib.request.urlopen(request,context=context), self._source_zip)
 			# add additional checks on file size being non-zero
 			if self._verbose: print("Successfully downloaded update zip")
