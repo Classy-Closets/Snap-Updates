@@ -3,16 +3,50 @@ import snap_db
 import operator
 import csv
 from . import property_groups
+from mv import utils, unit
+import math
 
 
 enum_items_kd_fitting = []
-
+enum_items_location_code = []
 
 def update_render_materials(self, context):
     try:
         bpy.ops.db_materials.poll_assign_materials()
     except:
         pass
+
+
+def enum_location_code(self,context):
+    if context is None:
+        return []
+
+    if len(enum_items_location_code) > 0:
+        return enum_items_location_code
+    
+    else:
+        conn = snap_db.connect_db()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "SELECT DISTINCT\
+                LocationCode\
+            FROM\
+                CCItems\
+            ORDER BY\
+                LocationCode ASC\
+            ;"
+        )
+
+        rows = cursor.fetchall()
+
+        for row in rows:
+            str_code = str(row[0])
+            enum_items_location_code.append((str_code, str_code, str_code))
+        
+        conn.close()
+
+        return enum_items_location_code
 
 
 def enum_kd_fitting(self,context):
@@ -82,6 +116,14 @@ class PROPERTIES_Closet_Materials(bpy.types.PropertyGroup):
     mat_type_index = bpy.props.IntProperty(name="Material Type Index", default=0)
     mat_color_index = bpy.props.IntProperty(name="Material Color Index", default=0, update=update_render_materials)
 
+    door_drawer_edges = bpy.props.PointerProperty(type=property_groups.DoorDrawerEdges)
+    door_drawer_edge_type_index = bpy.props.IntProperty(name="Door/Drawer Edge Type Index", default=0)
+    door_drawer_edge_color_index = bpy.props.IntProperty(name="Door/Drawer Edge Color Index", default=0, update=update_render_materials)
+
+    door_drawer_materials = bpy.props.PointerProperty(type=property_groups.DoorDrawerMaterials)
+    door_drawer_mat_type_index = bpy.props.IntProperty(name="Door/Drawer Material Type Index", default=0)
+    door_drawer_mat_color_index = bpy.props.IntProperty(name="Door/Drawer Material Color Index", default=0, update=update_render_materials)
+
     countertops = bpy.props.PointerProperty(type=property_groups.Countertops)
     ct_type_index = bpy.props.IntProperty(name="Countertop Type Index", default=0)
     ct_mfg_index = bpy.props.IntProperty(name="Countertop Manufactuer Index", default=0)
@@ -100,6 +142,8 @@ class PROPERTIES_Closet_Materials(bpy.types.PropertyGroup):
 
     glass_colors = bpy.props.CollectionProperty(type=property_groups.GlassColor)
     glass_color_index = bpy.props.IntProperty(name="Glass Color List Index", default=0, update=update_render_materials) 
+
+    backing_veneer_color = bpy.props.CollectionProperty(type=property_groups.BackingVeneerColor)
 
     wire_basket_colors = bpy.props.EnumProperty(
         name="Wire Basket Color",
@@ -158,6 +202,17 @@ class PROPERTIES_Closet_Materials(bpy.types.PropertyGroup):
     def get_edge_sku(self, obj=None, assembly=None, part_name=None):
         type_code = self.edges.get_edge_type().type_code
         color_code = self.edges.get_edge_color().color_code
+        obj_props = assembly.obj_bp.lm_closets
+
+        door_drawer_parts = [
+            obj_props.is_door_bp,
+            obj_props.is_drawer_front_bp,
+            obj_props.is_hamper_front_bp
+        ]
+
+        if any(door_drawer_parts):
+            type_code = self.door_drawer_edges.get_edge_type().type_code
+            color_code = self.door_drawer_edges.get_edge_color().color_code                
 
         sku = snap_db.query_db(
             "SELECT\
@@ -188,35 +243,146 @@ class PROPERTIES_Closet_Materials(bpy.types.PropertyGroup):
 
         return name
 
-    def get_mat_sku(self, obj=None, assembly=None, part_name=None, mat_name=""):
+    def get_mat_sku(self, obj=None, assembly=None, part_name=None):
         mat_type = self.materials.get_mat_type()
         type_code = mat_type.type_code
+        color_code = self.materials.get_mat_color().color_code
+        color_name = self.materials.get_mat_color().name
+        part_thickness = 0
 
-        if mat_name:
-            for mat_color in mat_type.colors:
-                if mat_color.name == mat_name:
-                    color_code = mat_color.color_code
-        else:            
-            color_code = self.materials.get_mat_color().color_code
-        
-        sku = snap_db.query_db(
-            "SELECT\
-                SKU\
-            FROM\
-                CCItems\
-            WHERE ProductType in ('PM', 'WD') AND ItemTypeCode = '{type_code}' AND ItemColorCode = '{color_code}';\
-            ".format(type_code=type_code, color_code=color_code)
-        )
+        if assembly:
+            #print("Getting mat sku for:",assembly.obj_bp.mv.name_object)
+            obj_props = assembly.obj_bp.lm_closets
 
-        if len(sku) == 0:
-            print("No SKU found for - Material Type Code: {} Color Code: {}".format(type_code, color_code))
-            return "Unknown"
-        elif len(sku) == 1:
-            return sku[0][0]
-        else:
-            print("Multiple SKUs found for - Material Type Code: {} Color Code: {}".format(type_code, color_code))
-            print(sku)
-            return "Unknown"           
+            drawer_box_parts = [
+                obj_props.is_drawer_back_bp,
+                obj_props.is_drawer_side_bp,
+                obj_props.is_drawer_bottom_bp,
+                obj_props.is_drawer_sub_front_bp
+            ]
+
+            backing_parts = [
+                obj_props.is_back_bp,
+                obj_props.is_top_back_bp,
+                obj_props.is_bottom_back_bp
+            ]            
+
+            if any(backing_parts):
+                if obj_props.use_unique_material:
+                    if obj_props.unique_mat_types == 'MELAMINE':
+                        mat_type = self.materials.mat_types['Melamine']
+                        mat_name = obj_props.unique_mat_mel
+                    
+                    if obj_props.unique_mat_types == 'TEXTURED_MELAMINE':
+                        mat_type = self.materials.mat_types['Textured Melamine']
+                        mat_name = obj_props.unique_mat_tex_mel
+
+                    if obj_props.unique_mat_types == 'VENEER':
+                        mat_type = self.materials.mat_types['Veneer']
+                        mat_name = obj_props.unique_mat_veneer
+
+                    color_code = mat_type.colors[mat_name].color_code
+
+            if any(drawer_box_parts):
+                if obj_props.is_drawer_bottom_bp:
+                    sku = 'PM-0000002' #WHITE PAPER 3/8 G1
+                else:
+                    sku = 'PM-0000004' #WHITE  PAPER 1/2 G2
+                return sku
+
+        if obj:
+            '''Backing should no longer be attached to a static spec group thickness
+            however, material pointers are still needed so keeping cutpart 'Back' for now
+            
+            TODO: Allow for cutpart pointer thickness to be optional, in this case get_part_thickness
+            will return actual part thickness
+            '''
+            if obj_props.is_back_bp:
+                for child in assembly.obj_bp.children:
+                    if child.mv.type == 'VPDIMZ':
+                        part_thickness = math.fabs(child.location.z)
+            else:
+                part_thickness = unit.meter_to_inch(utils.get_part_thickness(obj))
+
+        if part_thickness == 0.25:
+            if any(backing_parts):
+                shared_sku_colors = [
+                    'Oxford White',
+                    'Cabinet Almond',
+                    'Duraply White',
+                    'Duraply Almond'
+                ]
+
+                if color_name in shared_sku_colors:
+                    sku = 'PM-0000041'
+                    return sku
+
+            sku = snap_db.query_db(
+                "SELECT\
+                    SKU\
+                FROM\
+                    CCItems\
+                WHERE\
+                    ProductType IN ('PM', 'WD') AND\
+                    Thickness == '{thickness}' AND\
+                    ItemColorCode == '{color_code}'\
+                ;\
+                ".format(thickness=str(part_thickness), color_code=color_code)
+            )
+
+            if len(sku) == 0:
+                print("No SKU found for - Material Thickness: {} Color Code: {}".format(part_thickness, color_code))
+                return "Unknown"
+            elif len(sku) == 1:
+                return sku[0][0]
+            else:
+                print("Multiple SKUs found for - Material Thickness: {} Color Code: {}".format(part_thickness, color_code))
+                print(sku)
+                return "Unknown"
+
+        if part_thickness == 0.375:
+            sku = snap_db.query_db(
+                "SELECT\
+                    SKU\
+                FROM\
+                    CCItems\
+                WHERE\
+                    ProductType IN ('PM', 'WD') AND\
+                    Thickness == '{thickness}' AND\
+                    ItemColorCode == '{color_code}'\
+                ;\
+                ".format(thickness=str(part_thickness), color_code=color_code)
+            )
+
+            if len(sku) == 0:
+                #Use 0.75 material if 0.375 sku not found
+                part_thickness = 0.75
+            elif len(sku) == 1:
+                return sku[0][0]
+            else:
+                print("Multiple SKUs found for - Material Thickness: {} Color Code: {}".format(part_thickness, color_code))
+                print(sku)
+                return "Unknown"
+
+        if part_thickness == 0.75 or part_thickness == 0:
+            sku = snap_db.query_db(
+                "SELECT\
+                    SKU\
+                FROM\
+                    CCItems\
+                WHERE ProductType in ('PM', 'WD') AND ItemTypeCode = '{type_code}' AND ItemColorCode = '{color_code}';\
+                ".format(type_code=type_code, color_code=color_code)
+            )
+
+            if len(sku) == 0:
+                print("No SKU found for - Material Type Code: {} Color Code: {}".format(type_code, color_code))
+                return "Unknown"
+            elif len(sku) == 1:
+                return sku[0][0]
+            else:
+                print("Multiple SKUs found for - Material Type Code: {} Color Code: {}".format(type_code, color_code))
+                print(sku)
+                return "Unknown"                
 
     def get_mat_inventory_name(self, sku=""):
         if sku:
@@ -262,6 +428,12 @@ class PROPERTIES_Closet_Materials(bpy.types.PropertyGroup):
         self.edges.draw(c_box)
         self.secondary_edges.draw(c_box)
         self.materials.draw(c_box)
+
+        box = c_box.box()
+        box.label("Doors/Drawer Faces:")
+        self.door_drawer_edges.draw(box)
+        self.door_drawer_materials.draw(box)
+
         self.countertops.draw(c_box)
 
         #Stain     

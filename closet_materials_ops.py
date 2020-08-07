@@ -1,5 +1,9 @@
 import bpy
-from mv import fd_types, unit
+from mv import fd_types, unit, utils
+from . import utils as snap_utils
+import os
+import subprocess
+import pathlib
 
 
 class OPERATOR_Poll_Assign_Materials(bpy.types.Operator):
@@ -47,6 +51,7 @@ class OPERATOR_Assign_Materials(bpy.types.Operator):
         props = bpy.context.scene.db_materials
         mat_type = props.materials.get_mat_type()
         edge_type = props.edges.get_edge_type()
+        door_drawer_edge_type = props.door_drawer_edges.get_edge_type()
         edge2_type = props.secondary_edges.get_edge_type()
         
         obj.mv.cutpart_material_name = mat_type.get_inventory_material_name()
@@ -54,24 +59,29 @@ class OPERATOR_Assign_Materials(bpy.types.Operator):
         if obj.mv.edge_w1 != "":
             if obj.mv.edge_w1 == 'Edge':
                 obj.mv.edgeband_material_name_w1 = edge_type.get_inventory_edge_name()
+            elif obj.mv.edge_w1 == 'Door_Edges':
+                obj.mv.edgeband_material_name_w1 = door_drawer_edge_type.get_inventory_edge_name()
             else:
                 obj.mv.edgeband_material_name_w1 = edge2_type.get_inventory_edge_name()
-        
         if obj.mv.edge_w2 != "":
             if obj.mv.edge_w2 == 'Edge':
                 obj.mv.edgeband_material_name_w2 = edge_type.get_inventory_edge_name()
+            elif obj.mv.edge_w2 == 'Door_Edges':
+                obj.mv.edgeband_material_name_w2 = door_drawer_edge_type.get_inventory_edge_name()
             else:
                 obj.mv.edgeband_material_name_w2 = edge2_type.get_inventory_edge_name()
-
         if obj.mv.edge_l1 != "":
             if obj.mv.edge_l1 == 'Edge':
                 obj.mv.edgeband_material_name_l1 = edge_type.get_inventory_edge_name()
+            elif obj.mv.edge_l1 == 'Door_Edges':
+                obj.mv.edgeband_material_name_l1 = door_drawer_edge_type.get_inventory_edge_name()
             else:
                 obj.mv.edgeband_material_name_l1 = edge2_type.get_inventory_edge_name()
-
         if obj.mv.edge_l2 != "":
             if obj.mv.edge_l2 == 'Edge':
                 obj.mv.edgeband_material_name_l2 = edge_type.get_inventory_edge_name()
+            elif obj.mv.edge_l2 == 'Door_Edges':
+                obj.mv.edgeband_material_name_l2 = door_drawer_edge_type.get_inventory_edge_name()
             else:
                 obj.mv.edgeband_material_name_l2 = edge2_type.get_inventory_edge_name()           
 
@@ -83,15 +93,15 @@ class OPERATOR_Assign_Materials(bpy.types.Operator):
     def set_door_material(self,part):
         for obj in part.obj_bp.children:
             if obj.cabinetlib.type_mesh == 'CUTPART':
-                props = self.props_closet_materials
-                mat_type = props.materials.get_mat_type()
-                edge_type = props.edges.get_edge_type()
+                cab_mat_props = self.props_closet_materials
+                mat_type = cab_mat_props.door_drawer_materials.get_mat_type()
+                edge_type = cab_mat_props.door_drawer_edges.get_edge_type()
 
                 obj.mv.cutpart_material_name = mat_type.get_inventory_material_name()
                 obj.mv.edgeband_material_name_w1 = edge_type.get_inventory_edge_name()
                 obj.mv.edgeband_material_name_w2 = edge_type.get_inventory_edge_name()
                 obj.mv.edgeband_material_name_l1 = edge_type.get_inventory_edge_name()
-                obj.mv.edgeband_material_name_l2 = edge_type.get_inventory_edge_name()                  
+                obj.mv.edgeband_material_name_l2 = edge_type.get_inventory_edge_name()                                     
                                       
     def set_drawer_bottom_material(self,part):
         for obj in part.obj_bp.children:
@@ -179,11 +189,11 @@ class OPERATOR_Assign_Materials(bpy.types.Operator):
             
             door_pointer.library_name = "Cabinet Materials"
             door_pointer.category_name = "Classy Closets"
-            door_pointer.item_name = mat_props.materials.get_mat_color().name  
+            door_pointer.item_name = mat_props.door_drawer_materials.get_mat_color().name  
             
             door_edge_pointer.library_name = "Cabinet Materials"
             door_edge_pointer.category_name = "Classy Closets"
-            door_edge_pointer.item_name = mat_props.edges.get_edge_color().name  
+            door_edge_pointer.item_name = mat_props.door_drawer_edges.get_edge_color().name
             
             wood_door_pointer.library_name = "Cabinet Materials"
             wood_door_pointer.category_name = "Classy Closets"
@@ -259,7 +269,7 @@ class OPERATOR_Assign_Materials(bpy.types.Operator):
                 if props.is_countertop_bp:
                     self.set_countertop_material(assembly)                      
 
-#Topshelf                
+                # Topshelf                
                 if props.is_plant_on_top_bp:
                     exposed_left = assembly.get_prompt("Exposed Left")
                     exposed_right = assembly.get_prompt("Exposed Right")
@@ -313,7 +323,7 @@ class OPERATOR_Assign_Materials(bpy.types.Operator):
                                             mat_slot.pointer_name = "Core"
                                             
 
-#Crown                
+                # Crown                
                 if props.is_crown_molding:
                     exposed_left = assembly.get_prompt("Exposed Left")
                     exposed_right = assembly.get_prompt("Exposed Right")
@@ -383,17 +393,134 @@ class OPERATOR_Assign_Materials(bpy.types.Operator):
 
             self.update_material_pointers(context) 
             
-            bpy.ops.cabinetlib.update_scene_from_pointers()                           
+            bpy.ops.snap_db.update_scene_from_pointers()                           
                 
+        return {'FINISHED'}
+
+
+class OPERATOR_update_scene_from_pointers(bpy.types.Operator):
+    bl_idname = "snap_db.update_scene_from_pointers"
+    bl_label = "Update Scene From Pointers"
+    bl_description = "This will update the scene with the updated pointer information."
+
+    def execute(self, context):
+        for obj in context.visible_objects:
+            obj.location = obj.location
+
+        for obj in bpy.data.objects:
+            if obj.type in {'MESH','CURVE'}:
+                snap_utils.assign_materials_from_pointers(obj)
+
+        return {'FINISHED'}
+
+
+class OPERATOR_Unpack_Material_Images(bpy.types.Operator):
+    bl_idname = "db_materials.unpack_material_images"
+    bl_label = "Unpack Closet Material Images"
+    bl_description = ""
+    bl_options = {'UNDO'}
+
+    def execute(self, context):
+        materials_dir = utils.get_library_dir("materials")
+        search_directory = os.path.join(materials_dir, "Cabinet Materials", "Classy Closets")
+
+        for f in os.listdir(search_directory):
+            if ".blend" in  f:            
+                mat_file_path = os.path.abspath(os.path.join(search_directory, f))
+
+                script = os.path.join(bpy.app.tempdir,'unpack_material_images.py')
+                script_file = open(script,'w')
+                script_file.write("import bpy\n")
+                script_file.write("bpy.ops.file.unpack_all(method='WRITE_LOCAL')\n")
+                script_file.close()
+                print(bpy.app.binary_path)
+                print(mat_file_path)
+                print(bpy.app.binary_path + ' "' + mat_file_path + '"' + ' -b --python ' + '"' + script + '"')
+                subprocess.call(bpy.app.binary_path + ' "' + mat_file_path + '"' + ' -b --python ' + '"' + script + '"')                
+
+        return {'FINISHED'}
+
+
+class OPERATOR_check_mats(bpy.types.Operator):
+    bl_idname = "db_materials.check_mats"
+    bl_label = "check_mats"
+    bl_description = ""
+    bl_options = {'UNDO'}
+
+    def execute(self, context):
+        materials_dir = utils.get_library_dir("materials")
+        search_directory = os.path.join(materials_dir, "Cabinet Materials", "Classy Closets")
+        tex_directory = os.path.join(search_directory, "textures")
+
+        mat_file_list = []
+        tex_list = []
+
+        for f in os.listdir(search_directory):
+            if ".blend" in  f:            
+                mat_file_list.append(f.split(".")[0])
+
+        for f in os.listdir(tex_directory):
+            tex_list.append(f.split(".")[0])
+
+        for f in os.listdir(search_directory):
+            if f.split(".")[0] in tex_list:
+                pass
+            else:
+                print("Material file not in tex dir:", f)
+
+        for f in os.listdir(tex_directory):
+            if f.split(".")[0] in mat_file_list:
+                pass
+            else:
+                print("Texture not in material file dir:", f)         
+
+        return {'FINISHED'}
+
+
+class OPERATOR_Create_Material_Library(bpy.types.Operator):
+    bl_idname = "db_materials.create_material_library"
+    bl_label = "Create Closet Material Library"
+    bl_description = ""
+    bl_options = {'UNDO'}
+
+    def execute(self, context):
+        materials_dir = utils.get_library_dir("materials")
+        search_directory = os.path.join(materials_dir, "Cabinet Materials", "Classy Closets")
+        tex_directory = os.path.join(search_directory, "textures")
+        template_dir = os.path.join(materials_dir, "Cabinet Materials", "Classy Closets", "_template_material")
+        template_file = os.path.join(materials_dir, "Cabinet Materials", "Classy Closets", "_template_material", "_template_material.blend")
+        new_materials_dir = os.path.join(template_dir, "Materials")
+
+        for image_name in os.listdir(tex_directory):       
+            tex_file_path = os.path.abspath(os.path.join(tex_directory, image_name))
+
+            script = os.path.join(bpy.app.tempdir,'create_material_library.py')
+            script_file = open(script,'w')
+            script_file.write("import bpy\n")
+            script_file.write("bpy.ops.image.open(filepath=r'" + tex_file_path + "', files=[{'name':'" + image_name + "', 'name':'" + image_name + "'}], relative_path=False, show_multiview=False)\n")
+            script_file.write("bpy.data.materials['_template_material'].node_tree.nodes['Image Texture'].image = bpy.data.images['" + image_name + "']\n")
+            script_file.write("bpy.data.materials['_template_material'].name = '" + image_name.split(".")[0] + "'\n")
+            script_file.write("bpy.ops.wm.save_as_mainfile(filepath=r'" + os.path.normpath(os.path.join(new_materials_dir,image_name.split(".")[0]))  + ".blend')\n")
+            script_file.close()
+            subprocess.call(bpy.app.binary_path + ' "' + template_file + '"' + ' -b --python ' + '"' + script + '"')             
+
         return {'FINISHED'}
 
 
 def register():
     bpy.utils.register_class(OPERATOR_Poll_Assign_Materials)
     bpy.utils.register_class(OPERATOR_Assign_Materials)
+    bpy.utils.register_class(OPERATOR_update_scene_from_pointers)
+    bpy.utils.register_class(OPERATOR_Unpack_Material_Images)
+    bpy.utils.register_class(OPERATOR_check_mats)
+    bpy.utils.register_class(OPERATOR_Create_Material_Library)
 
 
 def unregister():
     bpy.utils.unregister_class(OPERATOR_Poll_Assign_Materials)
     bpy.utils.unregister_class(OPERATOR_Assign_Materials)
+    bpy.utils.unregister_class(OPERATOR_update_scene_from_pointers)
+    bpy.utils.unregister_class(OPERATOR_Unpack_Material_Images)
+    bpy.utils.unregister_class(OPERATOR_check_mats)
+    bpy.utils.unregister_class(OPERATOR_Create_Material_Library)
  

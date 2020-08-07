@@ -634,6 +634,8 @@ class Singleton_updater(object):
 		if self._engine.token != None:
 			if self._engine.name == "gitlab":
 				request.add_header('PRIVATE-TOKEN',self._engine.token)
+			if self._engine.name == "github":
+				request.add_header('Authorization','token %s' % self._engine.token)
 			else:
 				if self._verbose: print("Tokens not setup for engine yet")
 
@@ -731,8 +733,10 @@ class Singleton_updater(object):
 			if self._engine.token != None:
 				if self._engine.name == "gitlab":
 					request.add_header('PRIVATE-TOKEN',self._engine.token)
-				else:
-					if self._verbose: print("Tokens not setup for selected engine yet")
+			if self._engine.name == "github":
+				request.add_header('Authorization','token %s' % self._engine.token)					
+			else:
+				if self._verbose: print("Tokens not setup for selected engine yet")
 			self.urlretrieve(urllib.request.urlopen(request,context=context), self._source_zip)
 			# add additional checks on file size being non-zero
 			if self._verbose: print("Successfully downloaded update zip")
@@ -816,16 +820,16 @@ class Singleton_updater(object):
 		outdir = os.path.join(self._updater_path, "source")
 		try:
 			shutil.rmtree(outdir)
-			os.makedirs(outdir)
 			if self._verbose:
-				print("Source folder cleared and recreated")
+				print("Source folder cleared")
 		except:
 			pass
 
 		# Create parent directories if needed, would not be relevant unless
 		# installing addon into another location or via an addon manager
 		try:
-			os.mkdir(outdir)
+			if not os.path.exists(outdir):
+				os.mkdir(outdir)
 		except Exception as err:
 			print("Error occurred while making extract dir:")
 			print(str(err))

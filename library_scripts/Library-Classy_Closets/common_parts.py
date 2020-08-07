@@ -46,7 +46,8 @@ LINE_BORE = path.join(ASSEMBLY_DIR,"Line Bore Holes.blend")
 BUYOUT_DRAWER_BOX = path.join(ASSEMBLY_DIR,"Buyout Drawer Box.blend")
 
 STRAIGHT_CC_COUNTER_TOP = path.join(LIBRARY_DATA_DIR,"Closet Assemblies","CC Countertops","Straight Countertop.blend")  
-CORNER_CC_COUNTER_TOP = path.join(LIBRARY_DATA_DIR,"Closet Assemblies","CC Countertops","Corner Countertop.blend")  
+CORNER_CC_COUNTER_TOP = path.join(LIBRARY_DATA_DIR,"Closet Assemblies","CC Countertops","Corner Countertop.blend")
+BACKSPLASH_PART = path.join(LIBRARY_DATA_DIR,"Closet Assemblies","CC Countertops","Backsplash.blend")  
 
 OBJECT_DIR = path.join(LIBRARY_DATA_DIR,"Closet Objects")
 HANGING_ROD_CUPS_DIR = path.join(OBJECT_DIR,"Rod Cups")
@@ -70,9 +71,11 @@ def add_panel(assembly):
     panel = assembly.add_assembly(CLOSET_PANEL)
     props = props_closet.get_object_props(panel.obj_bp)
     props.is_panel_bp = True
-    panel.set_name("Panel")
+    panel.set_name("Partition")
     panel.add_prompt(name="Is Left End Panel",prompt_type='CHECKBOX',value=False,tab_index=0)
     panel.add_prompt(name="Is Right End Panel",prompt_type='CHECKBOX',value=False,tab_index=0)
+    panel.add_prompt(name="Is Left Blind Corner Panel",prompt_type='CHECKBOX',value=False,tab_index=0)
+    panel.add_prompt(name="Is Right Blind Corner Panel",prompt_type='CHECKBOX',value=False,tab_index=0)
     panel.add_prompt(name="Left Depth",prompt_type='DISTANCE',value=0,tab_index=0)
     panel.add_prompt(name="Right Depth",prompt_type='DISTANCE',value=0,tab_index=0)
     panel.add_prompt(name="Stop Drilling Bottom Left",prompt_type='DISTANCE',value=0,tab_index=0)
@@ -120,12 +123,14 @@ def add_shelf(assembly):
             
 def add_glass_shelf(assembly):
     shelf = assembly.add_assembly(PART_WITH_FRONT_EDGEBANDING)
+    shelf.obj_bp.mv.name_object = "Glass Shelf"
     shelf.add_prompt(name="Shelf Pin Qty",prompt_type='QUANTITY',value=4,tab_index=0)
     for child in shelf.obj_bp.children:
         if child.type == 'MESH':
             child.cabinetlib.type_mesh = 'BUYOUT'    
     shelf.material("Glass")
     props = props_closet.get_object_props(shelf.obj_bp)
+    props.is_shelf_bp = True
     props.is_glass_shelf_bp = True
     return shelf
 
@@ -257,7 +262,8 @@ def add_radius_shelf(assembly):
 def add_plant_on_top(assembly):
     shelf = assembly.add_assembly(PART_WITH_ALL_EDGES)
     props = props_closet.get_object_props(shelf.obj_bp)
-    props.is_plant_on_top_bp = True    
+    props.is_plant_on_top_bp = True
+    shelf.add_prompt(name="Is Counter Top",prompt_type='CHECKBOX',value=False,tab_index=0)  
     shelf.add_prompt(name="Exposed Left",prompt_type='CHECKBOX',value=False,tab_index=0)
     shelf.add_prompt(name="Exposed Right",prompt_type='CHECKBOX',value=False,tab_index=0)    
     shelf.add_prompt(name="Exposed Back",prompt_type='CHECKBOX',value=False,tab_index=0)  
@@ -335,6 +341,91 @@ def add_drawer_pull(assembly):
     pull_hardware.set_name("Pull")
     return pull_hardware
 
+def add_drawer_file_rails(assembly):
+    
+    #cover_cleat.obj_bp.mv.comment_2 = "1028"
+    
+    #props.is_cleat_bp = True
+    
+
+    assembly.add_prompt("Use File Rail",prompt_type='CHECKBOX',value=False,tab_index=0)
+    assembly.add_prompt("File Rail Type",prompt_type='COMBOBOX',value=1,items=['Letter', 'Legal'],tab_index=0)
+    assembly.add_prompt("File Rail Direction",prompt_type='COMBOBOX',value=0,items=['Front to Back', 'Lateral'],tab_index=0)
+    assembly.add_prompt("File Rail Thickness",prompt_type='DISTANCE',value=unit.inch(0.5),tab_index=0)
+    assembly.add_prompt("File Rail Height",prompt_type='DISTANCE',value=unit.inch(9),tab_index=0)
+    assembly.add_prompt("File Rail Letter Distance",prompt_type='DISTANCE',value=unit.inch(12),tab_index=0)
+    assembly.add_prompt("File Rail Legal Distance",prompt_type='DISTANCE',value=unit.inch(15),tab_index=0)
+    assembly.add_prompt("File Rail Difference",prompt_type='DISTANCE',value=unit.inch(0.05),tab_index=0)
+
+    Use_File_Rail = assembly.get_var('Use File Rail')
+    Width = assembly.get_var('dim_x','Width')
+    Depth = assembly.get_var('dim_y','Depth')
+    Hide = assembly.get_var('Hide')
+    File_Rail_Type = assembly.get_var("File Rail Type")
+    File_Rail_Direction = assembly.get_var("File Rail Direction")
+    File_Rail_Thickness = assembly.get_var("File Rail Thickness")
+    File_Rail_Height = assembly.get_var("File Rail Height")
+    File_Rail_Difference = assembly.get_var("File Rail Difference")
+
+    left_rail = assembly.add_assembly(PART_WITH_FRONT_EDGEBANDING)
+    props = props_closet.get_object_props(left_rail.obj_bp)
+    left_rail.set_name("Left File Rail")
+    left_rail.cutpart("Left File Rail")
+    left_rail.edgebanding("Edge_2",l1 = True)
+
+    left_rail.x_dim('File_Rail_Thickness',[File_Rail_Thickness])
+    left_rail.y_dim('Depth-(File_Rail_Thickness*2)-File_Rail_Difference', [Depth, File_Rail_Thickness,File_Rail_Difference])
+    left_rail.z_dim('File_Rail_Height',[File_Rail_Height])
+    left_rail.x_loc('File_Rail_Thickness',[File_Rail_Thickness])
+    left_rail.y_loc('File_Rail_Thickness + File_Rail_Difference/2',[File_Rail_Thickness,File_Rail_Difference])
+    left_rail.z_loc(value=0)
+    left_rail.prompt('Hide', 'IF(Use_File_Rail,IF(File_Rail_Direction==0,Hide,True),True)',[Hide, Use_File_Rail,File_Rail_Type,File_Rail_Direction])
+    
+    right_rail = assembly.add_assembly(PART_WITH_FRONT_EDGEBANDING)
+    props = props_closet.get_object_props(left_rail.obj_bp)
+    right_rail.set_name("Right File Rail")
+    right_rail.cutpart("Right File Rail")
+    right_rail.edgebanding("Edge_2",l1 = True)
+
+    right_rail.x_dim('File_Rail_Thickness',[File_Rail_Thickness])
+    right_rail.y_dim('Depth-(File_Rail_Thickness*2)-File_Rail_Difference', [Depth, File_Rail_Thickness,File_Rail_Difference])
+    right_rail.z_dim('File_Rail_Height',[File_Rail_Height])
+    #right_rail.x_loc('Width - File_Rail_Thickness*2',[Width,File_Rail_Thickness])
+    right_rail.x_loc('IF(File_Rail_Type==0, File_Rail_Thickness*2+'+str(unit.inch(12))+',File_Rail_Thickness*2+'+str(unit.inch(15))+')',[File_Rail_Thickness, File_Rail_Type])
+    right_rail.y_loc('File_Rail_Thickness + File_Rail_Difference/2',[File_Rail_Thickness,File_Rail_Difference])
+    right_rail.z_loc(value=0)
+    right_rail.prompt('Hide', 'IF(Use_File_Rail,IF(File_Rail_Direction==0,Hide,True),True)',[Hide, Use_File_Rail,File_Rail_Type,File_Rail_Direction])
+
+
+    front_rail = assembly.add_assembly(PART_WITH_FRONT_EDGEBANDING)
+    props = props_closet.get_object_props(left_rail.obj_bp)
+    front_rail.set_name("Front File Rail")
+    front_rail.cutpart("Front File Rail")
+    front_rail.edgebanding("Edge_2",l1 = True)
+
+    front_rail.x_dim('Width-(File_Rail_Thickness*2)-File_Rail_Difference',[Width,File_Rail_Thickness,File_Rail_Difference])
+    front_rail.y_dim('File_Rail_Thickness', [File_Rail_Thickness])
+    front_rail.z_dim('File_Rail_Height',[File_Rail_Height])
+    front_rail.x_loc('File_Rail_Thickness + File_Rail_Difference/2',[File_Rail_Thickness,File_Rail_Difference])
+    front_rail.y_loc('File_Rail_Thickness',[File_Rail_Thickness])
+    front_rail.z_loc(value=0)
+    front_rail.prompt('Hide', 'IF(Use_File_Rail,IF(File_Rail_Direction==1,Hide,True),True)',[Hide, Use_File_Rail,File_Rail_Type,File_Rail_Direction])
+    
+    back_rail = assembly.add_assembly(PART_WITH_FRONT_EDGEBANDING)
+    props = props_closet.get_object_props(left_rail.obj_bp)
+    back_rail.set_name("Back File Rail")
+    back_rail.cutpart("Back File Rail")
+    back_rail.edgebanding("Edge_2",l1 = True)
+
+    back_rail.x_dim('Width-(File_Rail_Thickness*2)-File_Rail_Difference',[Width,File_Rail_Thickness,File_Rail_Difference])
+    back_rail.y_dim('File_Rail_Thickness', [File_Rail_Thickness])
+    back_rail.z_dim('File_Rail_Height',[File_Rail_Height])
+    back_rail.x_loc('File_Rail_Thickness + File_Rail_Difference/2',[File_Rail_Thickness,File_Rail_Difference])
+    #back_rail.y_loc('Depth - File_Rail_Thickness*2', [Depth,File_Rail_Thickness])
+    back_rail.y_loc('IF(File_Rail_Type==0, File_Rail_Thickness*2+'+str(unit.inch(12))+',File_Rail_Thickness*2+'+str(unit.inch(15))+')',[File_Rail_Thickness, File_Rail_Type])
+    back_rail.z_loc(value=0)
+    back_rail.prompt('Hide', 'IF(Use_File_Rail,IF(File_Rail_Direction==1,Hide,True),True)',[Hide, Use_File_Rail,File_Rail_Type,File_Rail_Direction])
+
 def add_drawer(assembly):
     scene_props = props_closet.get_scene_props()
     if scene_props.closet_defaults.use_buyout_drawers:
@@ -346,6 +437,7 @@ def add_drawer(assembly):
         drawer.draw()
         drawer.obj_bp.parent = assembly.obj_bp
         drawer.obj_bp.mv.comment_2 = "1014"
+    add_drawer_file_rails(drawer)
     return drawer
 
 def add_line_bore_holes(assembly):
@@ -461,9 +553,28 @@ def add_filler(assembly):
 
 def add_toe_kick(assembly):
     kick = assembly.add_assembly(PART_WITH_NO_EDGEBANDING)
+    kick.obj_bp.mv.comment_2 = "1034"
     props = props_closet.get_object_props(kick.obj_bp)
     props.is_toe_kick_bp = True
     kick.set_name("Toe Kick")
+    kick.cutpart("Toe_Kick")
+    return kick
+
+def add_toe_kick_end_cap(assembly):
+    kick = assembly.add_assembly(PART_WITH_NO_EDGEBANDING)
+    kick.obj_bp.mv.comment_2 = "1033"
+    props = props_closet.get_object_props(kick.obj_bp)
+    props.is_toe_kick_end_cap_bp = True
+    kick.set_name("Toe Kick End Cap")
+    kick.cutpart("Toe_Kick")
+    return kick
+
+def add_toe_kick_stringer(assembly):
+    kick = assembly.add_assembly(PART_WITH_NO_EDGEBANDING)
+    kick.obj_bp.mv.comment_2 = "1035"
+    props = props_closet.get_object_props(kick.obj_bp)
+    props.is_toe_kick_stringer_bp = True
+    kick.set_name("Toe Kick Stringer")
     kick.cutpart("Toe_Kick")
     return kick
 
@@ -485,14 +596,43 @@ def add_door_striker(assembly):
     cleat.edgebanding("Edge",l1 = True)    
     return cleat
 
+def add_cover_cleat(assembly):
+    cover_cleat = assembly.add_assembly(PART_WITH_FRONT_EDGEBANDING)
+    cover_cleat.obj_bp.mv.comment_2 = "1028"
+    props = props_closet.get_object_props(cover_cleat.obj_bp)
+    props.is_cleat_bp = True
+    props.is_cover_cleat_bp = True
+    cover_cleat.set_name("Cover Cleat")
+    cover_cleat.cutpart("Cover_Cleat")
+    cover_cleat.edgebanding("Edge_2",l1 = True)
+
+    assembly.add_prompt("Use Cleat Cover",prompt_type='CHECKBOX',value=True,tab_index=0)
+    assembly.add_prompt("Cover Cleat Difference",prompt_type='DISTANCE',value=unit.inch(0.04),tab_index=0)
+
+    Use_Cleat_Cover = assembly.get_var('Use Cleat Cover')
+    Width = assembly.get_var('dim_x','Width')
+    Depth = assembly.get_var('dim_y','Depth')
+    Hide = assembly.get_var('Hide')
+    Cover_Cleat_Difference = assembly.get_var("Cover Cleat Difference")
+
+    cover_cleat.x_dim('Width', [Width])
+    cover_cleat.y_dim('IF(Depth < 0, Depth - Cover_Cleat_Difference, Depth + Cover_Cleat_Difference)', [Depth, Cover_Cleat_Difference])
+    cover_cleat.y_loc('IF(Depth > 0, Cover_Cleat_Difference, -Cover_Cleat_Difference)', [Depth, Cover_Cleat_Difference])
+    #cover_cleat.x_loc(value = -unit.inch(0.02))
+    cover_cleat.z_dim(value=unit.inch(-0.375))
+    cover_cleat.z_loc(value=unit.inch(-0.75))
+    cover_cleat.prompt('Hide', 'IF(Use_Cleat_Cover,Hide,True)',[Hide, Use_Cleat_Cover])
+
 def add_cleat(assembly):
     cleat = assembly.add_assembly(PART_WITH_FRONT_EDGEBANDING)
     cleat.obj_bp.mv.comment_2 = "1008"
     props = props_closet.get_object_props(cleat.obj_bp)
     props.is_cleat_bp = True
     cleat.set_name("Cleat")
-    cleat.cutpart("Shelf")
-    cleat.edgebanding("Edge_2",l1 = True)    
+    cleat.cutpart("Cleat")
+    cleat.edgebanding("Edge_2",l1 = True)
+    add_cover_cleat(cleat) 
+    cleat.y_dim(value = unit.inch(3.64))
     return cleat
 
 def add_shelf_and_rod_cleat(assembly):
@@ -518,7 +658,7 @@ def add_back(assembly):
     backing.obj_bp.mv.comment_2 = "1037"
     props = props_closet.get_object_props(backing.obj_bp)
     props.is_back_bp = True
-    backing.set_name("Back")
+    backing.set_name("Backing")
     backing.cutpart("Back")
     return backing
 
@@ -546,6 +686,15 @@ def add_countertop(assembly):
     ctop.material("Countertop_Surface")
     return ctop
 
+def add_back_splash(assembly):
+    b_splash = assembly.add_assembly(BACKSPLASH_PART)
+    b_splash.obj_bp.mv.comment_2 = "1605" 
+    props = props_closet.get_object_props(b_splash.obj_bp)
+    props.is_countertop_bp = True
+    b_splash.set_name("Countertop Back Splash")
+    b_splash.material("Countertop_Surface")
+    return b_splash    
+
 def add_cc_countertop(assembly):
     ctop = assembly.add_assembly(STRAIGHT_CC_COUNTER_TOP)
     ctop.obj_bp.mv.comment_2 = "1605" 
@@ -568,8 +717,8 @@ def add_door(assembly):
     door = assembly.add_assembly(FACE)
     door.set_name("Door")
     door.cutpart("Slab_Door")
-    door.edgebanding('Edge',l1 = True, w1 = True, l2 = True, w2 = True)
-    door.add_prompt(name="CatNum",prompt_type='NUMBER',value=0,tab_index=0)
+    door.edgebanding('Door_Edges',l1 = True, w1 = True, l2 = True, w2 = True)
+    door.add_prompt(name="CatNum",prompt_type='NUMBER',value=1006,tab_index=0)
     door.add_prompt(name="Door Type",prompt_type='COMBOBOX',value=0,tab_index=0,items=['Base','Tall','Upper'],columns=4)
     door.add_prompt(name="Door Swing",prompt_type='COMBOBOX',value=0,tab_index=0,items=['Left','Right','Top','Bottom'],columns=4)
     door.add_prompt(name="No Pulls",prompt_type='CHECKBOX',value=False,tab_index=0)
@@ -596,13 +745,13 @@ def add_ironing_board_door_front(assembly):
 def add_drawer_front(assembly):
     front = assembly.add_assembly(FACE)
     front.obj_bp.mv.comment_2 = "1007"
-    front.set_name("Drawer Front")
+    front.set_name("Drawer Face")
     front.cutpart("Slab_Drawer_Front")
     front.add_prompt(name="No Pulls",prompt_type='CHECKBOX',value=False,tab_index=0)
     front.add_prompt(name="Use Double Pulls",prompt_type='CHECKBOX',value=False,tab_index=0)
     front.add_prompt(name="Center Pulls on Drawers",prompt_type='CHECKBOX',value=False,tab_index=0)
     front.add_prompt(name="Drawer Pull From Top",prompt_type='DISTANCE',value=0,tab_index=0)
-    front.edgebanding('Edge',l1 = True, w1 = True, l2 = True, w2 = True)
+    front.edgebanding('Door_Edges',l1 = True, w1 = True, l2 = True, w2 = True)
     front.obj_bp.mv.is_cabinet_drawer_front = True
     front.obj_bp.mv.comment = "Melamine Drawer Face"
     obj_props = props_closet.get_object_props(front.obj_bp)
@@ -615,7 +764,7 @@ def add_hamper_front(assembly):
     front.obj_bp.mv.comment_2 = "1044"     
     front.set_name("Hamper Door")
     front.cutpart("Slab_Drawer_Front")
-    front.edgebanding('Edge',l1 = True, w1 = True, l2 = True, w2 = True)
+    front.edgebanding('Door_Edges',l1 = True, w1 = True, l2 = True, w2 = True)
     front.obj_bp.mv.is_cabinet_door = True
     props = props_closet.get_object_props(front.obj_bp)
     props.is_hamper_front_bp = True   

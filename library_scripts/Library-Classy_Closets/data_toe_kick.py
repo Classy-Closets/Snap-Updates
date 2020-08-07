@@ -6,6 +6,8 @@ from . import common_parts
 from . import common_prompts
 
 class Toe_Kick(fd_types.Assembly):
+    """ This is currently not being used. Toe Kick uses 'data_base_assembly.Base_Assembly' instead.
+    """
     
     property_id = props_closet.LIBRARY_NAME_SPACE + ".toe_kick_prompts"
     type_assembly = "PRODUCT"

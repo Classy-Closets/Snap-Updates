@@ -27,6 +27,7 @@ from . import data_fixed_shelf_and_rod
 from . import data_closet_splitters
 from . import data_classy_closets_hanging_rods
 from . import data_closet_top_molding
+from . import data_closet_wall_cleat
 
 LIBRARY_NAME = "Closets"
 
@@ -301,7 +302,8 @@ class PRODUCT_Doors(data_closet_doors.Doors):
         self.width = unit.inch(25)
         self.height = unit.inch(50)
         self.depth = unit.inch(14)
-        self.drop_id = "fd_general.drop_insert"
+        self.drop_id = "closets.insert_doors_drop"
+        # self.drop_id = "fd_general.drop_insert"
         self.prompts = {"Door Type":2}
         #DOOR TYPE ONLY USED TO DETERMINE DOOR HEIGHT FOR PLANT ON TOP
         self.door_type = "Upper"
@@ -324,7 +326,8 @@ class PRODUCT_Hamper(data_hampers.Hamper):
         self.width = unit.inch(20)
         self.height = unit.inch(34)
         self.depth = unit.inch(16)
-        self.drop_id = "fd_general.drop_insert"
+        self.drop_id = "closets.insert_hamper_drop"
+        # self.drop_id = "fd_general.drop_insert"
         
 class PRODUCT_Hang_Double(data_rods_and_shelves.Hanging_Rods_with_Shelves):
     
@@ -334,7 +337,7 @@ class PRODUCT_Hang_Double(data_rods_and_shelves.Hanging_Rods_with_Shelves):
         self.width = unit.inch(18)
         self.height = unit.inch(50)
         self.depth = unit.inch(14)
-        self.drop_id = "fd_general.drop_insert"
+        self.drop_id = "closets.insert_rods_and_shelves_drop"
         self.prompts = {"Add Top Rod":True,
                         "Add Middle Rod":False,
                         "Add Bottom Rod":True,
@@ -348,7 +351,9 @@ class PRODUCT_Hang_Double(data_rods_and_shelves.Hanging_Rods_with_Shelves):
                         "Add Shelves In Bottom Section":False,
                         "Top Shelf Quantity":1,
                         "Middle Shelf Quantity":1,
-                        "Bottom Shelf Quantity":1} 
+                        "Bottom Shelf Quantity":1,
+                        "Is Hang Single":False,
+                        "Is Hang Double":True} 
         
 class PRODUCT_Hang_Double_Tall(data_rods_and_shelves.Hanging_Rods_with_Shelves):
     
@@ -358,7 +363,7 @@ class PRODUCT_Hang_Double_Tall(data_rods_and_shelves.Hanging_Rods_with_Shelves):
         self.width = unit.inch(18)
         self.height = unit.inch(50)
         self.depth = unit.inch(14)
-        self.drop_id = "fd_general.drop_insert"
+        self.drop_id = "closets.insert_rods_and_shelves_drop"
         self.prompts = {"Add Top Rod":False,
                         "Add Middle Rod":True,
                         "Add Bottom Rod":True,
@@ -372,7 +377,9 @@ class PRODUCT_Hang_Double_Tall(data_rods_and_shelves.Hanging_Rods_with_Shelves):
                         "Add Shelves In Bottom Section":False,
                         "Top Shelf Quantity":1,
                         "Middle Shelf Quantity":1,
-                        "Bottom Shelf Quantity":1} 
+                        "Bottom Shelf Quantity":1,
+                        "Is Hang Single":False,
+                        "Is Hang Double":True} 
 
 class PRODUCT_Hang_Medium(data_rods_and_shelves.Hanging_Rods_with_Shelves):
     
@@ -382,7 +389,7 @@ class PRODUCT_Hang_Medium(data_rods_and_shelves.Hanging_Rods_with_Shelves):
         self.width = unit.inch(18)
         self.height = unit.inch(50)
         self.depth = unit.inch(14)
-        self.drop_id = "fd_general.drop_insert"
+        self.drop_id = "closets.insert_rods_and_shelves_drop"
         self.prompts = {"Add Top Rod":False,
                         "Add Middle Rod":True,
                         "Add Bottom Rod":False,
@@ -396,7 +403,9 @@ class PRODUCT_Hang_Medium(data_rods_and_shelves.Hanging_Rods_with_Shelves):
                         "Add Shelves In Bottom Section":False,
                         "Top Shelf Quantity":2,
                         "Middle Shelf Quantity":1,
-                        "Bottom Shelf Quantity":1}        
+                        "Bottom Shelf Quantity":1,
+                        "Is Hang Single":False,
+                        "Is Hang Double":False}        
 
 class PRODUCT_Hang_Long(data_rods_and_shelves.Hanging_Rods_with_Shelves):
     
@@ -406,7 +415,7 @@ class PRODUCT_Hang_Long(data_rods_and_shelves.Hanging_Rods_with_Shelves):
         self.width = unit.inch(18)
         self.height = unit.inch(50)
         self.depth = unit.inch(14)
-        self.drop_id = "fd_general.drop_insert"
+        self.drop_id = "closets.insert_rods_and_shelves_drop"
         self.prompts = {"Add Top Rod":False,
                         "Add Middle Rod":True,
                         "Add Bottom Rod":False,
@@ -420,8 +429,63 @@ class PRODUCT_Hang_Long(data_rods_and_shelves.Hanging_Rods_with_Shelves):
                         "Add Shelves In Bottom Section":False,
                         "Top Shelf Quantity":1,
                         "Middle Shelf Quantity":1,
-                        "Bottom Shelf Quantity":1}        
-        
+                        "Bottom Shelf Quantity":1,
+                        "Is Hang Single":False,
+                        "Is Hang Double":False}        
+
+class PRODUCT_Hang_Short(data_rods_and_shelves.Hanging_Rods_with_Shelves):
+    
+    def __init__(self):
+        self.library_name = LIBRARY_NAME
+        self.category_name = CLOSET_PRODUCTS_BASIC
+        self.width = unit.inch(18)
+        self.height = unit.inch(50)
+        self.depth = unit.inch(14)
+        self.drop_id = "closets.insert_rods_and_shelves_drop"
+        self.prompts = {"Add Top Rod":False,
+                        "Add Middle Rod":False,
+                        "Add Bottom Rod":True,
+                        "Add Top Shelf":False,
+                        "Add Bottom Shelf":True,
+                        "Top Rod Location":unit.millimeter(172.95),
+                        "Bottom Rod Location":unit.millimeter(1164.95),
+                        "Bottom Shelves Location":unit.millimeter(1164.95),
+                        "Add Shelves In Top Section":False,
+                        "Add Shelves In Middle Section":True,
+                        "Add Shelves In Bottom Section":False,
+                        "Top Shelf Quantity":1,
+                        "Middle Shelf Quantity":4,
+                        "Bottom Shelf Quantity":1,
+                        "Is Hang Single":True,
+                        "Is Hang Double":False} 
+                        
+
+class PRODUCT_Hang_Short_Tall(data_rods_and_shelves.Hanging_Rods_with_Shelves):
+    
+    def __init__(self):
+        self.library_name = LIBRARY_NAME
+        self.category_name = CLOSET_PRODUCTS_BASIC
+        self.width = unit.inch(18)
+        self.height = unit.inch(50)
+        self.depth = unit.inch(14)
+        self.drop_id = "closets.insert_rods_and_shelves_drop"
+        self.prompts = {"Add Top Rod":False,
+                        "Add Middle Rod":False,
+                        "Add Bottom Rod":True,
+                        "Add Top Shelf":False,
+                        "Add Bottom Shelf":True,
+                        "Top Rod Location":unit.millimeter(172.95),
+                        "Bottom Rod Location":unit.millimeter(1388.95),
+                        "Bottom Shelves Location":unit.millimeter(1388.95),
+                        "Add Shelves In Top Section":False,
+                        "Add Shelves In Middle Section":True,
+                        "Add Shelves In Bottom Section":False,
+                        "Top Shelf Quantity":1,
+                        "Middle Shelf Quantity":6,
+                        "Bottom Shelf Quantity":1,
+                        "Is Hang Single":True,
+                        "Is Hang Double":False}
+
 class PRODUCT_Corner_Shelves(data_closet_carcass_corner.L_Shelves):
     
     def __init__(self):
@@ -486,7 +550,16 @@ class PRODUCT_Valance(data_closet_top_molding.Flat_Valance_Single):
         self.category_name = CLOSET_PRODUCTS_BASIC
         self.width = unit.inch(34)
         self.height = unit.inch(4)
-        self.depth = unit.inch(.75)             
+        self.depth = unit.inch(.75)
+
+class PRODUCT_Wall_Cleat(data_closet_wall_cleat.Wall_Cleat):
+    
+    def __init__(self):
+        self.library_name = LIBRARY_NAME
+        self.category_name = CLOSET_PRODUCTS_BASIC
+        self.width = unit.inch(18)
+        self.height = unit.inch(0.75)
+        self.depth = unit.inch(3.64)               
         
                 
 
@@ -792,15 +865,6 @@ class PRODUCT_Tie_Rack(data_closet_hooks_and_pins.Tie_Accessories):
         self.depth = unit.inch(1)
         self.height = unit.inch(3)
  
-class PRODUCT_Tie_and_Belt_Rack(data_closet_hooks_and_pins.Tie_and_Belt_Accessories):
-      
-    def __init__(self):
-        self.library_name = LIBRARY_NAME
-        self.category_name = CLOSET_PARTS_ACCESSORIES         
-        self.width = unit.inch(12)
-        self.depth = unit.inch(1)
-        self.height = unit.inch(3)        
- 
 class PRODUCT_Robe_Hooks(data_closet_hooks_and_pins.Robe_Hook_Accessories):
       
     def __init__(self):
@@ -810,6 +874,43 @@ class PRODUCT_Robe_Hooks(data_closet_hooks_and_pins.Robe_Hook_Accessories):
         self.depth = unit.inch(1)
         self.height = unit.inch(3) 
          
+class PRODUCT_Wire_Basket(data_single_parts.Wire_Basket):
+    
+    def __init__(self):
+        self.library_name = LIBRARY_NAME
+        self.category_name = CLOSET_PARTS_ACCESSORIES
+        self.assembly_type = "PRODUCT"
+        self.width = unit.inch(18)
+        self.depth = unit.inch(23)
+
+class PRODUCT_Valet_Rod(data_single_parts.Accessory):
+    
+    def __init__(self):
+        self.library_name = LIBRARY_NAME
+        self.category_name = CLOSET_PARTS_ACCESSORIES
+        self.assembly_type = "PRODUCT"
+        self.object_path = common_parts.VALET_ROD
+        self.accessory_name = "Valet Rod"
+        
+class PRODUCT_Valet_Rod_2(data_single_parts.Accessory):
+    
+    def __init__(self):
+        self.library_name = LIBRARY_NAME
+        self.category_name = CLOSET_PARTS_ACCESSORIES
+        self.assembly_type = "PRODUCT"
+        self.object_path = common_parts.VALET_ROD_2
+        self.accessory_name = "Valet Rod 2"
+        
+class PRODUCT_Tie_and_Belt_Rack(data_closet_hooks_and_pins.Tie_and_Belt_Accessories):
+      
+    def __init__(self):
+        self.library_name = LIBRARY_NAME
+        self.category_name = CLOSET_PARTS_ACCESSORIES         
+        self.width = unit.inch(12)
+        self.depth = unit.inch(1)
+        self.height = unit.inch(3)        
+ 
+
 class PRODUCT_Double_Robe_Hooks(data_closet_hooks_and_pins.Double_Robe_Hook_Accessories):
       
     def __init__(self):
@@ -829,7 +930,7 @@ class PRODUCT_DORB_Hooks(data_closet_hooks_and_pins.DORB_Hook_Accessories):
         self.height = unit.inch(3)                       
 
 class PRODUCT_Coat_and_Hat_Hooks(data_closet_hooks_and_pins.Coat_and_Hat_Hook_Accessories):
-      
+
     def __init__(self):
         self.library_name = LIBRARY_NAME
         self.category_name = CLOSET_PARTS_ACCESSORIES         
@@ -845,8 +946,7 @@ class PRODUCT_Hanging_Rod(data_single_parts.Hanging_Rod):
         self.assembly_type = "PRODUCT"
         self.width = unit.inch(18)
         self.depth = unit.inch(23)
-        
-        
+
 class PRODUCT_Pants_Rack(data_single_parts.Pants_Rack):
     
     def __init__(self):
@@ -855,26 +955,6 @@ class PRODUCT_Pants_Rack(data_single_parts.Pants_Rack):
         self.assembly_type = "PRODUCT"
         self.width = unit.inch(18)
         self.depth = unit.inch(23)
-
-
-class PRODUCT_Valet_Rod(data_single_parts.Accessory):
-    
-    def __init__(self):
-        self.library_name = LIBRARY_NAME
-        self.category_name = CLOSET_PARTS_ACCESSORIES
-        self.assembly_type = "PRODUCT"
-        self.object_path = common_parts.VALET_ROD
-        self.accessory_name = "Valet Rod"
-        
-        
-class PRODUCT_Valet_Rod_2(data_single_parts.Accessory):
-    
-    def __init__(self):
-        self.library_name = LIBRARY_NAME
-        self.category_name = CLOSET_PARTS_ACCESSORIES
-        self.assembly_type = "PRODUCT"
-        self.object_path = common_parts.VALET_ROD_2
-        self.accessory_name = "Valet Rod 2"        
 
 
 class PRODUCT_Hamper_Single_Pullout_Canvas(data_single_parts.Single_Pull_Out_Hamper):
@@ -886,7 +966,6 @@ class PRODUCT_Hamper_Single_Pullout_Canvas(data_single_parts.Single_Pull_Out_Ham
         self.width = unit.inch(18)
         self.depth = unit.inch(23)
         
-        
 class PRODUCT_Hamper_Double_Pullout_Canvas(data_single_parts.Double_Pull_Out_Hamper):
     
     def __init__(self):
@@ -896,14 +975,6 @@ class PRODUCT_Hamper_Double_Pullout_Canvas(data_single_parts.Double_Pull_Out_Ham
         self.width = unit.inch(24)
         self.depth = unit.inch(23)
 
-class PRODUCT_Wire_Basket(data_single_parts.Wire_Basket):
-    
-    def __init__(self):
-        self.library_name = LIBRARY_NAME
-        self.category_name = CLOSET_PARTS_ACCESSORIES
-        self.assembly_type = "PRODUCT"
-        self.width = unit.inch(18)
-        self.depth = unit.inch(23)   
         
 class PRODUCT_Metal_Tie_and_Belt_Rack(data_single_parts.Accessory):
     
@@ -915,8 +986,6 @@ class PRODUCT_Metal_Tie_and_Belt_Rack(data_single_parts.Accessory):
         self.accessory_name = "Metal Tie and Belt Rack"        
 
 #---------PARTS - CLOSET CUTPARTS
-
-
 
 #class PRODUCT_Applied_Panel(data_applied_panel.Applied_Panel):
     

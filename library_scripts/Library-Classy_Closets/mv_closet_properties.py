@@ -11,11 +11,18 @@ def draw_shelf_interface(layout,shelf):
 def draw_backing_mats(layout, back):
     props = back.obj_bp.lm_closets
 
-    if props.is_back_bp:
+    if props.is_back_bp or props.is_bottom_back_bp or props.is_top_back_bp:
         layout.prop(props, "use_unique_material")
 
         if props.use_unique_material:
-            layout.prop(props, "unique_mat_colors", text="Material Color")
+            layout.prop(props, "unique_mat_types", text="Backing Material Type")
+
+            if props.unique_mat_types == 'MELAMINE':
+                layout.prop(props, "unique_mat_mel", text="Backing Material Color")
+            if props.unique_mat_types == 'TEXTURED_MELAMINE':
+                layout.prop(props, "unique_mat_tex_mel", text="Backing Material Color")
+            if props.unique_mat_types == 'VENEER':
+                layout.prop(props, "unique_mat_veneer", text="Backing Material Color")
             
 class PANEL_Closet_Options(bpy.types.Panel):
     bl_idname = props_closet.LIBRARY_NAME_SPACE + "Closet_Options"

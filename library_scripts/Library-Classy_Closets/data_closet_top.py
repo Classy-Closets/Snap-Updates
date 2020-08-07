@@ -1,7 +1,7 @@
 '''
-Created on Jun 13, 2017
+Created on May 6, 2020
 
-@author: Andrew
+@author: Ryan Montes
 '''
 import bpy
 from mv import fd_types, unit, utils
@@ -10,33 +10,47 @@ from . import common_parts
 from . import common_prompts
 from os import path
 import math
+from . import mv_closet_defaults as props_closet
+import operator
 
 class Top(fd_types.Assembly):
-    """ Base Cabinet Standard
+    """ Closet Top Shelf
     """
 
     property_id = props_closet.LIBRARY_NAME_SPACE + ".top"
-    drop_id = props_closet.LIBRARY_NAME_SPACE + ".top_drop"
+    drop_id = props_closet.LIBRARY_NAME_SPACE + ".top_shelf_drop"
     
-    type_assembly = "PRODUCT"
+    type_assembly = "INSERT"
+    placement_type = "SPLITTER"
     mirror_y = True
+
+    def add_oversize_prompts(self):
+        for i in range(10):
+            #self.add_prompt(name="Section {} Depth".format(str(i)),prompt_type='DISTANCE',value=True,tab_index=0)
+            empty = self.add_empty()
+            empty.set_name("Oversize Cut {}".format(str(i+1)))
+            
     
     def draw(self):
         self.create_assembly()
         self.obj_bp.mv.export_as_subassembly = True
-        
         props = props_closet.get_object_props(self.obj_bp)
         props.is_closet_top_bp = True
         
-        self.add_tab(name='Top Options',tab_type='VISIBLE') #1
-        self.add_prompt(name="Extend To Left Panel",prompt_type='CHECKBOX',value=True,tab_index=1)
-        self.add_prompt(name="Extend To Right Panel",prompt_type='CHECKBOX',value=True,tab_index=1)
-        self.add_prompt(name="Exposed Left",prompt_type='CHECKBOX',value=False,tab_index=1)
-        self.add_prompt(name="Exposed Right",prompt_type='CHECKBOX',value=False,tab_index=1)
-        self.add_prompt(name="Exposed Back",prompt_type='CHECKBOX',value=False,tab_index=1)
-        self.add_prompt(name="Extend Left Amount",prompt_type='DISTANCE',value=unit.inch(0),tab_index=1)
-        self.add_prompt(name="Extend Right Amount",prompt_type='DISTANCE',value=unit.inch(0),tab_index=1)
-        self.add_prompt(name="Front Overhang",prompt_type='DISTANCE',value=unit.inch(.5),tab_index=1)
+        self.add_tab(name='Top Options',tab_type='VISIBLE')#0
+        self.add_prompt(name="Extend To Left Panel",prompt_type='CHECKBOX',value=True,tab_index=0)
+        self.add_prompt(name="Extend To Right Panel",prompt_type='CHECKBOX',value=True,tab_index=0)
+        self.add_prompt(name="Exposed Left",prompt_type='CHECKBOX',value=False,tab_index=0)
+        self.add_prompt(name="Exposed Right",prompt_type='CHECKBOX',value=False,tab_index=0)
+        self.add_prompt(name="Exposed Back",prompt_type='CHECKBOX',value=False,tab_index=0)
+        self.add_prompt(name="Extend Left Amount",prompt_type='DISTANCE',value=unit.inch(0),tab_index=0)
+        self.add_prompt(name="Extend Right Amount",prompt_type='DISTANCE',value=unit.inch(0),tab_index=0)
+        self.add_prompt(name="Front Overhang",prompt_type='DISTANCE',value=unit.inch(.5),tab_index=0)
+        self.add_prompt(name="Max Panel Depth",prompt_type='DISTANCE',value=0,tab_index=0)
+        self.add_prompt(name="Max Panel Front Chamfer",prompt_type='DISTANCE',value=0,tab_index=0)
+        self.add_prompt(name="Max Rear Chamfer",prompt_type='DISTANCE',value=0,tab_index=0)
+
+        self.add_oversize_prompts()
         common_prompts.add_thickness_prompts(self)
         
         Width = self.get_var('dim_x','Width')
@@ -52,10 +66,14 @@ class Top(fd_types.Assembly):
         Exposed_Back = self.get_var('Exposed Back')
         
         top = common_parts.add_plant_on_top(self)
+        constraint = top.obj_x.constraints.new(type='LIMIT_LOCATION')
+        constraint.use_max_x = True
+        constraint.max_x = unit.inch(96)
+        constraint.owner_space = 'LOCAL'
         top.obj_bp.mv.comment_2 = "1024"
-        top.set_name("Top")
+        top.set_name("Topshelf")
         top.x_loc('IF(Extend_Left,0,Panel_Thickness/2)-Extend_Left_Amount',[Extend_Left,Extend_Left_Amount,Panel_Thickness])
-        top.y_loc(value = 0)
+
         top.z_loc(value = 0)
         top.x_rot(value = 180)
         top.y_rot(value = 0)
@@ -87,12 +105,11 @@ class PROMPTS_Prompts_Bottom_Support(fd_types.Prompts_Interface):
 
     def check(self, context):
         """ This is called everytime a change is made in the UI """
-#         self.update_product_size()
+        props_closet.update_render_materials(self, context)
         return True
 
     def execute(self, context):
         """ This is called when the OK button is clicked """
-#         self.update_product_size()
         return {'FINISHED'}
 
     def invoke(self,context,event):
@@ -115,10 +132,6 @@ class PROMPTS_Prompts_Bottom_Support(fd_types.Prompts_Interface):
         extend_left_amount = self.insert.get_prompt("Extend Left Amount")
         extend_right_amount = self.insert.get_prompt("Extend Right Amount")
         front_overhang = self.insert.get_prompt("Front Overhang")
-               
-#         row = box.row()
-#         row.label("Width:")
-#         row.prop(self.insert.obj_x,'location',index=0,text="")
 
         row = box.row()
         extend_left_amount.draw_prompt(row,text="Extend Left:",split_text=True)
@@ -137,7 +150,7 @@ class PROMPTS_Prompts_Bottom_Support(fd_types.Prompts_Interface):
 bpy.utils.register_class(PROMPTS_Prompts_Bottom_Support)
 
 class DROP_OPERATOR_Place_Top(bpy.types.Operator):
-    bl_idname = props_closet.LIBRARY_NAME_SPACE + ".top_drop"
+    bl_idname = props_closet.LIBRARY_NAME_SPACE + ".top_shelf_drop"
     bl_label = "Place Top"
     bl_description = "This places the top."
     bl_options = {'UNDO'}
@@ -145,103 +158,213 @@ class DROP_OPERATOR_Place_Top(bpy.types.Operator):
     #READONLY
     object_name = bpy.props.StringProperty(name="Object Name")
     
-    product = None
+    top_shelf = None
+    selected_panel_1 = None
+    selected_panel_2 = None
+    objects = []
+    panels = []
+    max_shelf_length = 96.0
+    sel_product_bp = None
+    header_text = "Place Top Shelf - Select Partitions (Left to Right)   (Esc, Right Click) = Cancel Command  :  (Left Click) = Select Panel"
     
-    selected_panel = None
-    
+    def __del__(self):
+        bpy.context.area.header_text_set()
+
     def invoke(self, context, event):
         bp = bpy.data.objects[self.object_name]
-        self.product = fd_types.Assembly(bp)
-        utils.set_wireframe(self.product.obj_bp,True)
-        context.window.cursor_set('PAINT_BRUSH')
+        self.top_shelf = fd_types.Assembly(bp)
         context.scene.update() # THE SCENE MUST BE UPDATED FOR RAY CAST TO WORK
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
 
-    def cancel_drop(self,context,event):
-        if self.product:
-            utils.delete_object_and_children(self.product.obj_bp)
-        bpy.context.window.cursor_set('DEFAULT')
-        return {'FINISHED'}
-
-    def get_distance_between_panels(self,panel_1,panel_2):
-        
-        if panel_1.obj_z.location.z > 0:
-            obj_1 = panel_1.obj_z
-        else:
-            obj_1 = panel_1.obj_bp
-        
-        if panel_2.obj_z.location.z > 0:
-            obj_2 = panel_2.obj_bp
-        else:
-            obj_2 = panel_2.obj_z    
-        
-        x1 = obj_1.matrix_world[0][3]
-        y1 = obj_1.matrix_world[1][3]
-        z1 = obj_1.matrix_world[2][3]
-        
-        x2 = obj_2.matrix_world[0][3]
-        y2 = obj_2.matrix_world[1][3]
-        z2 = obj_2.matrix_world[2][3]
-        
-        return utils.calc_distance((x1,y1,z1),(x2,y2,z1))  #DONT CALCULATE Z DIFFERENCE
-
-    def product_drop(self,context,event):
-        selected_panel = None
-        selected_point, selected_obj = utils.get_selection_point(context,event)
-        bpy.ops.object.select_all(action='DESELECT')
-        
-        sel_product_bp = utils.get_bp(selected_obj,'PRODUCT')
-        sel_assembly_bp = utils.get_assembly_bp(selected_obj)
-        
-        if sel_assembly_bp:
-            props = props_closet.get_object_props(sel_assembly_bp)
-            if props.is_panel_bp:
-                selected_obj.select = True
-                selected_panel = fd_types.Assembly(sel_assembly_bp)
-                
-        if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.selected_panel:
-            selected_panel = fd_types.Assembly(sel_assembly_bp)
-            utils.set_wireframe(self.product.obj_bp,False)
-            bpy.context.window.cursor_set('DEFAULT')
-            bpy.ops.object.select_all(action='DESELECT')
-            context.scene.objects.active = self.product.obj_bp
-            self.product.obj_bp.select = True
-            dist = self.get_distance_between_panels(self.selected_panel, selected_panel)
-            self.product.obj_x.location.x = dist
-            self.product.obj_bp.mv.type_group = 'INSERT'
-            self.product.obj_bp.location.z = self.selected_panel.obj_bp.location.z + self.selected_panel.obj_x.location.x
-            self.product.obj_y.location.y = math.fabs(self.selected_panel.obj_y.location.y)
-            return {'FINISHED'}
-            
-        if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.selected_panel == None:
-            self.selected_panel = selected_panel
-            utils.set_wireframe(self.product.obj_bp,False)
-            bpy.context.window.cursor_set('DEFAULT')
-            bpy.ops.object.select_all(action='DESELECT')
-            context.scene.objects.active = self.product.obj_bp
-            self.product.obj_bp.parent = sel_product_bp
-            
-            if self.selected_panel.obj_z.location.z > 0:
-                #CENTER OR RIGHT PANEL SELECTED
-                self.product.obj_bp.location = self.selected_panel.obj_bp.location
-                self.product.obj_bp.location.x -= self.selected_panel.obj_z.location.z
-            else:
-                #LEFT PANEL SELECTED
-                self.product.obj_bp.location = self.selected_panel.obj_bp.location
-            
-        return {'RUNNING_MODAL'}
-    
     def modal(self, context, event):
         context.area.tag_redraw()
-        
+        context.area.header_text_set(text=self.header_text)
+
         if event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:
             return {'PASS_THROUGH'}
         
-        if event.type in {'ESC'}:
+        if event.type in {'ESC', 'RIGHTMOUSE'}:
             self.cancel_drop(context,event)
             return {'FINISHED'}
         
-        return self.product_drop(context,event)      
+        return self.insert_drop(context,event)  
+
+    def cancel_drop(self,context,event):
+        if self.top_shelf:
+            utils.delete_object_and_children(self.top_shelf.obj_bp)
+        return {'FINISHED'}
+
+    def get_deepest_panel(self):
+        depths = []
+        for p in self.panels:
+            depths.append(abs(p.obj_y.location.y))
+        return max(depths)
+
+    def get_closest_opening(self,x_loc):
+        return lambda op : abs(op - x_loc)
+
+    def get_panels(self):
+        self.panel_bps.clear()
+
+        for child in self.sel_product_bp.children:
+            if child.lm_closets.is_panel_bp:
+                self.panel_bps.append(child)
+        
+        self.panel_bps.sort(key=operator.attrgetter('location.x'))
+
+        for i,bp in enumerate(self.panel_bps):
+            print(i,unit.inch(bp.location.x))
+            
+    def is_first_panel(self, panel):
+        if panel.obj_z.location.z < 0:
+            return True
+        else:
+            return False
+
+    def get_inculded_panels(self,panel_1,panel_2):
+        self.panels.clear()
+        p1_x_loc = panel_1.obj_bp.location.x
+        p2_x_loc = panel_2.obj_bp.location.x
+
+        for child in self.sel_product_bp.children:
+            if child.lm_closets.is_panel_bp:
+                if p1_x_loc <= child.location.x <= p2_x_loc:
+                    self.panels.append(fd_types.Assembly(child))
+
+    def insert_drop(self,context,event):
+        selected_point, selected_obj = utils.get_selection_point(context,event,objects=self.objects)
+        self.sel_product_bp = utils.get_bp(selected_obj,'PRODUCT')
+        bpy.ops.object.select_all(action='DESELECT')
+        sel_assembly_bp = utils.get_assembly_bp(selected_obj)
+        product = fd_types.Assembly(self.sel_product_bp)
+
+        if sel_assembly_bp:
+            props = props_closet.get_object_props(sel_assembly_bp)
+
+            if props.is_panel_bp:
+                selected_obj.select = True
+                hover_panel = fd_types.Assembly(selected_obj.parent)
+                hp_x_loc = hover_panel.obj_bp.location.x
+
+                if not self.selected_panel_1:
+                    if hover_panel.obj_bp.location.x == product.obj_x.location.x:
+                        selected_obj.select = False
+                        return {'RUNNING_MODAL'}
+
+                    self.top_shelf.obj_bp.parent = self.sel_product_bp
+                    self.top_shelf.obj_bp.location = hover_panel.obj_bp.location
+
+                    if hover_panel.obj_z.location.z > 0:
+                        self.top_shelf.obj_bp.location.x = hp_x_loc - unit.inch(0.75)
+
+                    self.top_shelf.obj_bp.location.z += hover_panel.obj_x.location.x
+                    self.top_shelf.obj_x.location.x = unit.inch(18.0)
+                    self.top_shelf.obj_y.location.y = -hover_panel.obj_y.location.y
+
+                else:
+                    self.get_inculded_panels(self.selected_panel_1,hover_panel)
+                    sp1_x_loc = self.selected_panel_1.obj_bp.location.x
+                    hp_x_loc = hover_panel.obj_bp.location.x
+                    ts_length = hp_x_loc - sp1_x_loc
+                    same_panel = self.selected_panel_1.obj_bp == hover_panel.obj_bp
+                    same_product = self.selected_panel_1.obj_bp.parent == hover_panel.obj_bp.parent
+                    hp_to_left = hp_x_loc < sp1_x_loc
+                    hp_out_of_reach = unit.meter_to_inch(ts_length) > self.max_shelf_length
+
+                    if same_panel or hp_to_left or not same_product or hp_out_of_reach:
+                        selected_obj.select = False
+                        return {'RUNNING_MODAL'}
+
+                    if self.is_first_panel(self.selected_panel_1):
+                        self.top_shelf.obj_x.location.x = ts_length
+                    else:
+                        if hp_x_loc < sp1_x_loc:
+                            #Hover selection to left
+                            pass
+                        else:
+                            self.top_shelf.obj_x.location.x = ts_length + unit.inch(0.75)
+
+                    self.top_shelf.obj_y.location.y = self.get_deepest_panel()
+
+                if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
+                    if not self.selected_panel_1:
+                        self.selected_panel_1 = hover_panel
+                        utils.set_wireframe(self.top_shelf.obj_bp,False)
+                        bpy.ops.object.select_all(action='DESELECT')
+                        context.scene.objects.active = self.top_shelf.obj_bp
+
+                        self.top_shelf.obj_bp.parent = self.sel_product_bp
+                        p1_z_loc = self.selected_panel_1.obj_bp.location.z
+                        p1_z_dim = self.selected_panel_1.obj_x.location.x
+
+                        if self.selected_panel_1.obj_z.location.z < 0:
+                            self.top_shelf.obj_bp.location.x = self.selected_panel_1.obj_bp.location.x
+                        else:
+                            self.top_shelf.obj_bp.location.x = self.selected_panel_1.obj_bp.location.x - unit.inch(0.75)
+                        self.top_shelf.obj_bp.location.z = p1_z_loc + p1_z_dim
+                        self.top_shelf.obj_y.location.y = -self.selected_panel_1.obj_y.location.y
+
+                        return {'RUNNING_MODAL'}
+
+                    if not self.selected_panel_2:
+                        self.selected_panel_2 = hover_panel
+                        bpy.ops.object.select_all(action='DESELECT')
+                        context.scene.objects.active = self.top_shelf.obj_bp
+                        self.top_shelf.obj_bp.select = True
+
+                        if self.selected_panel_1.obj_bp == self.selected_panel_2.obj_bp:
+                            self.cancel_drop(context,event)
+                            return {'FINISHED'}
+                            
+                        P1_X_Loc = self.selected_panel_1.get_var('loc_x','P1_X_Loc')
+                        P2_X_Loc = self.selected_panel_2.get_var('loc_x','P2_X_Loc')
+                        Panel_Thickness = product.get_var('Panel Thickness')
+
+                        if self.is_first_panel(self.selected_panel_1):
+                            self.top_shelf.x_loc('P1_X_Loc',[P1_X_Loc])
+                            self.top_shelf.x_dim('P2_X_Loc-P1_X_Loc',[P1_X_Loc,P2_X_Loc])
+                        else:
+                            self.top_shelf.x_loc('P1_X_Loc-Panel_Thickness',[P1_X_Loc,Panel_Thickness])
+                            self.top_shelf.x_dim('P2_X_Loc-P1_X_Loc+Panel_Thickness',[P1_X_Loc,P2_X_Loc,Panel_Thickness])
+
+                        max_panel_formula = "max(("
+                        max_panel_vars = []
+                        max_panel_fc_formula = ""
+                        max_panel_fc_vars = []
+                        max_rc_formula = "max(("
+                        max_rc_vars = []
+
+                        MPD = self.top_shelf.get_var('Max Panel Depth','MPD')
+                        Max_Rear_Chamfer = self.top_shelf.get_var('Max Rear Chamfer')
+                        Max_Panel_Front_Chamfer = self.top_shelf.get_var('Max Panel Front Chamfer')
+
+                        max_panel_fc_vars.append(MPD)
+                        max_panel_fc_tail = "0"
+
+                        for i,panel in enumerate(self.panels):
+                            max_panel_formula += "abs(PD{}),".format(i+1)
+                            max_panel_vars.append(panel.get_var('dim_y','PD{}'.format(i+1)))
+                            max_panel_fc_formula += "IF(abs(PD{})==MPD,FCD{},".format(i+1,i+1)
+                            max_panel_fc_tail += ")"
+                            max_panel_fc_vars.append(panel.get_var('dim_y','PD{}'.format(i+1)))
+                            max_panel_fc_vars.append(panel.get_var("Front Chamfer Depth","FCD{}".format(i+1)))
+                            max_rc_formula += "RCD{},".format(i+1)
+                            max_rc_vars.append(panel.get_var("Rear Chamfer Depth","RCD{}".format(i+1)))
+
+                        max_panel_formula += "))"
+                        max_panel_fc_formula += max_panel_fc_tail
+                        max_rc_formula += "))"
+
+                        self.top_shelf.prompt('Max Panel Depth',max_panel_formula,max_panel_vars)
+                        self.top_shelf.prompt('Max Rear Chamfer',max_rc_formula,max_rc_vars)
+                        self.top_shelf.prompt('Max Panel Front Chamfer',max_panel_fc_formula,max_panel_fc_vars)
+                        self.top_shelf.y_loc("-Max_Rear_Chamfer",[Max_Rear_Chamfer])
+                        self.top_shelf.y_dim("MPD-Max_Rear_Chamfer-Max_Panel_Front_Chamfer",[MPD,Max_Rear_Chamfer,Max_Panel_Front_Chamfer])
+                        
+                        return {'FINISHED'}
+            
+        return {'RUNNING_MODAL'}
+    
 
 bpy.utils.register_class(DROP_OPERATOR_Place_Top)

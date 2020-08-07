@@ -37,6 +37,13 @@ def add_closet_carcass_prompts(assembly):
     assembly.add_prompt(name="Front Angle Depth",prompt_type='DISTANCE',value=unit.inch(0),tab_index=1)  
     assembly.add_prompt(name="Rear Angle Height",prompt_type='DISTANCE',value=unit.inch(0),tab_index=1)  
     assembly.add_prompt(name="Rear Angle Depth",prompt_type='DISTANCE',value=unit.inch(0),tab_index=1)   
+    assembly.add_prompt(name="Cleat Height",prompt_type='DISTANCE',value=unit.inch(3.64),tab_index=1)
+    assembly.add_prompt(name="Blind Corner Left",prompt_type='CHECKBOX',value=False,tab_index=1)
+    assembly.add_prompt(name="Blind Corner Right",prompt_type='CHECKBOX',value=False,tab_index=1)
+    assembly.add_prompt(name="Blind Corner Left Depth",prompt_type='DISTANCE',value=unit.inch(18),tab_index=1)
+    assembly.add_prompt(name="Blind Corner Right Depth",prompt_type='DISTANCE',value=unit.inch(18),tab_index=1)       
+    assembly.add_prompt(name="Opening Height Difference",prompt_type='DISTANCE',value=unit.inch(1.49),tab_index=1)
+    assembly.add_prompt(name="Blind Corner Height Difference",prompt_type='DISTANCE',value=unit.inch(0.91),tab_index=1)
 
 
     #For adding individual opening prompts
@@ -161,6 +168,7 @@ def add_front_overlay_prompts(assembly):
     assembly.add_prompt(name="Half Overlay Bottom",prompt_type='CHECKBOX',value=True,tab_index=0)
     assembly.add_prompt(name="Half Overlay Left",prompt_type='CHECKBOX',value=True,tab_index=0)
     assembly.add_prompt(name="Half Overlay Right",prompt_type='CHECKBOX',value=True,tab_index=0)
+    assembly.add_prompt(name="Full Overlay",prompt_type='CHECKBOX',value=False,tab_index=0)
     assembly.add_prompt(name="Top Reveal",prompt_type='DISTANCE',value=unit.inch(0.125),tab_index=0)
     assembly.add_prompt(name="Bottom Reveal",prompt_type='DISTANCE',value=unit.inch(0.125),tab_index=0)
     assembly.add_prompt(name="Left Reveal",prompt_type='DISTANCE',value=unit.inch(0.125),tab_index=0)
@@ -168,7 +176,12 @@ def add_front_overlay_prompts(assembly):
     assembly.add_prompt(name="Inset Reveal",prompt_type='DISTANCE',value=unit.inch(0.125),tab_index=0) 
     assembly.add_prompt(name="Horizontal Gap",prompt_type='DISTANCE',value=unit.inch(.1588),tab_index=0)
     assembly.add_prompt(name="Vertical Gap",prompt_type='DISTANCE',value=unit.inch(.125),tab_index=0)
-    assembly.add_prompt(name="Door to Cabinet Gap",prompt_type='DISTANCE',value=unit.inch(0.01),tab_index=0)   
+    assembly.add_prompt(name="Door to Cabinet Gap",prompt_type='DISTANCE',value=unit.inch(0.01),tab_index=0)
+    assembly.add_prompt(name="True Width Overlay",prompt_type='DISTANCE',value=unit.inch(0.58),tab_index=0)
+    assembly.add_prompt(name="True Height Overlay",prompt_type='DISTANCE',value=unit.inch(0.58),tab_index=0)
+    assembly.add_prompt(name="Double Door Half Overlay Difference",prompt_type='DISTANCE',value=unit.inch(0.09),tab_index=0)
+    assembly.add_prompt(name="Double Door Full Overlay Difference",prompt_type='DISTANCE',value=unit.inch(0.375),tab_index=0)
+    assembly.add_prompt(name="Single Door Full Overlay Difference",prompt_type='DISTANCE',value=unit.inch(0.25),tab_index=0)      
     
     assembly.add_prompt(name="Top Overlay",prompt_type='DISTANCE',value=0,tab_index=0)
     assembly.add_prompt(name="Bottom Overlay",prompt_type='DISTANCE',value=0,tab_index=0)
@@ -189,18 +202,32 @@ def add_front_overlay_prompts(assembly):
     br = assembly.get_var("Bottom Reveal",'br')
     lr = assembly.get_var("Left Reveal",'lr')
     rr = assembly.get_var("Right Reveal",'rr')
+    two = assembly.get_var("True Width Overlay",'two')
+    tho = assembly.get_var("True Height Overlay",'tho')
     
-    assembly.prompt("Top Overlay","IF(inset,-inset_reveal,IF(hot,(tt/2)-(tr/2),tt-tr))",
-                    [inset,inset_reveal,hot,tt,tr])
+    assembly.prompt("Top Overlay","IF(inset,-inset_reveal,IF(hot,tho/2,tho))",
+                    [inset,inset_reveal,hot,tho])
+
+    #assembly.prompt("Top Overlay","IF(inset,-inset_reveal,IF(hot,(tt/2)-(tr/2),tt-tr))",
+                    #[inset,inset_reveal,hot,tt,tr])
     
-    assembly.prompt("Bottom Overlay","IF(inset,-inset_reveal,IF(hob,(bt/2)-(br/2),bt-br))",
-                    [inset,inset_reveal,hob,bt,br])
+    assembly.prompt("Bottom Overlay","IF(inset,-inset_reveal,IF(hob,tho/2,tho))",
+                    [inset,inset_reveal,hob,tho])
+
+    #assembly.prompt("Bottom Overlay","IF(inset,-inset_reveal,IF(hob,(bt/2)-(br/2),bt-br))",
+                    #[inset,inset_reveal,hob,bt,br])
     
-    assembly.prompt("Left Overlay","IF(inset,-inset_reveal,IF(hol,(lst/2)-(lr/2),lst-lr))",
-                    [inset,inset_reveal,hol,lst,lr])
+    assembly.prompt("Left Overlay","IF(inset,-inset_reveal,IF(hol,two/2,two))",
+                    [inset,inset_reveal,hol,two])
+
+    #assembly.prompt("Left Overlay","IF(inset,-inset_reveal,IF(hol,(lst/2)-(lr/2),lst-lr))",
+                    #[inset,inset_reveal,hol,lst,lr])
     
-    assembly.prompt("Right Overlay","IF(inset,-inset_reveal,IF(hor,(rst/2)-(rr/2),rst-rr))",
-                    [inset,inset_reveal,hor,rst,rr])    
+    assembly.prompt("Right Overlay","IF(inset,-inset_reveal,IF(hor,two/2,two))",
+                    [inset,inset_reveal,hor,two])
+
+    #assembly.prompt("Right Overlay","IF(inset,-inset_reveal,IF(hor,(rst/2)-(rr/2),rst-rr))",
+                    #[inset,inset_reveal,hor,rst,rr])  
     
 def add_pull_prompts(assembly):
     props = props_closet.get_scene_props()

@@ -2,6 +2,7 @@ import bpy
 import operator
 import os
 from mv import utils
+import snap_db
 
 def render_material_exists(material_name):
     materials_dir = utils.get_library_dir("materials")
@@ -19,25 +20,35 @@ def render_material_exists(material_name):
 
 class ColorMixIn:
     has_render_mat = bpy.props.BoolProperty(name="Has Rendering Material")
+    location_code = bpy.props.IntProperty(name="Location Code")
+    oversize_max_len = bpy.props.IntProperty(name="Oversize Material Max Length", default=0)
 
     def render_material_exists(self, material_name):
+        search_dirs = []
         materials_dir = utils.get_library_dir("materials")
         cls_type =  self.bl_rna.name
 
         if cls_type in ("EdgeColor", "MaterialColor"):
-            search_directory = os.path.join(materials_dir, "Cabinet Materials", "Classy Closets")
+            main_mat_dir = os.path.join(materials_dir, "Cabinet Materials", "Classy Closets")
+            search_dirs.append(main_mat_dir)
+            snap_db_mat_dir = snap_db.MATERIALS_DIR
+            search_dirs.append(snap_db_mat_dir)
 
         elif cls_type == "CountertopColor":
-            search_directory = os.path.join(materials_dir, "Cabinet Materials", "Classy Closets CT")
+            countertop_mat_dir = os.path.join(materials_dir, "Cabinet Materials", "Classy Closets CT")
+            search_dirs.append(countertop_mat_dir)
 
-        if os.path.isdir(search_directory):
-            files = os.listdir(search_directory)
-            possible_files = []
+        mat_exists = False
 
-            if material_name + ".blend" in files:
-                return True
-            else:
-                return False
+        for search_directory in search_dirs:
+            if os.path.isdir(search_directory):
+                files = os.listdir(search_directory)
+                possible_files = []
+
+                if material_name + ".blend" in files:
+                    mat_exists =  True
+
+        return mat_exists
 
     def check_render_material(self):
         if self.render_material_exists(self.name):
@@ -128,6 +139,74 @@ class Edges(bpy.types.PropertyGroup):
             row.label("None", icon='ERROR')
 
 bpy.utils.register_class(Edges)
+
+
+class DoorDrawerEdgeType(bpy.types.PropertyGroup):   
+    description = bpy.props.StringProperty()
+    type_code = bpy.props.IntProperty()
+    colors = bpy.props.CollectionProperty(type=EdgeColor)
+
+    def set_color_index(self, index):
+        scene_props = bpy.context.scene.db_materials
+        scene_props.door_drawer_edge_color_index = index
+
+    def get_edge_color(self):
+        scene_props = bpy.context.scene.db_materials
+        return self.colors[scene_props.door_drawer_edge_color_index]          
+
+    def get_inventory_edge_name(self):
+        return "EB {} {}".format(self.name, self.type_code)    
+
+    def draw(self, layout):
+        color = self.get_edge_color()
+
+        row = layout.row()
+        split = row.split(percentage=0.25)
+        split.label("Color:")            
+        split.menu("MENU_Door_Drawer_Edge_Colors", text=color.name, icon='SOLO_ON' if color.has_render_mat else 'ERROR')
+
+        if not color.has_render_mat:
+            row = layout.row()
+            split = row.split(percentage=0.25)
+            split.label("")             
+            box = split.box()
+            row = box.row()
+            row.label("Missing render material.", icon='ERROR')   
+
+bpy.utils.register_class(DoorDrawerEdgeType)
+
+
+class DoorDrawerEdges(bpy.types.PropertyGroup):
+    edge_types = bpy.props.CollectionProperty(type=DoorDrawerEdgeType)
+
+    def set_type_index(self, index):
+        scene_props = bpy.context.scene.db_materials
+        scene_props.door_drawer_edge_type_index = index
+        scene_props.door_drawer_edge_color_index = 0
+
+    def get_edge_type(self):
+        scene_props = bpy.context.scene.db_materials
+        return self.edge_types[scene_props.door_drawer_edge_type_index]
+
+    def get_edge_color(self):
+        return self.get_edge_type().get_edge_color()        
+
+    def draw(self, layout):
+        box = layout.box()
+        box.label("Edge Selection:")
+
+        if len(self.edge_types) > 0:
+            row = box.row()
+            split = row.split(percentage=0.25)
+            split.label("Type:")
+            split.menu('MENU_Door_Drawer_Edge_Types', text=self.get_edge_type().name, icon='SOLO_ON')
+            self.get_edge_type().draw(box)
+
+        else:
+            row = box.row()
+            row.label("None", icon='ERROR')
+
+bpy.utils.register_class(DoorDrawerEdges)
 
 
 class SecondaryEdgeType(bpy.types.PropertyGroup):   
@@ -235,6 +314,15 @@ class MaterialType(bpy.types.PropertyGroup):
         split.label("Color:")            
         split.menu("MENU_Mat_Colors", text=color.name, icon='SOLO_ON' if color.has_render_mat else 'ERROR')
 
+        if color.oversize_max_len > 0:
+            row = layout.row()
+            split = row.split(percentage=0.25)
+            split.label("")
+
+            max_len_inch = round(color.oversize_max_len/25.4,2)
+            max_len_str = 'Max Length: {}"'.format(max_len_inch)
+            split.label(max_len_str, icon='INFO')              
+
         if not color.has_render_mat:
             row = layout.row()
             split = row.split(percentage=0.25)
@@ -250,10 +338,12 @@ class Materials(bpy.types.PropertyGroup):
     mat_types = bpy.props.CollectionProperty(type=MaterialType)
     textured_mel_color_list = []
     mel_color_list = []
+    veneer_backing_color_list = []
 
     def create_color_lists(self):
         self.textured_mel_color_list.clear()
         self.mel_color_list.clear()
+        self.veneer_backing_color_list.clear()
 
         for mat_type in self.mat_types:
             if mat_type.name == 'Textured Melamine':
@@ -262,6 +352,12 @@ class Materials(bpy.types.PropertyGroup):
             if mat_type.name == 'Melamine':
                 for color in mat_type.colors:
                     self.mel_color_list.append((color.name, color.name, color.name))
+            if mat_type.name == 'Veneer':
+                #Add 1/4" backing veneer
+                #scene_props = bpy.context.scene.db_materials
+                for color in mat_type.colors:
+                    if (color.name, color.name, color.name) not in self.veneer_backing_color_list:
+                        self.veneer_backing_color_list.append((color.name, color.name, color.name))
 
     def set_type_index(self, index):
         scene_props = bpy.context.scene.db_materials
@@ -294,6 +390,99 @@ class Materials(bpy.types.PropertyGroup):
             row.label("None", icon='ERROR')               
 
 bpy.utils.register_class(Materials)
+
+
+class DoorDrawerMaterialType(bpy.types.PropertyGroup):
+    description = bpy.props.StringProperty()
+    type_code = bpy.props.IntProperty()
+    colors = bpy.props.CollectionProperty(type=MaterialColor)
+
+    def set_color_index(self, index):
+        scene_props = bpy.context.scene.db_materials
+        scene_props.door_drawer_mat_color_index = index
+
+    def get_mat_color(self):
+        scene_props = bpy.context.scene.db_materials
+        return self.colors[scene_props.door_drawer_mat_color_index] 
+
+    def get_inventory_material_name(self):
+        return "{} {}".format(self.name, self.type_code)
+
+    def draw(self, layout):
+        color = self.get_mat_color()
+
+        row = layout.row()
+        split = row.split(percentage=0.25)
+        split.label("Color:")            
+        split.menu("MENU_Door_Drawer_Mat_Colors", text=color.name, icon='SOLO_ON' if color.has_render_mat else 'ERROR')
+
+        if not color.has_render_mat:
+            row = layout.row()
+            split = row.split(percentage=0.25)
+            split.label("")             
+            box = split.box()
+            row = box.row()
+            row.label("Missing render material.", icon='ERROR') 
+
+bpy.utils.register_class(DoorDrawerMaterialType)
+
+
+class DoorDrawerMaterials(bpy.types.PropertyGroup):
+    mat_types = bpy.props.CollectionProperty(type=DoorDrawerMaterialType)
+    textured_mel_color_list = []
+    mel_color_list = []
+    veneer_backing_color_list = []
+
+    def create_color_lists(self):
+        self.textured_mel_color_list.clear()
+        self.mel_color_list.clear()
+        self.veneer_backing_color_list.clear()
+
+        for mat_type in self.mat_types:
+            if mat_type.name == 'Textured Melamine':
+                for color in mat_type.colors:
+                    self.textured_mel_color_list.append((color.name, color.name, color.name))
+            if mat_type.name == 'Melamine':
+                for color in mat_type.colors:
+                    self.mel_color_list.append((color.name, color.name, color.name))
+            if mat_type.name == 'Veneer':
+                #Add 1/4" backing veneer
+                #scene_props = bpy.context.scene.db_materials
+                for color in mat_type.colors:
+                    if (color.name, color.name, color.name) not in self.veneer_backing_color_list:
+                        self.veneer_backing_color_list.append((color.name, color.name, color.name))
+
+    def set_type_index(self, index):
+        scene_props = bpy.context.scene.db_materials
+        scene_props.door_drawer_mat_type_index = index
+        scene_props.door_drawer_mat_color_index = 0
+
+    def get_mat_type(self):
+        scene_props = bpy.context.scene.db_materials
+        return self.mat_types[scene_props.door_drawer_mat_type_index]
+
+    def get_mat_color(self):
+        return self.get_mat_type().get_mat_color()
+
+    def has_render_mat(self):
+        return self.get_mat_type().has_render_mat
+
+    def draw(self, layout):
+        box = layout.box()
+        box.label("Material Selection:")
+
+        if len(self.mat_types) > 0:
+            row = box.row()
+            split = row.split(percentage=0.25)
+            split.label("Type:")
+            split.menu('MENU_Door_Drawer_Mat_Types', text=self.get_mat_type().name, icon='SOLO_ON')
+            self.get_mat_type().draw(box) 
+
+        else:
+            row = box.row()
+            row.label("None", icon='ERROR')               
+
+bpy.utils.register_class(DoorDrawerMaterials)
 
 
 class CountertopColor(bpy.types.PropertyGroup, ColorMixIn):
@@ -528,6 +717,16 @@ class GlassColor(bpy.types.PropertyGroup):
         pass
 
 bpy.utils.register_class(GlassColor)
+
+
+class BackingVeneerColor(bpy.types.PropertyGroup):
+    description = bpy.props.StringProperty()
+    sku = bpy.props.StringProperty()
+
+    def draw(layout):
+        pass
+
+bpy.utils.register_class(BackingVeneerColor)
 
 
 class DrawerSlideSize(bpy.types.PropertyGroup):

@@ -330,6 +330,7 @@ class Closet_Island_Carcass(fd_types.Assembly):
                    [dim_x,Deck_Overhang,Left_Against_Wall,Right_Against_Wall])
         ctop.y_dim('dim_y-Deck_Overhang*2',[dim_y,Deck_Overhang])
         ctop.z_dim('Deck_Thickness',[Deck_Thickness])
+        ctop.prompt("Is Counter Top",value = True)
         ctop.prompt("Hide","IF(Countertop_Type==0,False,True)",[Countertop_Type])
         ctop.prompt("Exposed Left","IF(Left_Against_Wall,False,True)",[Left_Against_Wall])
         ctop.prompt("Exposed Right","IF(Right_Against_Wall,False,True)",[Right_Against_Wall])

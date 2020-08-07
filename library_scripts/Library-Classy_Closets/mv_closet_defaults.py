@@ -54,6 +54,8 @@ def update_back_mat_pointer(self, context):
     else:
         back_mesh.cabinetlib.material_slots[0].pointer_name = "Closet_Part_Surfaces"
 
+    update_render_materials(self,context)
+
 #---------LIBRARY NAMESPACE
 LIBRARY_NAME_SPACE = "lm_closets"
 
@@ -451,20 +453,14 @@ def update_material_category(self,context):
         
     enum_materials(self,context)
 
-def available_material_colors(self,context):
-    scene_props = bpy.context.scene.db_materials    
-    mat_type = scene_props.materials.get_mat_type()
+def get_mel_colors(self, context):
+    return bpy.context.scene.db_materials.materials.mel_color_list
 
-    if mat_type.name == "Melamine":
-        items = scene_props.materials.mel_color_list
+def get_tex_mel_colors(self, context):
+    return bpy.context.scene.db_materials.materials.textured_mel_color_list
 
-    if mat_type.name == "Textured Melamine":
-        items = scene_props.materials.textured_mel_color_list
-
-    if context is None:
-        return []
-    
-    return items
+def get_veneer_colors(self, context):
+    return bpy.context.scene.db_materials.materials.veneer_backing_color_list
     
 #---------PROPERTY GROUPS
     
@@ -526,7 +522,7 @@ class Closet_Defaults(PropertyGroup):
     
     toe_kick_height = FloatProperty(name="Toe Kick Height",default=unit.inch(2.5),unit='LENGTH')
     
-    toe_kick_setback = FloatProperty(name="Toe Kick Setback",default=unit.inch(1.125),unit='LENGTH')
+    toe_kick_setback = FloatProperty(name="Toe Kick Setback",default=unit.inch(1.5),unit='LENGTH')
     
     adj_shelf_clip_gap = FloatProperty(name="Adjustable Shelf Clip Gap",default=0,unit='LENGTH')
     
@@ -558,13 +554,19 @@ class Closet_Defaults(PropertyGroup):
                                     description="Check this box to see the drilling operation on the panels",
                                     default=False)
     
-    panel_drilling_from_front = FloatProperty(name="Panel Drilling from Front",
-                                              description="This sets the dim to the front set of system holes for the visual representation ONLY. See Machining Setup Interface for machining defaults",
-                                              default=unit.inch(1.69291),unit='LENGTH')  
+    panel_drilling_from_front = FloatProperty(
+        name="Panel Drilling from Front",
+        description="This sets the dim to the front set of system holes for the visual representation ONLY. See Machining Setup Interface for machining defaults",
+        default=unit.millimeter(37),
+        unit='LENGTH'
+        )  
     
-    panel_drilling_from_rear = FloatProperty(name="Panel Drilling from Rear",
-                                             description="This sets the dim to the rear set of system holes for the visual representation ONLY. See Machining Setup Interface for machining defaults",
-                                             default=unit.inch(1.69291),unit='LENGTH') 
+    panel_drilling_from_rear = FloatProperty(
+        name="Panel Drilling from Rear",
+        description="This sets the dim to the rear set of system holes for the visual representation ONLY. See Machining Setup Interface for machining defaults",
+        default=unit.millimeter(37),
+        unit='LENGTH'
+        ) 
     
     remove_bottom_hanging_shelf = BoolProperty(name="Remove Bottom Hanging Shelf",
                                                description="This will remove the bottom hanging shelf if the section is set to hanging",
@@ -596,7 +598,7 @@ class Closet_Defaults(PropertyGroup):
     
     drawer_box_slide_gap = FloatProperty(name="Drawer Box Slide Gap",
                                              description="This sets the drawer box slide gap",
-                                             default=unit.inch(1),unit='LENGTH')  
+                                             default=unit.inch(0.5),unit='LENGTH')  
     
     def draw_door_defaults(self,layout):
         box = layout.box()
@@ -986,10 +988,16 @@ class Closet_Options(PropertyGroup):
         row = door_style_box.row(align=True)
         row.label("Door/Drawer Options:")
         row.operator(LIBRARY_NAME_SPACE + '.update_door_selection',text="Replace Selection",icon='FILE_REFRESH')
-        row.operator(LIBRARY_NAME_SPACE + '.place_applied_panel',text="Place Door",icon='MAN_TRANS')   
+        row.operator(LIBRARY_NAME_SPACE + '.place_applied_panel',text="Place Door",icon='MAN_TRANS')
+
         col = door_style_box.column(align=True)
         col.prop(self,'door_category',text="",icon='FILE_FOLDER')
-        col.template_icon_view(self,"door_style",show_labels=True)    
+
+        box = col.box()
+        box.label(self.door_style)
+        
+        box.template_icon_view(self,"door_style",show_labels=True)
+            
         
         props = get_scene_props()
         props.closet_defaults.draw_door_defaults(door_style_box)
@@ -1089,6 +1097,7 @@ bpy.utils.register_class(Closet_Defaults)
 bpy.utils.register_class(Closet_Options)
 
 class PROPERTIES_Scene_Variables(PropertyGroup):
+    is_drill_scene = BoolProperty(name="Is Drilling Scene",default=False)
     
     main_tabs = EnumProperty(name="Main Tabs",
                        items=[('DEFAULTS',"Defaults",'Show the closet defaults.'),
@@ -1211,7 +1220,11 @@ class PROPERTIES_Object_Properties(PropertyGroup):
     
     is_panel_bp = BoolProperty(name="Is Panel Point",
                                description="Used to determine if the assembly is a vertical panel",
-                               default=False)    
+                               default=False)
+
+    is_blind_corner_panel_bp = BoolProperty(name="Is Blind Corner Panel Point",
+                               description="Used to determine if the part is a vertical blind corner panel",
+                               default=False)        
 
     is_slanted_shelf_bp = BoolProperty(name="Is Slanted Shelf Base Point",
                                description="Used to determine if the assembly is a slanted shelf base point",
@@ -1227,6 +1240,10 @@ class PROPERTIES_Object_Properties(PropertyGroup):
     
     is_shelf_bp = BoolProperty(name="Is Shelf Base Point",
                                description="Used to determine if the assembly is a fixed or adj shelf",
+                               default=False)
+
+    is_glass_shelf_bp = BoolProperty(name="Is Glass Shelf Base Point",
+                               description="Used to determine if the assembly is a glass shelf",
                                default=False)
     
     is_l_shelf_bp = BoolProperty(name="Is L Shelf Base Point",
@@ -1252,6 +1269,10 @@ class PROPERTIES_Object_Properties(PropertyGroup):
     is_cleat_bp = BoolProperty(name="Is Cleat Base Point",
                                description="Used to determine if the assembly is a cleat",
                                default=False)
+
+    is_cover_cleat_bp = BoolProperty(name="Is Cover Cleat Base Point",
+                               description="Used to determine if the assembly is a cleat",
+                               default=False)
     
     is_door_striker_bp = BoolProperty(name="Is Door Striker Base Point",
                                description="Used to determine if the assembly is a door striker",
@@ -1265,8 +1286,21 @@ class PROPERTIES_Object_Properties(PropertyGroup):
                                description="Used to determine if the assembly is a cleat",
                                default=False)        
     
+    is_toe_kick_insert_bp = BoolProperty(name="Is Toe Kick Insert Base Point",
+                                  description="Used to determine if the assembly is a toe kick insert",
+                                  default=False)
+
     is_toe_kick_bp = BoolProperty(name="Is Toe Kick Base Point",
                                   description="Used to determine if the assembly is a toe kick",
+                                  default=False)
+
+
+    is_toe_kick_end_cap_bp = BoolProperty(name="Is Toe Kick End Cap Base Point",
+                                  description="Used to determine if the assembly is a toe kick end cap",
+                                  default=False)
+
+    is_toe_kick_stringer_bp = BoolProperty(name="Is Toe Kick Stringer Base Point",
+                                  description="Used to determine if the assembly is a toe kick stringer",
                                   default=False)
     
     is_shelf_lip_bp = BoolProperty(name="Is Shelf Lip Base Point",
@@ -1295,6 +1329,14 @@ class PROPERTIES_Object_Properties(PropertyGroup):
     
     is_back_bp = BoolProperty(name="Is Back Base Point",
                               description="Used to determine if the assembly is a back",
+                              default=False)
+
+    is_top_back_bp = BoolProperty(name="Is Top Back Base Point",
+                              description="Used to determine if the assembly is a top section back",
+
+                              default=False)
+    is_bottom_back_bp = BoolProperty(name="Is Bottom Back Base Point",
+                              description="Used to determine if the assembly is a bottom section back",
                               default=False)
     
     is_drawer_stack_bp = BoolProperty(name="Is Drawer Stack Base Point",
@@ -1363,6 +1405,10 @@ class PROPERTIES_Object_Properties(PropertyGroup):
     
     is_cutpart_bp = BoolProperty(name="Is Cut Part Base Point",
                               description="Used to determine if the assembly is cutpart",
+                              default=False)
+
+    is_accessory_bp = BoolProperty(name="Is Accessory Base Point",
+                              description="Used to determine if the assembly is an accessory",
                               default=False)    
 
     opening_type = StringProperty(name="Opening Type",
@@ -1378,11 +1424,33 @@ class PROPERTIES_Object_Properties(PropertyGroup):
         update=update_back_mat_pointer
     )
 
-    unique_mat_colors = EnumProperty(
-        name="Unique Material Color",
-        items=available_material_colors,
+    unique_mat_types = EnumProperty(
+        name="Unique Material Type",
+        items=[
+            ('MELAMINE','Melamine','Melamine'),
+            ('TEXTURED_MELAMINE','Textured Melamine','Textured Melamine'),
+            ('VENEER','Veneer','Veneer')
+        ],
+        update=update_render_materials        
+    )
+
+    unique_mat_mel = EnumProperty(
+        name="Unique Melamine Material Type",
+        items=get_mel_colors,
         update=update_render_materials
-    )    
+    )
+
+    unique_mat_tex_mel = EnumProperty(
+        name="Unique Textured Melamine Material Color",
+        items=get_tex_mel_colors,
+        update=update_render_materials
+    )
+
+    unique_mat_veneer = EnumProperty(
+        name="Unique Veneer Material Color",
+        items=get_veneer_colors,
+        update=update_render_materials
+    )
 
 class OPERATOR_Update_Closet_Hanging_Height(bpy.types.Operator):
     bl_idname = LIBRARY_NAME_SPACE + ".update_closet_hanging_height"
@@ -1822,8 +1890,8 @@ class OPERATOR_Update_Door_Selection(bpy.types.Operator):
             self.set_door_material_pointers(obj)
             obj.draw_type = 'TEXTURED'
             obj.mv.comment = door_style
-#             for slot in obj.cabinetlib.material_slots:
-#                 slot.pointer_name = "Door_Surface"
+            # for slot in obj.cabinetlib.material_slots:
+            #     slot.pointer_name = "Door_Surface"
             utils.assign_materials_from_pointers(obj)
         if obj.mv.type == 'CAGE':
             obj.hide = True
@@ -1857,19 +1925,30 @@ class OPERATOR_Update_Door_Selection(bpy.types.Operator):
         for obj_bp in door_bps:
             door_assembly = fd_types.Assembly(obj_bp)
             
-            group_bp = utils.get_group(os.path.join(common_parts.LIBRARY_DATA_DIR,
-                                                 DOOR_FOLDER_NAME,
-                                                 props.door_category,
-                                                 props.door_style+".blend"))
-            new_door = fd_types.Assembly(group_bp)
-            if props.door_category == '5 Piece Doors':
-                new_door.obj_bp.mv.comment_2 == '1111'
-            if props.door_category == 'Deco Panels':
-                new_door.obj_bp.mv.comment_2 == '2222'                                
-            new_door.obj_bp.mv.name_object = door_assembly.obj_bp.mv.name_object
-            new_door.obj_bp.parent = door_assembly.obj_bp.parent
-            new_door.obj_bp.location = door_assembly.obj_bp.location
-            new_door.obj_bp.rotation_euler = door_assembly.obj_bp.rotation_euler
+            if props.door_category == "Slab Door":
+                new_door = common_parts.add_door(fd_types.Assembly(obj_bp.parent))
+                new_door.obj_bp.mv.name_object = door_assembly.obj_bp.mv.name_object
+                new_door.obj_bp.location = door_assembly.obj_bp.location
+                new_door.obj_bp.rotation_euler = door_assembly.obj_bp.rotation_euler
+                new_door.obj_bp.lm_closets.use_unique_material = False
+
+            else:
+                group_bp = utils.get_group(os.path.join(common_parts.LIBRARY_DATA_DIR,
+                                                    DOOR_FOLDER_NAME,
+                                                    props.door_category,
+                                                    props.door_style+".blend"))
+
+                new_door = fd_types.Assembly(group_bp)
+
+                if props.door_category == '5 Piece Doors':
+                    new_door.obj_bp.mv.comment_2 == '1111'
+                if props.door_category == 'Deco Panels':
+                    new_door.obj_bp.mv.comment_2 == '2222'
+
+                new_door.obj_bp.mv.name_object = door_assembly.obj_bp.mv.name_object
+                new_door.obj_bp.parent = door_assembly.obj_bp.parent
+                new_door.obj_bp.location = door_assembly.obj_bp.location
+                new_door.obj_bp.rotation_euler = door_assembly.obj_bp.rotation_euler
             
             property_id = door_assembly.obj_bp.mv.property_id
             
@@ -1879,12 +1958,13 @@ class OPERATOR_Update_Door_Selection(bpy.types.Operator):
             utils.copy_drivers(door_assembly.obj_y,new_door.obj_y)
             utils.copy_drivers(door_assembly.obj_z,new_door.obj_z)
 
+            obj_props = get_object_props(new_door.obj_bp)
+            obj_props.is_door_bp = get_object_props(door_assembly.obj_bp).is_door_bp
+            obj_props.is_drawer_front_bp = get_object_props(door_assembly.obj_bp).is_drawer_front_bp
+
             utils.delete_obj_list(utils.get_child_objects(door_assembly.obj_bp,[]))
-            
             new_door.obj_bp.mv.property_id = property_id
             new_door.obj_bp.mv.is_cabinet_door = True
-            obj_props = get_object_props(new_door.obj_bp)
-            obj_props.is_door_bp = True
             self.update_door_children_properties(new_door.obj_bp, property_id, props.door_style)
 
         return {'FINISHED'}
@@ -1907,8 +1987,8 @@ class OPERATOR_Update_Drawer_Selection(bpy.types.Operator):
             self.set_door_material_pointers(obj)
             obj.draw_type = 'TEXTURED'
             obj.mv.comment = door_style
-#             for slot in obj.cabinetlib.material_slots:
-#                 slot.pointer_name = "Door_Surface"
+            # for slot in obj.cabinetlib.material_slots:
+            #     slot.pointer_name = "Door_Surface"
             utils.assign_materials_from_pointers(obj)
         if obj.mv.type == 'CAGE':
             obj.hide = True

@@ -10,13 +10,14 @@ class Pants_Rack(fd_types.Assembly):
     
     insert_type = "Interior"
     placement_type = "INTERIOR"
-    type_assembly = "INSERT"
+    type_assembly = "PRODUCT"
     mirror_y = False
     property_id = props_closet.LIBRARY_NAME_SPACE + ".single_pants_racks"
     drop_id = props_closet.LIBRARY_NAME_SPACE + ".place_single_part"
     
     def draw(self):
         self.create_assembly()
+        self.obj_bp.lm_closets.is_accessory_bp = True
 
         Width = self.get_var('dim_x','Width')
         Depth = self.get_var('dim_y','Depth')
@@ -38,13 +39,14 @@ class Single_Pull_Out_Hamper(fd_types.Assembly):
     
     insert_type = "Interior"
     placement_type = "INTERIOR"
-    type_assembly = "INSERT"
+    type_assembly = "PRODUCT"
     mirror_y = False
     property_id = props_closet.LIBRARY_NAME_SPACE + ".single_hamper"
     drop_id = props_closet.LIBRARY_NAME_SPACE + ".place_single_part"
     
     def draw(self):
         self.create_assembly()
+        self.obj_bp.lm_closets.is_accessory_bp = True
 
         Width = self.get_var('dim_x','Width')
         Depth = self.get_var('dim_y','Depth')
@@ -66,13 +68,14 @@ class Double_Pull_Out_Hamper(fd_types.Assembly):
     
     insert_type = "Interior"
     placement_type = "INTERIOR"
-    type_assembly = "INSERT"
+    type_assembly = "PRODUCT"
     mirror_y = False
     property_id = props_closet.LIBRARY_NAME_SPACE + ".single_hamper"
     drop_id = props_closet.LIBRARY_NAME_SPACE + ".place_single_part"
     
     def draw(self):
         self.create_assembly()
+        self.obj_bp.lm_closets.is_accessory_bp = True
 
         Width = self.get_var('dim_x','Width')
         Depth = self.get_var('dim_y','Depth')
@@ -103,6 +106,7 @@ class Wire_Basket(fd_types.Assembly):
     
     def draw(self):
         self.create_assembly()
+        self.obj_bp.lm_closets.is_accessory_bp = True
 
         self.add_tab(name='Wire Basket Options',tab_type='VISIBLE')
         
@@ -156,7 +160,7 @@ class Wire_Basket(fd_types.Assembly):
         
 class Hanging_Rod(fd_types.Assembly):
     
-    type_assembly = 'INSERT'
+    type_assembly = 'PRODUCT'
     mirror_y = False
     property_id = props_closet.LIBRARY_NAME_SPACE + ".single_hanging_rod_prompts"
     drop_id = props_closet.LIBRARY_NAME_SPACE + ".place_single_part"
@@ -165,6 +169,7 @@ class Hanging_Rod(fd_types.Assembly):
     
     def draw(self):
         self.create_assembly()
+        self.obj_bp.lm_closets.is_accessory_bp = True
         props = props_closet.get_scene_props().closet_defaults
         
         self.add_tab(name='Hanging Options',tab_type='VISIBLE')
@@ -322,6 +327,7 @@ class Accessory(fd_types.Assembly):
     
     def draw(self):
         self.create_assembly()
+        self.obj_bp.lm_closets.is_accessory_bp = True
         
         accessory = self.add_object(self.object_path)
         accessory.set_name(self.accessory_name)
@@ -337,7 +343,7 @@ class Slanted_Shoe_Shelves(fd_types.Assembly):
     
     property_id = props_closet.LIBRARY_NAME_SPACE + ".shoe_shelf_prompt"
     drop_id = props_closet.LIBRARY_NAME_SPACE + ".place_single_part"
-#     placement_type = "INTERIOR"
+    # placement_type = "INTERIOR"
     type_assembly = "INSERT"
     mirror_y = False
     
@@ -502,6 +508,7 @@ class Slanted_Shoe_Shelves(fd_types.Assembly):
         
         self.update()
         
+#----------PROMPTS PAGES
 class PROMPTS_Single_Hanging_Rod_Prompts(bpy.types.Operator):
     bl_idname = props_closet.LIBRARY_NAME_SPACE + ".single_hanging_rod_prompts"
     bl_label = "Single Hanging Rod Prompts" 
@@ -749,7 +756,6 @@ class PROMPTS_Tray_Prompts(bpy.types.Operator):
                 tray_height = self.assembly.get_prompt("Tray Height")
                 row = layout.row()
                 tray_height.draw_prompt(row)
-                
 
 class PROMPTS_Wire_Baskets_Prompts(bpy.types.Operator):
     bl_idname = props_closet.LIBRARY_NAME_SPACE + ".wire_baskets"
@@ -869,7 +875,7 @@ class PROMPTS_Shoe_Shelf_Prompts(bpy.types.Operator):
                     row = box.row()
                     dist_between_shelves.draw_prompt(row)                        
 
-
+#----------DROP OPERATORS
 class OPERATOR_Drop_Single_Part(bpy.types.Operator):
     """ This will be called when you drop a hanging rod into the scene
     """
@@ -978,7 +984,7 @@ class OPERATOR_Drop_Single_Part(bpy.types.Operator):
         self.insert.obj_z.location.z = height
         
         #DONT ASSIGN PROPERTIES ID's SO USERS CAN ACCESS PROPERTIES FOR INSERTS USED IN CLOSET LIBRARY
-#         cabinet_utils.set_property_id(self.insert.obj_bp,opening.obj_bp.mv.property_id)
+        #cabinet_utils.set_property_id(self.insert.obj_bp,opening.obj_bp.mv.property_id)
         self.set_opening_name(self.insert.obj_bp, opening.obj_bp.mv.opening_name)
         
         self.set_wire_and_xray(self.insert.obj_bp, False)

@@ -2,6 +2,15 @@ import bpy
 import os
 from mv import unit, utils, fd_types
 import xml.etree.ElementTree as ET
+from xml.dom.minidom import parse
+
+def get_project_dir():
+    project_dir = bpy.context.user_preferences.addons['fd_projects'].preferences.project_dir
+
+    if not os.path.exists(project_dir):
+        os.makedirs(project_dir)
+
+    return project_dir
 
 class Snap_XML():
     
@@ -27,11 +36,15 @@ class Snap_XML():
     op_count = 0
     or_count = 0    
 
-    def __init__(self):
+    def __init__(self, path=""):
         #Check if XML already exists
         proj_props = bpy.context.window_manager.fd_project
         proj_name = proj_props.projects[proj_props.project_index].name
-        path = os.path.join(os.path.dirname(bpy.utils.user_resource('DATAFILES')), "projects", proj_name, Snap_XML.filename)
+
+        if path != "":
+            path = path
+        else:
+            path = os.path.join(get_project_dir(), proj_name, Snap_XML.filename)
 
         if os.path.exists(path):
             self.tree = ET.parse(path)
@@ -168,42 +181,41 @@ class Snap_XML():
         root.insert(idx, elm)
         return elm
 
-    def format_xml_file(self,path):
-        """ This makes the xml file readable as a txt doc.
-            For some reason the xml.toprettyxml() function
-            adds extra blank lines. This makes the xml file
-            unreadable. This function just removes
-            all of the blank lines.
-            arg1: path to xml file
-        """
-        from xml.dom.minidom import parse
-        
+    def format_assembly_node(self, node):
+        ins_idx = node.getchildren().index(node.find('Quantity')) + 1
+        parts = node.findall('Part')
+        assemblies = node.findall('Assembly')
 
-        print("parse path: ", path)
-        xml = parse(path)
-        pretty_xml = xml.toprettyxml()
-        
-        file = open(path,'w')
-        file.write(pretty_xml)
-        file.close()
-        
-        cleaned_lines = []
-        with open(path,"r") as f:
-            lines = f.readlines()
-            for l in lines:
-                l.strip()
-                if "<" in l:
-                    cleaned_lines.append(l)
-            
-        with open (path,"w") as f:
-            f.writelines(cleaned_lines)
+        for assembly in reversed(assemblies):
+            node.remove(assembly)
+            node.insert(ins_idx, assembly)
+
+        for part in reversed(parts):
+            node.remove(part)
+            node.insert(ins_idx, part)
+
+    def format_item_node(self, node):
+        ins_idx = node.getchildren().index(node.find('Note')) + 1
+        parts = node.findall('Part')
+        assemblies = node.findall('Assembly')
+
+        for assembly in reversed(assemblies):
+            for sub_assembly in assembly.iter("Assembly"):
+                self.format_assembly_node(sub_assembly)
+
+            node.remove(assembly)
+            node.insert(ins_idx, assembly)
+
+        for part in reversed(parts):
+            node.remove(part)
+            node.insert(ins_idx, part)
     
     def write(self, dir):
-        proj_props = bpy.context.window_manager.fd_project
-        proj_name = proj_props.projects[proj_props.project_index].name
         path = os.path.join(dir, self.filename)
+        root = self.tree.getroot()
+
+        for item in root.iter('Item'):
+            self.format_item_node(item)
 
         with open(path, 'w',encoding='utf-8') as file:
             self.tree.write(file,encoding='unicode')            
-            
-        #self.format_xml_file(path)

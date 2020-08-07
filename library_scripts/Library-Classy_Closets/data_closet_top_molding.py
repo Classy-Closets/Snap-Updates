@@ -38,9 +38,9 @@ class Flat_Crown(fd_types.Assembly):
         self.add_prompt(name="Exposed Back",prompt_type='CHECKBOX',value=False,tab_index=1)
         self.add_prompt(name="Extend Left Amount",prompt_type='DISTANCE',value=unit.inch(.5),tab_index=1)
         self.add_prompt(name="Extend Right Amount",prompt_type='DISTANCE',value=unit.inch(.5),tab_index=1)
-        self.add_prompt(name="Front Overhang",prompt_type='DISTANCE',value=unit.inch(.5),tab_index=1)
+        self.add_prompt(name="Front Overhang",prompt_type='DISTANCE',value=unit.inch(1.25),tab_index=1)
         self.add_prompt(name="Molding Height",prompt_type='DISTANCE',value=unit.inch(3),tab_index=1)
-        self.add_prompt(name="Molding Location",prompt_type='DISTANCE',value=unit.inch(.75),tab_index=1)
+        self.add_prompt(name="Molding Location",prompt_type='DISTANCE',value=unit.inch(.0),tab_index=1)
         common_prompts.add_thickness_prompts(self)
         
         Width = self.get_var('dim_x','Width')
@@ -76,7 +76,7 @@ class Flat_Crown(fd_types.Assembly):
         flat_crown.prompt('Exposed Right','Exposed_Right',[Exposed_Right])
         flat_crown.prompt('Exposed Back','Exposed_Back',[Exposed_Back])
         
-        left_return = common_parts.add_cleat(self)
+        left_return = common_parts.add_flat_crown(self)
         left_return.obj_bp.mv.comment_2 = "1038"
         left_return.set_name("Left")
         left_return.x_loc('Panel_Thickness-Extend_Left_Amount', [Panel_Thickness,Extend_Left_Amount])
@@ -90,7 +90,7 @@ class Flat_Crown(fd_types.Assembly):
         left_return.z_dim('-Panel_Thickness', [Panel_Thickness])
         left_return.prompt('Hide','IF(Return_Left,False,True)',[Return_Left])
         
-        right_return = common_parts.add_cleat(self)
+        right_return = common_parts.add_flat_crown(self)
         right_return.obj_bp.mv.comment_2 = "1038"
         right_return.set_name("Right")
         right_return.x_loc('Width+Extend_Right_Amount', [Width,Extend_Right_Amount])
@@ -313,6 +313,7 @@ class PROMPTS_Prompts_Bottom_Support(fd_types.Prompts_Interface):
 
     def check(self, context):
         """ This is called everytime a change is made in the UI """
+        props_closet.update_render_materials(self, context)
 #         self.update_product_size()
         return True
 

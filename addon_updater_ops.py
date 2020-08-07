@@ -20,6 +20,7 @@ import os
 
 import bpy
 from bpy.app.handlers import persistent
+import snap_db
 
 # updater import, import safely
 # Prevents popups for users with invalid python installs e.g. missing libraries
@@ -106,7 +107,7 @@ def get_user_preferences(context=None):
 # simple popup for prompting checking for update & allow to install if available
 class addon_updater_install_popup(bpy.types.Operator):
 	"""Check and install update if available"""
-	bl_label = "Update {x} addon".format(x=updater.addon)
+	bl_label = "SNaP Update Available!"
 	bl_idname = updater.addon+".updater_install_popup"
 	bl_description = "Popup menu to check and display current updates available"
 	bl_options = {'REGISTER', 'INTERNAL'}
@@ -143,15 +144,13 @@ class addon_updater_install_popup(bpy.types.Operator):
 			layout.label(text="Updater module error")
 			return
 		elif updater.update_ready == True:
-			col = layout.column()
-			col.scale_y = 0.7
-			col.label(text="Update {} ready!".format(str(updater.update_version)),
-						icon="LOOP_FORWARDS")
-			col.label(text="Choose 'Update Now' & press OK to install, ",icon="BLANK1")
-			col.label(text="or click outside window to defer",icon="BLANK1")
-			row = col.row()
-			row.prop(self,"ignore_enum",expand=True)
-			col.split()
+			box = layout.box()
+			v = str(updater.update_version)
+			v = v.replace("[","")
+			v = v.replace("]","")
+			v = v.replace(",",".")
+			v = v.replace(" ","")
+			box.label(text="Update to Version {}".format(str(v)),icon="LOAD_FACTORY")
 		elif updater.update_ready == False:
 			col = layout.column()
 			col.scale_y = 0.7
@@ -175,15 +174,6 @@ class addon_updater_install_popup(bpy.types.Operator):
 		if updater.manual_only==True:
 			bpy.ops.wm.url_open(url=updater.website)
 		elif updater.update_ready == True:
-
-			# action based on enum selection
-			if self.ignore_enum=='defer':
-				return {'FINISHED'}
-			elif self.ignore_enum=='ignore':
-				updater.ignore_update()
-				return {'FINISHED'}
-			#else: "install update now!"
-
 			res = updater.run_update(
 							force=False,
 							callback=post_update_callback,
@@ -262,7 +252,34 @@ class addon_updater_update_now(bpy.types.Operator):
 		options={'HIDDEN'}
 	)
 
+	def check_minor_version(self, context):
+		tags = updater._tags
+		tag_latest = updater.tag_latest
+		curr_ver = updater.version_tuple_from_text(updater._current_version)
+		new_ver = updater.version_tuple_from_text(tag_latest)
+
+		if len(tags) > 0:
+			print("tags found:",tags)
+			for tag in tags:
+				tag_name = tag['name']
+				if tag_name != "Master":
+					version = updater.version_tuple_from_text(tag['name'])
+
+			if len(new_ver) > 0:
+				print("new version found:",new_ver)
+				if new_ver[1] > curr_ver[1]:
+					req_ver = (new_ver[0], new_ver[1], 0)
+
+					if req_ver != new_ver:
+						req_ver_name = "v{}.{}.0".format(new_ver[0], new_ver[1])
+						print("Need to update to version {} first".format(str(req_ver)))
+
+						updater.update_version = (new_ver[0], new_ver[1], 0)
+						bpy.ops.snap_updater.updater_update_target('EXEC_DEFAULT', target_name=req_ver_name)
+						return {'FINISHED'}
+
 	def execute(self,context):
+		self.check_minor_version(context)
 
 		# in case of error importing updater
 		if updater.invalidupdater == True:
@@ -326,6 +343,8 @@ class addon_updater_update_target(bpy.types.Operator):
 		items=target_version
 		)
 
+	target_name = bpy.props.StringProperty(name="Target Version Name", default="")
+
 	# if true, run clean install - ie remove all files before adding new
 	# equivalent to deleting the addon and reinstalling, except the
 	# updater folder/backup folder remains
@@ -362,9 +381,11 @@ class addon_updater_update_target(bpy.types.Operator):
 		if updater.invalidupdater == True:
 			return {'CANCELLED'}
 
+		target_ver = self.target if not self.target_name else self.target_name
+
 		res = updater.run_update(
 						force=False,
-						revert_tag=self.target,
+						revert_tag=target_ver,
 						callback=post_update_callback,
 						clean=self.clean_install)
 
@@ -456,8 +477,16 @@ class addon_updater_updated_successful(bpy.types.Operator):
 		options={'HIDDEN'}
 		)
 
+	def __del__(self):
+		self.open_release_notes()
+		bpy.ops.fd_general.load_snap_defaults()
+
 	def invoke(self, context, event):
-		return context.window_manager.invoke_props_popup(self, event)
+		return context.window_manager.invoke_props_dialog(self, width=400)
+
+	def open_release_notes(self):
+		str_ver = "v{}".format(''.join(str(i) for i in updater.update_version))
+		bpy.ops.wm.url_open(url=snap_db.INFO_SITE_URL + str_ver)
 
 	def draw(self, context):
 		layout = self.layout
@@ -496,6 +525,7 @@ class addon_updater_updated_successful(bpy.types.Operator):
 				col.scale_y = 0.7
 				col.label(text="SNaP successfully installed", icon="FILE_TICK")
 				col.label(text="Restart to complete update.", icon="BLANK1")
+				col.label(text="Click 'Ok' to close SNaP.", icon="BLANK1")
 
 		else:
 			# reload addon, but still recommend they restart blender
@@ -514,6 +544,9 @@ class addon_updater_updated_successful(bpy.types.Operator):
 					icon="BLANK1")
 
 	def execute(self, context):
+		self.open_release_notes()
+		bpy.ops.fd_general.load_snap_defaults()
+		bpy.ops.wm.quit_blender()
 		return {'FINISHED'}
 
 
@@ -837,9 +870,6 @@ def update_notice_box_ui(self, context):
 			col.label(text="    Restart to complete update")
 			return
 
-	# if user pressed ignore, don't draw the box
-	# if "ignore" in updater.json and updater.json["ignore"] == True:
-	# 	return
 	if updater.update_ready != True:
 		return
 
@@ -848,25 +878,20 @@ def update_notice_box_ui(self, context):
 	col = box.column(align=True)
 	col.label(text="An Update is Available!",icon="INFO")
 	col.separator()
-	# row = col.row(align=True)
-	# split = row.split(align=True)
-	# colL = split.column(align=True)
-	# colL.scale_y = 1.5
-	# colL.operator(addon_updater_ignore.bl_idname,icon="X",text="Ignore")
-	# colR = split.column(align=True)
-	# colR.scale_y = 1.5
 
 	if updater.manual_only==False:
-		col.operator(addon_updater_update_now.bl_idname,
-						text="Update now to version: " + str(updater.update_version), icon="LOOP_FORWARDS")
+		v = str(updater.update_version)
+		v = v.replace("[","")
+		v = v.replace("]","")
+		v = v.replace(",",".")
+		v = v.replace(" ","")		
+		col.operator(
+			addon_updater_update_now.bl_idname,
+			text="Update now to version: " + str(v), 
+			icon="LOOP_FORWARDS"
+		)
 
-		# col.operator("wm.url_open", text="Open website").url = updater.website
-		# #col.operator("wm.url_open",text="Direct download").url=updater.update_link
-
-		# col.operator(addon_updater_install_manually.bl_idname,
-		# 	text="Install manually")
 	else:
-		#col.operator("wm.url_open",text="Direct download").url=updater.update_link
 		col.operator("wm.url_open", text="Get it now").url = updater.website
 
 
@@ -882,6 +907,8 @@ def update_settings_ui(self, context, element=None):
 	if element==None:
 		element = self.layout
 	box = element.box()
+	snap_prefs = bpy.context.user_preferences.addons["snap_db"].preferences
+	box.enabled = snap_prefs.use_adv_options
 
 	# in case of error importing updater
 	if updater.invalidupdater == True:
@@ -904,24 +931,24 @@ def update_settings_ui(self, context, element=None):
 			row.label(text="Restart to complete update", icon="ERROR")
 			return
 
-	split = layout_split(row, factor=0.3)
-	subcol = split.column()
-	subcol.prop(settings, "auto_check_update")
-	subcol = split.column()
+	# split = layout_split(row, factor=0.3)
+	# subcol = split.column()
+	# subcol.prop(settings, "auto_check_update")
+	# subcol = split.column()
 
-	if settings.auto_check_update==False:
-		subcol.enabled = False
-	subrow = subcol.row()
-	subrow.label(text="Interval between checks")
-	subrow = subcol.row(align=True)
-	checkcol = subrow.column(align=True)
-	checkcol.prop(settings,"updater_intrval_months")
-	checkcol = subrow.column(align=True)
-	checkcol.prop(settings,"updater_intrval_days")
-	checkcol = subrow.column(align=True)
-	checkcol.prop(settings,"updater_intrval_hours")
-	checkcol = subrow.column(align=True)
-	checkcol.prop(settings,"updater_intrval_minutes")
+	# if settings.auto_check_update==False:
+	# 	subcol.enabled = False
+	# subrow = subcol.row()
+	# subrow.label(text="Interval between checks")
+	# subrow = subcol.row(align=True)
+	# checkcol = subrow.column(align=True)
+	# checkcol.prop(settings,"updater_intrval_months")
+	# checkcol = subrow.column(align=True)
+	# checkcol.prop(settings,"updater_intrval_days")
+	# checkcol = subrow.column(align=True)
+	# checkcol.prop(settings,"updater_intrval_hours")
+	# checkcol = subrow.column(align=True)
+	# checkcol.prop(settings,"updater_intrval_minutes")
 
 	# checking / managing updates
 	row = box.row()
@@ -1249,7 +1276,7 @@ classes = (
 )
 
 
-def register(bl_info):
+def register(bl_info, user, repo, pat, fake_install):
 	"""Registering the operators in this module"""
 	# safer failure in case of issue loading module
 	if updater.error:
@@ -1257,9 +1284,11 @@ def register(bl_info):
 		return
 	updater.clear_state() # clear internal vars, avoids reloading oddities
 
+	settings = get_user_preferences(bpy.context)
+
 	updater.engine = "Github"
-	updater.user = "CCDevNelson"
-	updater.repo = "Snap-Updates"
+	updater.user = user
+	updater.repo = repo
 	updater.website = "https://github.com/CCDevNelson/Snap-Updates/"
 
 	# If using private repository, indicate the token here
@@ -1267,7 +1296,8 @@ def register(bl_info):
 	# **WARNING** Depending on the engine, this token can act like a password!!
 	# Only provide a token if the project is *non-public*, see readme for
 	# other considerations and suggestions from a security standpoint
-	updater.private_token = None # "tokenstring"
+	# "tokenstring"
+	updater.private_token = pat
 
 	# Addon subfolder path
 	# "sample/path/to/addon"
@@ -1284,7 +1314,7 @@ def register(bl_info):
 
 	# Optional, consider turning off for production or allow as an option
 	# This will print out additional debugging info to the console
-	updater.verbose = False # make False for production default
+	updater.verbose = True if settings.debug_mode and settings.debug_updater else False# make False for production default
 
 	# Optional, customize where the addon updater processing subfolder is,
 	# essentially a staging folder used by the updater on its own
@@ -1297,10 +1327,7 @@ def register(bl_info):
 	updater.backup_current = True # True by default
 
 	# Sample ignore patterns for when creating backup of current during update
-	updater.backup_ignore_patterns = ["__pycache__", "*.png"]
-	# Alternate example patterns
-	# updater.backup_ignore_patterns = [".git", "__pycache__", "*.bat", ".gitignore", "*.exe"]
-
+	updater.backup_ignore_patterns = [".git", "__pycache__", "*.bat", ".gitignore", "*.exe"]
 	# Patterns for files to actively overwrite if found in new update
 	# file and are also found in the currently installed addon. Note that
 
@@ -1311,7 +1338,7 @@ def register(bl_info):
 	# as a part of the pattern list below so they will always be overwritten by an
 	# update. If a pattern file is not found in new update, no action is taken
 	# This does NOT detele anything, only defines what is allowed to be overwritten
-	updater.overwrite_patterns = ["README.md","LICENSE.txt"]
+	updater.overwrite_patterns = ["*"]
 	# updater.overwrite_patterns = []
 	# other examples:
 	# ["*"] means ALL files/folders will be overwritten by update, was the behavior pre updater v1.0.4
@@ -1369,7 +1396,7 @@ def register(bl_info):
 
 	# Used for development only, "pretend" to install an update to test
 	# reloading conditions
-	updater.fake_install = False # Set to true to test callback/reloading
+	updater.fake_install = fake_install # Set to true to test callback/reloading
 
 	# Show popups, ie if auto-check for update is enabled or a previous
 	# check for update in user preferences found a new version, show a popup

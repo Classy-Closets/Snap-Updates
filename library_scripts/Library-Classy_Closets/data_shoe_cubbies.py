@@ -72,7 +72,7 @@ class Shoe_Cubbies(fd_types.Assembly):
         self.add_prompt(name="Shelf Thickness",prompt_type='DISTANCE',value=unit.inch(.75),tab_index=0)
         self.add_prompt(name="Vertical Spacing",prompt_type='DISTANCE',value=unit.inch(.25),tab_index=0)
         self.add_prompt(name="Horizontal Spacing",prompt_type='DISTANCE',value=unit.inch(.25),tab_index=0)
-        self.add_prompt(name="Cubby Height",prompt_type='DISTANCE',value=unit.millimeter(556.95),tab_index=0)
+        self.add_prompt(name="Cubby Height",prompt_type='DISTANCE',value=unit.millimeter(557.276),tab_index=0)
         
         Width = self.get_var('dim_x','Width')
         Height = self.get_var('dim_z',"Height")
@@ -155,7 +155,7 @@ class PROMPTS_Shoe_Cubbies(bpy.types.Operator):
     
     cubby_height = bpy.props.EnumProperty(name="Cubby Height",
                                           items=common_lists.OPENING_HEIGHTS,
-                                          default = '556.95')     
+                                          default = '557.276')     
     
     assembly = None
     

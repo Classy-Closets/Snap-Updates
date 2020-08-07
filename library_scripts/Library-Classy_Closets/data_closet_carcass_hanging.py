@@ -442,7 +442,7 @@ def add_cleat(product,i,panel):
     cleat.x_rot(value = -90)
     cleat.y_rot(value = 0)
     cleat.z_rot(value = 0)
-    cleat.y_dim(value=unit.inch(-4))
+    cleat.y_dim(value=unit.inch(-3.64))
     cleat.z_dim('-Shelf_Thickness',[Shelf_Thickness])
     cleat.prompt('Hide','IF(Add_Cleat,False,True)',[Add_Cleat])
     if i == 1:

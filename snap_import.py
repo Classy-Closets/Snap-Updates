@@ -8,7 +8,7 @@ import time
 import operator
 from . import snap_csv
 import snap_db
-
+from mv import utils
 
 class OPERATOR_DB_Import_Csv(bpy.types.Operator):
     """Import CSV.
@@ -22,7 +22,8 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
     directory =  bpy.props.StringProperty(name="CSV File Directory Name", description="CSV file directory name")
     rebuild_db = bpy.props.BoolProperty(name="Rebuild Database", default=False)    
 
-    props = None  
+    props = None
+    debug_mode = False 
 
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
@@ -42,6 +43,25 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
     def stop_progress():
         self.progress_bar.stop()
 
+    def render_material_exists(self, material_name):
+        search_dirs = []
+        materials_dir = utils.get_library_dir("materials")
+        main_mat_dir = os.path.join(materials_dir, "Cabinet Materials", "Classy Closets")
+        search_dirs.append(main_mat_dir)
+        snap_db_mat_dir = snap_db.MATERIALS_DIR
+        search_dirs.append(snap_db_mat_dir)
+
+        mat_exists = False
+
+        for search_directory in search_dirs:
+            if os.path.isdir(search_directory):
+                files = os.listdir(search_directory)
+
+                if material_name + ".blend" in files:
+                    mat_exists =  True
+
+        return mat_exists
+
     def create_edge_color_collection(self, edge_type):
         props = bpy.context.scene.db_materials
 
@@ -49,7 +69,8 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
             "SELECT\
                 ItemColorCode,\
                 DisplayName,\
-                Description\
+                Description,\
+                LocationCode\
             FROM\
                 CCItems\
             WHERE\
@@ -64,24 +85,35 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
             color = edge_type.colors.add()
             color.name = "None"
             color.color_code = 0
+            color.location_code = 0
             color.description = "None"                 
 
         for row in rows:
             type_code = int(row[0])
             display_name = row[1]
             description = row[2]
+            location_code = row[3]
 
-            color = edge_type.colors.add()
-            color.name = display_name
-            color.color_code = int(type_code)
-            color.description = description
-            color.check_render_material()            
+            if display_name not in edge_type.colors:
+                if self.render_material_exists(display_name):
+                    color = edge_type.colors.add()
+                    color.name = display_name
+                    color.color_code = int(type_code)
+                    color.location_code = int(location_code)
+                    color.description = description
+                    color.check_render_material()
+
+                else:
+                    if self.debug_mode:
+                        print("Debug:{} - No render material file available, skipping EDGE color: {}".format(self.bl_idname, display_name))                
 
     def create_edge_type_collection(self):
         edges = self.props.edges
+        door_drawer_edges = self.props.door_drawer_edges
         secondary_edges = self.props.secondary_edges
 
         edges.edge_types.clear()
+        door_drawer_edges.edge_types.clear()
         secondary_edges.edge_types.clear()
 
         #Get Edge Types
@@ -103,6 +135,12 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
             edge_type.type_code = type_code
             edge_type.description = description
 
+            #Custom edges
+            door_drawer_edge_type = door_drawer_edges.edge_types.add()
+            door_drawer_edge_type.name = display_name
+            door_drawer_edge_type.type_code = type_code
+            door_drawer_edge_type.description = description
+
             #Secondary edges
             edge2_type = secondary_edges.edge_types.add()
             edge2_type.name = display_name
@@ -111,23 +149,36 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
 
         #Edge Colors
         for edge_type in self.props.edges.edge_types:
+            self.create_edge_color_collection(edge_type)
+
+        for edge_type in self.props.door_drawer_edges.edge_types:
             self.create_edge_color_collection(edge_type)      
 
         for edge_type in self.props.secondary_edges.edge_types:
             self.create_edge_color_collection(edge_type)
             
-    def create_mat_color_collection(self, mat_type):
-        props = bpy.context.scene.db_materials
+    def create_oversize_mat_color_collection(self, mat_type):
+        os_colors = {}
+
+        with open(snap_db.OS_MAT_COLORS_CSV_PATH) as os_mat_colors_file:
+            reader = csv.reader(os_mat_colors_file, delimiter=',')
+            next(reader)
+
+            for row in reader:
+                default = row[0]
+                os_colors[row[0]] = row[1]
 
         rows = snap_db.query_db(
             "SELECT\
                 ItemColorCode,\
                 DisplayName,\
-                Description\
+                Description,\
+                LocationCode\
             FROM\
                 CCItems\
             WHERE\
-                ProductType = 'PM' AND ItemTypeCode IN ('{type_code}')\
+                ProductType IN ('PM','VN') AND\
+                Thickness == 0.75\
             ORDER BY\
                 DisplayName ASC\
                     ;\
@@ -138,23 +189,92 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
             color = mat_type.colors.add()
             color.name = "None"
             color.color_code = 0
+            color.location_code = 0            
             color.description = "None"            
 
         for row in rows:
             type_code = int(row[0])
             display_name = row[1]
             description = row[2]
+            location_code = row[3]
 
+            if display_name not in mat_type.colors:
+                if self.render_material_exists(display_name):
+                    if display_name in os_colors:
+                        color = mat_type.colors.add()
+                        color.name = display_name
+                        color.color_code = int(type_code)
+                        color.location_code = int(location_code)
+                        color.oversize_max_len = int(os_colors[display_name])
+                        color.description = description
+                        color.check_render_material()
+
+                else:
+                    if self.debug_mode:
+                        print("Debug:{} - No render material file available, skipping MATERIAL color: {}".format(self.bl_idname, display_name))                          
+
+    def create_mat_color_collection(self, mat_type):
+        props = bpy.context.scene.db_materials
+        os_colors = {}
+
+        with open(snap_db.OS_MAT_COLORS_CSV_PATH) as os_mat_colors_file:
+            reader = csv.reader(os_mat_colors_file, delimiter=',')
+            next(reader)
+
+            for row in reader:
+                default = row[0]
+                os_colors[row[0]] = row[1]            
+
+        rows = snap_db.query_db(
+            "SELECT\
+                ItemColorCode,\
+                DisplayName,\
+                Description,\
+                LocationCode\
+            FROM\
+                CCItems\
+            WHERE\
+                ProductType IN ('PM','VN') AND\
+                ItemTypeCode IN ('{type_code}') AND\
+                Thickness = 0.75\
+            ORDER BY\
+                DisplayName ASC\
+                    ;\
+            ".format(type_code=mat_type.type_code)
+        )        
+
+        if len(rows) == 0:
             color = mat_type.colors.add()
-            color.name = display_name
-            color.color_code = int(type_code)
-            color.description = description
-            color.check_render_material()
+            color.name = "None"
+            color.color_code = 0
+            color.location_code = 0            
+            color.description = "None"            
+
+        for row in rows:
+            type_code = int(row[0])
+            display_name = row[1]
+            description = row[2]
+            location_code = row[3]
+
+            if display_name not in mat_type.colors:
+                if self.render_material_exists(display_name):
+                    color = mat_type.colors.add()
+                    color.name = display_name
+                    color.color_code = int(type_code)
+                    color.location_code = int(location_code)
+                    color.description = description
+                    color.check_render_material()
+
+                else:
+                    if self.debug_mode:
+                        print("Debug:{} - No render material file available, skipping MATERIAL color: {}".format(self.bl_idname, display_name))
 
     def create_mat_type_collection(self):
         materials = self.props.materials
+        door_drawer_materials = self.props.door_drawer_materials
 
         materials.mat_types.clear()
+        door_drawer_materials.mat_types.clear()
         
         #Get Material Types
         rows = snap_db.query_db(
@@ -175,8 +295,18 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
             mat_type.type_code = type_code
             mat_type.description = description
 
-        #Create Material Color Collections
-        for mat_type in self.props.materials.mat_types:
+            custom_mat_type = door_drawer_materials.mat_types.add()
+            custom_mat_type.name = display_name
+            custom_mat_type.type_code = type_code
+            custom_mat_type.description = description    
+
+        for i,mat_type in enumerate(self.props.materials.mat_types):
+            if mat_type.type_code == 1:
+                self.create_oversize_mat_color_collection(mat_type)
+                continue
+            self.create_mat_color_collection(mat_type)
+
+        for mat_type in self.props.door_drawer_materials.mat_types:
             self.create_mat_color_collection(mat_type)
 
     def create_coutertop_collection(self):
@@ -286,10 +416,16 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
             display_name = row[1]
             description = row[2]
 
-            color = props.stain_colors.add()
-            color.name = display_name
-            color.sku = sku
-            color.description = description        
+            if display_name not in props.stain_colors:
+                if self.render_material_exists(display_name):
+                    color = props.stain_colors.add()
+                    color.name = display_name.strip()
+                    color.sku = sku
+                    color.description = description
+                else:
+                    if self.debug_mode:
+                        print("Debug:{} - No render material file available, skipping STAIN color: {}".format(self.bl_idname, display_name))              
+
 
     def create_glaze_color_collection(self):
         props = bpy.context.scene.db_materials
@@ -433,6 +569,36 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
                 size.front_hole_dim_mm = float(front_hole_dim)
                 size.back_hole_dim_mm = float(back_hole_dim)
 
+    def create_backing_veneer_color_collection(self):
+        props = bpy.context.scene.db_materials
+        props.backing_veneer_color.clear()
+
+        rows = snap_db.query_db(
+            "SELECT\
+                *\
+            FROM\
+                CCItems\
+            WHERE\
+                ProductType == 'VN' AND\
+                Thickness = 0.25\
+            ORDER BY\
+                DisplayName ASC\
+            ;"
+        )        
+
+        if len(rows) == 0:
+            color = props.backing_veneer_color.add()
+            color.name = "None"
+            color.description = "None"            
+
+        for row in rows:
+            display_name = row[1]
+            description = row[2]
+
+            color = props.backing_veneer_color.add()
+            color.name = display_name
+            color.description = description
+
     def create_collections(self):
         props = bpy.context.scene.db_materials
 
@@ -445,6 +611,7 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
         self.create_door_color_collection()
         self.create_glass_color_collection()
         self.create_drawer_slide_collection()
+        self.create_backing_veneer_color_collection()
         self.props.collections_loaded = True
         props.materials.create_color_lists()
 
@@ -562,12 +729,14 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
     def create_material_type_table(self):
         #READ TYPE CODE DISPLAY NAMES FROM CSV
         mat_type_names = {}
+        default = None
 
         with open(snap_db.MAT_TYPES_CSV_PATH) as mat_types_file:
             reader = csv.reader(mat_types_file, delimiter=',')
             next(reader)
 
             for row in reader:
+                if default == None: default = row[0]
                 mat_type_names[row[0]] = row[1]
 
         conn = snap_db.connect_db()
@@ -590,7 +759,7 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
             FROM\
                 CCItems\
             WHERE\
-                ProductType in ('PM', 'WD') AND\
+                ProductType in ('PM', 'WD', 'VN') AND\
                 Thickness = 0.75\
             GROUP BY\
                 ItemTypeCode\
@@ -606,9 +775,22 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
                 display_name = name.replace("3/4", "").strip()
                 mat_types.append((type_code_str, display_name, display_name))
             else:
-                pass
-                #print("DISPLAY NAME FOR MATERIAL TYPE CODE NOT FOUND: ", str(row[0]))
+                if self.debug_mode:
+                    print("Debug:{} - DISPLAY NAME FOR MATERIAL TYPE CODE NOT FOUND: {}".format(self.bl_idname, str(row[0])))
 
+        default_in_list = None
+
+        for mat_type in mat_types:
+            if mat_type[0] == default:
+                default_in_list = mat_type
+                mat_types.remove(mat_type)
+        
+        mat_types.insert(0, default_in_list)
+
+        #Oversize material type
+        if '1' in mat_type_names:
+            mat_types.insert(-1, (str(1), mat_type_names['1'], mat_type_names['1']))
+        
         for row in mat_types:
             cur.execute("INSERT INTO {table} (\
                             ItemTypeCode,\
@@ -660,6 +842,7 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
 
     def execute(self, context):
         self.props = bpy.context.scene.db_materials
+        self.debug_mode = context.user_preferences.addons["snap_db"].preferences.debug_mode
 
         if self.rebuild_db:
             os.remove(snap_db.DB_PATH)       
@@ -675,7 +858,6 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
 
 def register():
     bpy.utils.register_class(OPERATOR_DB_Import_Csv)
-
 
 def unregister():
     bpy.utils.unregister_class(OPERATOR_DB_Import_Csv)        

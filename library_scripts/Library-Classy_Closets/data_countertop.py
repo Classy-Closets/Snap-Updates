@@ -5,12 +5,12 @@ from . import mv_closet_defaults as props_closet
 from . import common_parts
 from . import common_prompts
 
-ASSEMBLY_DIR = path.join(common_parts.LIBRARY_DATA_DIR,"Closet Assemblies")
-CTOP_ASSEMBLY_DIR = path.join(ASSEMBLY_DIR,"CC Countertops")
-STRAIGHT_CTOP =  path.join(CTOP_ASSEMBLY_DIR,"Straight Countertop.blend")
-CORNER_CTOP =  path.join(CTOP_ASSEMBLY_DIR,"Corner Countertop.blend")
-STRAIGHT_COUNTER_TOP = path.join(ASSEMBLY_DIR,"Countertop.blend")
-PART_WITH_EDGEBANDING = path.join(ASSEMBLY_DIR,"Part with Edgebanding.blend")
+# ASSEMBLY_DIR = path.join(common_parts.LIBRARY_DATA_DIR,"Closet Assemblies")
+# CTOP_ASSEMBLY_DIR = path.join(ASSEMBLY_DIR,"CC Countertops")
+# STRAIGHT_CTOP =  path.join(CTOP_ASSEMBLY_DIR,"Straight Countertop.blend")
+# CORNER_CTOP =  path.join(CTOP_ASSEMBLY_DIR,"Corner Countertop.blend")
+# STRAIGHT_COUNTER_TOP = path.join(ASSEMBLY_DIR,"Countertop.blend")
+# PART_WITH_EDGEBANDING = path.join(ASSEMBLY_DIR,"Part with Edgebanding.blend")
 
 class Countertop_Insert(fd_types.Assembly):
 
@@ -29,7 +29,6 @@ class Countertop_Insert(fd_types.Assembly):
         self.add_prompt(name="Exposed Left",prompt_type='CHECKBOX',value=False,tab_index=1)
         self.add_prompt(name="Exposed Right",prompt_type='CHECKBOX',value=False,tab_index=1)
         self.add_prompt(name="Exposed Back",prompt_type='CHECKBOX',value=False,tab_index=1)
-                
         self.add_prompt(name="Add Left Corner",prompt_type='CHECKBOX',value=False,tab_index=1)
         self.add_prompt(name="Add Right Corner",prompt_type='CHECKBOX',value=False,tab_index=1)             
         self.add_prompt(name="Left Corner Width",prompt_type='DISTANCE',value=unit.inch(24),tab_index=1)  
@@ -37,7 +36,10 @@ class Countertop_Insert(fd_types.Assembly):
         self.add_prompt(name="Left Corner Depth",prompt_type='DISTANCE',value=unit.inch(24),tab_index=1)  
         self.add_prompt(name="Right Corner Depth",prompt_type='DISTANCE',value=unit.inch(24),tab_index=1)  
         self.add_prompt(name="Left Depth",prompt_type='DISTANCE',value=unit.inch(12),tab_index=1)  
-        self.add_prompt(name="Right Depth",prompt_type='DISTANCE',value=unit.inch(12),tab_index=1)  
+        self.add_prompt(name="Right Depth",prompt_type='DISTANCE',value=unit.inch(12),tab_index=1)
+        self.add_prompt(name="Add Backsplash",prompt_type='CHECKBOX',value=False,tab_index=1)             
+        self.add_prompt(name="Backsplash Height",prompt_type='DISTANCE',value=unit.inch(4),tab_index=1)  
+        self.add_prompt(name="Backsplash Thickness",prompt_type='DISTANCE',value=unit.inch(0.75),tab_index=1)  
                 
         self.add_prompt(name="Corner Shape",
                         prompt_type='COMBOBOX',
@@ -68,12 +70,16 @@ class Countertop_Insert(fd_types.Assembly):
         Right_Depth = self.get_var('Right Depth')      
         Edge_Type = self.get_var('Edge Type')
         Corner_Shape = self.get_var('Corner Shape')
-        
+
+        Add_Backsplash = self.get_var('Add Backsplash')
+        B_Splash_Height = self.get_var('Backsplash Height','B_Splash_Height')
+        B_Splash_Thickness = self.get_var('Backsplash Thickness','B_Splash_Thickness')
+
         self.z_dim('Deck_Thickness',[Deck_Thickness])
 
         ctop = common_parts.add_cc_countertop(self)
-        props = props_closet.get_object_props(ctop.obj_bp)
-        props.is_countertop_bp = True        
+        # props = props_closet.get_object_props(ctop.obj_bp)
+        # props.is_countertop_bp = True        
         ctop.set_name("Countertop Deck")
         ctop.x_loc(value = 0)
         ctop.y_loc('Product_Depth',[Product_Depth])
@@ -86,14 +92,28 @@ class Countertop_Insert(fd_types.Assembly):
         ctop.z_dim("Deck_Thickness",[Deck_Thickness])
         ctop.prompt('Edge Type','Edge_Type',[Edge_Type])
 
-        #ctop.prompt("Hide","IF(Countertop_Type==0,False,True)",[Countertop_Type])
-#         ctop.prompt('Exposed Left','Exposed_Left',[Exposed_Left])
-#         ctop.prompt('Exposed Right','Exposed_Right',[Exposed_Right])
-#         ctop.prompt('Exposed Back','Exposed_Back',[Exposed_Back])
+        b_splash = common_parts.add_back_splash(self)
+        b_splash.set_name("Countertop Backsplash")
+        b_splash.x_loc('IF(Add_Left_Corner,-Left_Corner_Width,0)',[Add_Left_Corner,Left_Corner_Width])
+        b_splash.y_loc('Product_Depth',[Product_Depth])
+        b_splash.z_loc("Deck_Thickness",[Deck_Thickness])
+        b_splash.x_rot(value=90)
+        b_splash.y_rot(value=0)
+        b_splash.z_rot(value=0)
+
+        b_splash.x_dim(
+            "Product_Width+IF(Add_Left_Corner,Left_Corner_Width,0)+IF(Add_Right_Corner,Right_Corner_Width,0)",
+            [Product_Width,Add_Left_Corner,Left_Corner_Width,Add_Right_Corner,Right_Corner_Width]
+        )
+
+        b_splash.y_dim("B_Splash_Height",[B_Splash_Height])
+        b_splash.z_dim("B_Splash_Thickness",[B_Splash_Thickness])
+        b_splash.prompt("Hide","IF(Add_Backsplash,False,True)",[Add_Backsplash])       
+
                 
         l_corner_ctop = common_parts.add_cc_corner_countertop(self)
-        props = props_closet.get_object_props(l_corner_ctop.obj_bp)
-        props.is_countertop_bp = True        
+        # props = props_closet.get_object_props(l_corner_ctop.obj_bp)
+        # props.is_countertop_bp = True        
         l_corner_ctop.set_name("Countertop Deck")
         l_corner_ctop.x_loc('-Left_Corner_Width',[Left_Corner_Width])
         l_corner_ctop.y_loc('Product_Depth',[Product_Depth])
@@ -109,10 +129,23 @@ class Countertop_Insert(fd_types.Assembly):
         l_corner_ctop.prompt('Right Depth','Product_Depth+Deck_Overhang',[Product_Depth,Deck_Overhang])
         l_corner_ctop.prompt('Left Depth','Left_Depth',[Left_Depth])
         l_corner_ctop.prompt('Corner Shape','Corner_Shape',[Corner_Shape])
-                      
+
+        left_b_splash = common_parts.add_back_splash(self)
+        left_b_splash.set_name("Left Countertop Backsplash")
+        left_b_splash.x_loc('-Left_Corner_Width',[Left_Corner_Width])
+        left_b_splash.y_loc('Product_Depth-B_Splash_Thickness',[Product_Depth,B_Splash_Thickness])
+        left_b_splash.z_loc("Deck_Thickness",[Deck_Thickness])
+        left_b_splash.x_rot(value=90)
+        left_b_splash.y_rot(value=0)
+        left_b_splash.z_rot(value=90)
+        left_b_splash.x_dim("-Left_Corner_Depth+B_Splash_Thickness",[Left_Corner_Depth,B_Splash_Thickness])
+        left_b_splash.y_dim("B_Splash_Height",[B_Splash_Height])
+        left_b_splash.z_dim("B_Splash_Thickness",[B_Splash_Thickness]) 
+        left_b_splash.prompt("Hide","IF(AND(Add_Left_Corner,Add_Backsplash),False,True)",[Add_Left_Corner,Add_Backsplash])       
+
         r_corner_ctop = common_parts.add_cc_corner_countertop(self)
-        props = props_closet.get_object_props(r_corner_ctop.obj_bp)
-        props.is_countertop_bp = True        
+        # props = props_closet.get_object_props(r_corner_ctop.obj_bp)
+        # props.is_countertop_bp = True        
         r_corner_ctop.set_name("Countertop Deck")
         r_corner_ctop.x_loc('Product_Width+Right_Corner_Width',[Product_Width,Right_Corner_Width])
         r_corner_ctop.y_loc('Product_Depth',[Product_Depth])
@@ -128,51 +161,19 @@ class Countertop_Insert(fd_types.Assembly):
         r_corner_ctop.prompt('Left Depth','Product_Depth+Deck_Overhang',[Product_Depth,Deck_Overhang])
         r_corner_ctop.prompt('Right Depth','Right_Depth',[Right_Depth])
         r_corner_ctop.prompt('Corner Shape','Corner_Shape',[Corner_Shape])
-        
-#         hpltop = common_parts.add_hpl_top(self)
-#         props = props_closet.get_object_props(hpltop.obj_bp)     
-#         hpltop.set_name("HPL Deck")
-#         hpltop.x_loc(value = 0)
-#         hpltop.y_loc('Product_Depth',[Product_Depth])
-#         hpltop.z_loc(value = 0)
-#         hpltop.x_rot(value = 0)
-#         hpltop.y_rot(value = 0)
-#         hpltop.z_rot(value = 0)
-#         hpltop.x_dim("Product_Width",[Product_Width])
-#         hpltop.y_dim("-Product_Depth-Deck_Overhang",[Product_Depth,Deck_Overhang])
-#         hpltop.z_dim("Deck_Thickness",[Deck_Thickness])
-#         hpltop.prompt("Hide","IF(Countertop_Type==1,False,True)",[Countertop_Type])
-#         hpltop.prompt('Exposed Left','Exposed_Left',[Exposed_Left])
-#         hpltop.prompt('Exposed Right','Exposed_Right',[Exposed_Right])
-#         hpltop.prompt('Exposed Back','Exposed_Back',[Exposed_Back])                
-#                 
-#         granite_deck = common_parts.add_countertop(self)
-#         granite_deck.set_name("Granite Deck")
-#         granite_deck.x_loc(value = 0)
-#         granite_deck.y_loc('Product_Depth',[Product_Depth])
-#         granite_deck.z_loc(value = 0)
-#         granite_deck.x_rot(value = 0)
-#         granite_deck.y_rot(value = 0)
-#         granite_deck.z_rot(value = 0)
-#         granite_deck.x_dim("Product_Width",[Product_Width])
-#         granite_deck.y_dim("-Product_Depth-Deck_Overhang",[Product_Depth,Deck_Overhang])
-#         granite_deck.z_dim("Deck_Thickness",[Deck_Thickness])
-#         granite_deck.prompt("Edge Type","Edge_Type",[Edge_Type])
-#         granite_deck.prompt("Hide","IF(Countertop_Type==2,False,True)",[Countertop_Type])
-# 
-#         granite_deck = common_parts.add_countertop(self)
-#         granite_deck.set_name("Granite Deck")
-#         granite_deck.x_loc(value = 0)
-#         granite_deck.y_loc('Product_Depth',[Product_Depth])
-#         granite_deck.z_loc(value = 0)
-#         granite_deck.x_rot(value = 0)
-#         granite_deck.y_rot(value = 0)
-#         granite_deck.z_rot(value = 0)
-#         granite_deck.x_dim("Product_Width",[Product_Width])
-#         granite_deck.y_dim("-Product_Depth-Deck_Overhang",[Product_Depth,Deck_Overhang])
-#         granite_deck.z_dim("Deck_Thickness",[Deck_Thickness])
-#         granite_deck.prompt("Edge Type","Edge_Type",[Edge_Type])
-#         granite_deck.prompt("Hide","IF(Countertop_Type==2,False,True)",[Countertop_Type])
+
+        right_b_splash = common_parts.add_back_splash(self)
+        right_b_splash.set_name("Right Countertop Backsplash")
+        right_b_splash.x_loc('Product_Width+Right_Corner_Width',[Product_Width,Right_Corner_Width])
+        right_b_splash.y_loc('Product_Depth-B_Splash_Thickness',[Product_Depth,B_Splash_Thickness])
+        right_b_splash.z_loc("Deck_Thickness",[Deck_Thickness])
+        right_b_splash.x_rot(value=90)
+        right_b_splash.y_rot(value=0)
+        right_b_splash.z_rot(value=-90)
+        right_b_splash.x_dim("Right_Corner_Depth-B_Splash_Thickness",[Right_Corner_Depth,B_Splash_Thickness])
+        right_b_splash.y_dim("B_Splash_Height",[B_Splash_Height])
+        right_b_splash.z_dim("B_Splash_Thickness",[B_Splash_Thickness]) 
+        right_b_splash.prompt("Hide","IF(AND(Add_Right_Corner,Add_Backsplash),False,True)",[Add_Right_Corner,Add_Backsplash])         
 
         self.update()
         
@@ -190,47 +191,47 @@ class PROMPTS_Counter_Top(bpy.types.Operator):
     def poll(cls, context):
         return True
         
-    def assign_material(self,obj):
+    # def assign_material(self,obj):
         
-        if obj.type == 'CUTPART':
-            for slot in obj.cabinetlib.material_slots:
-                Countertop_Type = self.assembly.get_prompt("Countertop Type")
+    #     if obj.type == 'CUTPART':
+    #         for slot in obj.cabinetlib.material_slots:
+    #             Countertop_Type = self.assembly.get_prompt("Countertop Type")
                 
-                if Countertop_Type.value() == 'Melamine':
-                    if slot.name in {'Core','Exterior','Interior'}:
-                        slot.pointer_name = "Closet_Part_Surfaces"
+    #             if Countertop_Type.value() == 'Melamine':
+    #                 if slot.name in {'Core','Exterior','Interior'}:
+    #                     slot.pointer_name = "Closet_Part_Surfaces"
                         
-                    if slot.name == 'LeftEdge':
-                        Exposed_Left = self.assembly.get_prompt("Exposed Left")
-                        if Exposed_Left.value():
-                            slot.pointer_name = "Closet_Part_Edges_Secondary"
-                        else:
-                            slot.pointer_name = "Core"
-                    if slot.name == 'RightEdge':
-                        Exposed_Right = self.assembly.get_prompt("Exposed Right")
-                        if Exposed_Right.value():
-                            slot.pointer_name = "Closet_Part_Edges_Secondary"
-                        else:
-                            slot.pointer_name = "Core"                            
-                    if slot.name == 'BackEdge':
-                        Exposed_Back = self.assembly.get_prompt("Exposed Back")
-                        if Exposed_Back.value():
-                            slot.pointer_name = "Closet_Part_Edges_Secondary"
-                        else:
-                            slot.pointer_name = "Core"     
+    #                 if slot.name == 'LeftEdge':
+    #                     Exposed_Left = self.assembly.get_prompt("Exposed Left")
+    #                     if Exposed_Left.value():
+    #                         slot.pointer_name = "Closet_Part_Edges_Secondary"
+    #                     else:
+    #                         slot.pointer_name = "Core"
+    #                 if slot.name == 'RightEdge':
+    #                     Exposed_Right = self.assembly.get_prompt("Exposed Right")
+    #                     if Exposed_Right.value():
+    #                         slot.pointer_name = "Closet_Part_Edges_Secondary"
+    #                     else:
+    #                         slot.pointer_name = "Core"                            
+    #                 if slot.name == 'BackEdge':
+    #                     Exposed_Back = self.assembly.get_prompt("Exposed Back")
+    #                     if Exposed_Back.value():
+    #                         slot.pointer_name = "Closet_Part_Edges_Secondary"
+    #                     else:
+    #                         slot.pointer_name = "Core"     
                                                    
-                    if slot.name == 'Edgebanding':
-                        slot.pointer_name = "Closet_Part_Edges"
+    #                 if slot.name == 'Edgebanding':
+    #                     slot.pointer_name = "Closet_Part_Edges"
 
-                if Countertop_Type.value() == 'HPL':
-                    slot.pointer_name = "Countertop_Surface"
+    #             if Countertop_Type.value() == 'HPL':
+    #                 slot.pointer_name = "Countertop_Surface"
                     
-                if Countertop_Type.value() == 'Granite':
-                    slot.pointer_name = "Countertop_Surface"    
+    #             if Countertop_Type.value() == 'Granite':
+    #                 slot.pointer_name = "Countertop_Surface"    
 
                 
-        for child in obj.children:
-            self.assign_material(child)
+    #     for child in obj.children:
+    #         self.assign_material(child)
         
     def check(self, context):
         #self.assign_material(self.assembly.obj_bp)
@@ -261,10 +262,13 @@ class PROMPTS_Counter_Top(bpy.types.Operator):
                 Exposed_Left = self.assembly.get_prompt("Exposed Left")
                 Exposed_Right = self.assembly.get_prompt("Exposed Right")
                 Exposed_Back = self.assembly.get_prompt("Exposed Back")
-                
                 Add_Left_Corner = self.assembly.get_prompt("Add Left Corner")
                 Add_Right_Corner = self.assembly.get_prompt("Add Right Corner")
                 Corner_Shape = self.assembly.get_prompt("Corner Shape")
+
+                Add_Backsplash = self.assembly.get_prompt('Add Backsplash')
+                B_Splash_Height = self.assembly.get_prompt('Backsplash Height')
+                B_Splash_Thickness = self.assembly.get_prompt('Backsplash Thickness')                
                 
                 box = layout.box()   
                 row = box.row()
@@ -281,14 +285,20 @@ class PROMPTS_Counter_Top(bpy.types.Operator):
                 
                 row = box.row()
                 row.label("Countertop Height:")
-                row.prop(self.assembly.obj_bp,'location',index=2,text="")  
+                row.prop(self.assembly.obj_bp,'location',index=2,text="")
+
+                row = box.row()
+                Add_Backsplash.draw_prompt(row)
+
+                if Add_Backsplash.value():
+                    row = box.row()
+                    B_Splash_Height.draw_prompt(row)
+                    row = box.row()
+                    B_Splash_Thickness.draw_prompt(row)
                 
                 if Countertop_Type.value() != 'Melamine':
                     row = box.row()
                     Edge_Type.draw_prompt(row)
-                
-                row = box.row()
-                Corner_Shape.draw_prompt(row)
                 
                 row = box.row()
                 row.label("Add Corner:")
@@ -299,8 +309,9 @@ class PROMPTS_Counter_Top(bpy.types.Operator):
                     Left_Corner_Width = self.assembly.get_prompt("Left Corner Width")
                     Left_Corner_Depth = self.assembly.get_prompt("Left Corner Depth")
                     Left_Depth = self.assembly.get_prompt("Left Depth")
-                    row = box.row(align=True)
+                    row = box.row()
                     row.label("Left Corner Size:")
+                    row = box.row(align=True)
                     Left_Corner_Width.draw_prompt(row,text="Depth",split_text=False)
                     Left_Corner_Depth.draw_prompt(row,text="Width",split_text=False)
                     Left_Depth.draw_prompt(row,text="Left End Depth",split_text=False)
@@ -309,11 +320,16 @@ class PROMPTS_Counter_Top(bpy.types.Operator):
                     Right_Corner_Width = self.assembly.get_prompt("Right Corner Width")
                     Right_Corner_Depth = self.assembly.get_prompt("Right Corner Depth")
                     Right_Depth = self.assembly.get_prompt("Right Depth")
-                    row = box.row(align=True)
+                    row = box.row()
                     row.label("Right Corner Size:")
+                    row = box.row(align=True)
                     Right_Corner_Width.draw_prompt(row,text="Depth",split_text=False)
                     Right_Corner_Depth.draw_prompt(row,text="Width",split_text=False)
                     Right_Depth.draw_prompt(row,text="Right End Depth",split_text=False)
+
+                if Add_Left_Corner.value() or Add_Right_Corner.value():
+                    row = box.row()
+                    Corner_Shape.draw_prompt(row)                    
                 
                 if Countertop_Type:
 #                     Countertop_Type.draw_prompt(box)

@@ -34,17 +34,17 @@ class OPS_change_active_index(bpy.types.Operator):
         for index, item in enumerate(G.collection):
             if item.name == self.name:
 
-                if collection_name in ('Edges', 'SecondaryEdges'):
+                if collection_name in ('Edges', 'SecondaryEdges','DoorDrawerEdges'):
                     if self.i_type == 'TYPE':
                         G.collection.data.set_type_index(index)
                         return {'FINISHED'}
 
-                if collection_name in ('EdgeType', 'SecondaryEdgeType'):
+                if collection_name in ('EdgeType', 'SecondaryEdgeType','DoorDrawerEdgeType'):
                     if self.i_type == 'COLOR':
                         G.collection.data.set_color_index(index)
                         return {'FINISHED'}
 
-                if collection_name in ('Materials', 'MaterialType'):
+                if collection_name in ('Materials', 'MaterialType', 'DoorDrawerMaterials','DoorDrawerMaterialType'):
                     if self.i_type == 'TYPE':
                         G.collection.data.set_type_index(index)
 
@@ -101,6 +101,7 @@ class MENU_Edge_Colors(bpy.types.Menu):
     bl_label = "Edge Colors"
 
     def draw(self, context):
+        snap_db_prefs = context.user_preferences.addons["snap_db"].preferences
         cab_mat_props = context.scene.db_materials
         edge_type = cab_mat_props.edges.get_edge_type()
         colors = edge_type.colors
@@ -108,7 +109,14 @@ class MENU_Edge_Colors(bpy.types.Menu):
         row = layout.row()
         G.collection = colors
 
-        for index, item in enumerate(colors):
+        location_colors = []
+        location_colors.clear()
+
+        for color in colors:
+            if color.location_code == int(snap_db_prefs.location_code):
+                location_colors.append(color)
+
+        for index, item in enumerate(location_colors):
 
             if index % MAX_MENU_COL_LEN == 0:
                 col = row.column()
@@ -117,6 +125,65 @@ class MENU_Edge_Colors(bpy.types.Menu):
                 'db_materials.change_active_index',
                 text=item.name,
                 icon='FILE_TICK' if index == cab_mat_props.edge_color_index else item.get_icon()
+            )                
+
+            op.name = item.name
+            op.i_type = 'COLOR'           
+
+
+class MENU_Door_Drawer_Edge_Types(bpy.types.Menu):
+    bl_label = "Door/Drawer Edge Types"
+
+    def draw(self, context):
+        cab_mat_props = context.scene.db_materials
+        types = cab_mat_props.door_drawer_edges.edge_types
+        layout = self.layout
+        row = layout.row()
+        G.collection = types        
+
+        for index, item in enumerate(types):
+
+            if index % MAX_MENU_COL_LEN == 0:
+                col = row.column()            
+
+            op = col.operator(
+                'db_materials.change_active_index',
+                text=item.name,
+                icon='FILE_TICK' if index == cab_mat_props.door_drawer_edge_type_index else 'LINK'
+            )
+
+            op.name = item.name
+            op.i_type = 'TYPE'
+
+
+class MENU_Door_Drawer_Edge_Colors(bpy.types.Menu):
+    bl_label = "Door/Drawer Edge Colors"
+
+    def draw(self, context):
+        snap_db_prefs = context.user_preferences.addons["snap_db"].preferences
+        cab_mat_props = context.scene.db_materials
+        edge_type = cab_mat_props.door_drawer_edges.get_edge_type()
+        colors = edge_type.colors
+        layout = self.layout
+        row = layout.row()
+        G.collection = colors
+
+        location_colors = []
+        location_colors.clear()
+
+        for color in colors:
+            if color.location_code == int(snap_db_prefs.location_code):
+                location_colors.append(color)
+
+        for index, item in enumerate(location_colors):
+
+            if index % MAX_MENU_COL_LEN == 0:
+                col = row.column()
+
+            op = col.operator(
+                'db_materials.change_active_index',
+                text=item.name,
+                icon='FILE_TICK' if index == cab_mat_props.door_drawer_edge_color_index else item.get_icon()
             )                
 
             op.name = item.name
@@ -152,6 +219,7 @@ class MENU_Secondary_Edge_Colors(bpy.types.Menu):
     bl_label = "Secondary Edge Colors"
 
     def draw(self, context):
+        snap_db_prefs = context.user_preferences.addons["snap_db"].preferences
         cab_mat_props = context.scene.db_materials
         edge_type = cab_mat_props.secondary_edges.get_edge_type()
         colors = edge_type.colors
@@ -159,7 +227,14 @@ class MENU_Secondary_Edge_Colors(bpy.types.Menu):
         row = layout.row()
         G.collection = colors
 
-        for index, item in enumerate(colors):
+        location_colors = []
+        location_colors.clear()
+
+        for color in colors:
+            if color.location_code == int(snap_db_prefs.location_code):
+                location_colors.append(color)
+
+        for index, item in enumerate(location_colors):
 
             if index % MAX_MENU_COL_LEN == 0:
                 col = row.column()
@@ -178,6 +253,7 @@ class MENU_Mat_Colors(bpy.types.Menu):
     bl_label = "Material Colors"
 
     def draw(self, context):
+        snap_db_prefs = context.user_preferences.addons["snap_db"].preferences
         cab_mat_props = context.scene.db_materials
         mat_type = cab_mat_props.materials.get_mat_type()
         colors = mat_type.colors
@@ -185,16 +261,30 @@ class MENU_Mat_Colors(bpy.types.Menu):
         row = layout.row()
         G.collection = colors
 
-        for index, item in enumerate(colors):
+        location_colors = []
+        location_colors.clear()
+
+        for color in colors:
+            if color.location_code == int(snap_db_prefs.location_code):
+                location_colors.append(color)
+
+        for index, item in enumerate(location_colors):
 
             if index % MAX_MENU_COL_LEN == 0:
                 col = row.column()
 
+            if item.oversize_max_len > 0:
+                max_len_inch = round(item.oversize_max_len/25.4,2)
+                max_len_str = ' - (Max Length: {}")'.format(max_len_inch)
+                label = item.name + max_len_str
+            else:
+                label = item.name                
+
             op = col.operator(
                 'db_materials.change_active_index',
-                text=item.name,
+                text=label,
                 icon='FILE_TICK' if index == cab_mat_props.mat_color_index else item.get_icon()
-            )                
+            )
 
             op.name = item.name
             op.i_type = 'COLOR'   
@@ -219,6 +309,65 @@ class MENU_Mat_Types(bpy.types.Menu):
                 'db_materials.change_active_index',
                 text=item.name,
                 icon='FILE_TICK' if index == cab_mat_props.mat_type_index else 'LINK'
+            )
+
+            op.name = item.name
+            op.i_type = 'TYPE'
+
+                                
+class MENU_Door_Drawer_Mat_Colors(bpy.types.Menu):
+    bl_label = "Custom Material Colors"
+
+    def draw(self, context):
+        snap_db_prefs = context.user_preferences.addons["snap_db"].preferences
+        cab_mat_props = context.scene.db_materials
+        mat_type = cab_mat_props.door_drawer_materials.get_mat_type()
+        colors = mat_type.colors
+        layout = self.layout
+        row = layout.row()
+        G.collection = colors
+
+        location_colors = []
+        location_colors.clear()
+
+        for color in colors:
+            if color.location_code == int(snap_db_prefs.location_code):
+                location_colors.append(color)
+
+        for index, item in enumerate(location_colors):
+
+            if index % MAX_MENU_COL_LEN == 0:
+                col = row.column()
+
+            op = col.operator(
+                'db_materials.change_active_index',
+                text=item.name,
+                icon='FILE_TICK' if index == cab_mat_props.door_drawer_mat_color_index else item.get_icon()
+            )                
+
+            op.name = item.name
+            op.i_type = 'COLOR'   
+
+
+class MENU_Door_Drawer_Mat_Types(bpy.types.Menu):
+    bl_label = "Custom Material Types"
+
+    def draw(self, context):
+        cab_mat_props = context.scene.db_materials
+        types = cab_mat_props.door_drawer_materials.mat_types
+        layout = self.layout
+        row = layout.row()
+        G.collection = types                
+
+        for index, item in enumerate(types):
+
+            if index % MAX_MENU_COL_LEN == 0:
+                col = row.column()    
+
+            op = col.operator(
+                'db_materials.change_active_index',
+                text=item.name,
+                icon='FILE_TICK' if index == cab_mat_props.door_drawer_mat_type_index else 'LINK'
             )
 
             op.name = item.name
@@ -567,10 +716,14 @@ class OPS_Change_Active_Slide_Type(bpy.types.Operator):
 def register():
     bpy.utils.register_class(MENU_Edge_Types)
     bpy.utils.register_class(MENU_Edge_Colors)
+    bpy.utils.register_class(MENU_Door_Drawer_Edge_Types)
+    bpy.utils.register_class(MENU_Door_Drawer_Edge_Colors)
     bpy.utils.register_class(MENU_Secondary_Edge_Types)
     bpy.utils.register_class(MENU_Secondary_Edge_Colors)
     bpy.utils.register_class(MENU_Mat_Types)
     bpy.utils.register_class(MENU_Mat_Colors)
+    bpy.utils.register_class(MENU_Door_Drawer_Mat_Types)
+    bpy.utils.register_class(MENU_Door_Drawer_Mat_Colors)
     bpy.utils.register_class(MENU_Countertop_Types)
     bpy.utils.register_class(MENU_Countertop_Mfgs)
     bpy.utils.register_class(MENU_Countertop_Colors)
@@ -591,10 +744,14 @@ def register():
 def unregister():
     bpy.utils.unregister_class(MENU_Edge_Types)
     bpy.utils.unregister_class(MENU_Edge_Colors)
+    bpy.utils.unregister_class(MENU_Door_Drawer_Edge_Types)
+    bpy.utils.unregister_class(MENU_Door_Drawer_Edge_Colors)
     bpy.utils.unregister_class(MENU_Secondary_Edge_Types)
     bpy.utils.unregister_class(MENU_Secondary_Edge_Colors)
     bpy.utils.unregister_class(MENU_Mat_Types)
     bpy.utils.unregister_class(MENU_Mat_Colors)
+    bpy.utils.unregister_class(MENU_Door_Drawer_Mat_Types)
+    bpy.utils.unregister_class(MENU_Door_Drawer_Mat_Colors)
     bpy.utils.unregister_class(MENU_Countertop_Types)
     bpy.utils.unregister_class(MENU_Countertop_Mfgs)
     bpy.utils.unregister_class(MENU_Countertop_Colors)

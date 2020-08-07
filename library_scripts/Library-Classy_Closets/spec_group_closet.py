@@ -1,7 +1,7 @@
 from mv import fd_types, unit
 
 EXPOSED_MATERIAL = ("Cabinet Materials","Laminate Solid","White Melamine")
-CHROME_MATERIAL = ("Metals","Metals","Chrome")
+CHROME_MATERIAL = ("Metals","Finished Metals","Chrome")
 GLASS_MATERIAL = ("Glass","Glass","Glass")
 MIRROR_MATERIAL = ("Cabinet Materials","Classy Closets","Mirror")
 LUCITE_MATERIAL = ("Glass","Lucite","Lucite")
@@ -23,6 +23,10 @@ class Material_Pointers():
     Rod_Finish = fd_types.Material_Pointer(CHROME_MATERIAL)
 
     Door_Surface = fd_types.Material_Pointer(EXPOSED_MATERIAL)
+
+    Custom_Door_Surface = fd_types.Material_Pointer(EXPOSED_MATERIAL)
+
+    Custom_Door_Edge = fd_types.Material_Pointer(EXPOSED_MATERIAL)
 
     Wood_Door_Surface = fd_types.Material_Pointer(EXPOSED_MATERIAL)
 
@@ -63,6 +67,11 @@ class Cutpart_Pointers():
                                    bottom="Closet_Part_Surfaces")
     
     Cleat = fd_types.Cutpart_Pointer(thickness=unit.inch(.75),
+                                   core="Closet_Part_Surfaces",
+                                   top="Closet_Part_Surfaces",
+                                   bottom="Closet_Part_Surfaces")
+
+    Cover_Cleat = fd_types.Cutpart_Pointer(thickness=unit.inch(.375),
                                    core="Closet_Part_Surfaces",
                                    top="Closet_Part_Surfaces",
                                    bottom="Closet_Part_Surfaces")    

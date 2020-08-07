@@ -2,7 +2,7 @@
 bl_info = {
     "name": "SNaP",
     "author": "Ryan Montes",
-    "version": (1, 0, 2),
+    "version": (1, 2, 0),
     "blender": (2, 7, 8),
     "location": "Tools Shelf",
     "description": "SNaP",
@@ -16,6 +16,8 @@ import bpy
 import sqlite3
 from sqlite3 import Error
 import os
+import shutil
+import stat
 import pathlib
 import time
 from bpy.app.handlers import persistent
@@ -27,6 +29,11 @@ from . import closet_materials
 from . import closet_materials_ui
 from . import closet_materials_ops
 from . import addon_updater_ops
+from . import room_builder
+from . import snap_ops
+from . import fd_projects
+from . import lib_manager
+
 # - FOR CUSTOM PROGRESS BAR
 # from tkinter import *
 # from tkinter import ttk
@@ -35,10 +42,12 @@ from . import addon_updater_ops
 BL_DIR = os.path.dirname(bpy.app.binary_path)
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 DB_PATH = os.path.join(DIR_PATH, "Snap.db")
+MATERIALS_DIR = os.path.join(DIR_PATH, "materials")
 CSV_DIR_PATH = os.path.join(DIR_PATH, "db_init")
 CSV_PATH = os.path.join(CSV_DIR_PATH, "CCItems.csv")
 EDGE_TYPES_CSV_PATH = os.path.join(CSV_DIR_PATH, "EdgeTypes.csv")
 MAT_TYPES_CSV_PATH = os.path.join(CSV_DIR_PATH, "MaterialTypes.csv")
+OS_MAT_COLORS_CSV_PATH = os.path.join(CSV_DIR_PATH, "OversizeMaterialColors.csv")
 CT_DIR = os.path.join(CSV_DIR_PATH, "Countertops")
 GLAZE_COLORS_CSV_PATH = os.path.join(CSV_DIR_PATH, "GlazeColors.csv")
 GLAZE_STYLES_CSV_PATH = os.path.join(CSV_DIR_PATH, "GlazeStyles.csv")
@@ -50,6 +59,47 @@ EDGE_TYPE_TABLE_NAME = "EdgeTypes"
 MAT_TYPE_TABLE_NAME = "MaterialTypes"
 SLIDE_TYPE_TABLE_NAME = "SlideTypes"
 DRAWER_SLIDE_DIR = os.path.join(CSV_DIR_PATH, "Drawer Slides")
+UPDATE_USER = "CCDevNelson"
+UPDATE_REPO = "Snap-Updates"
+DEV_TOOLS_AVAILABLE = False
+INFO_SITE_URL = "https://ccdevnelson.github.io/SNaP-Dev/"
+
+try:
+    from . import developer_utils
+    DEV_TOOLS_AVAILABLE = True    
+except ImportError:
+    pass
+else:
+    pass
+
+
+def get_github_user(prefs):
+    if prefs.debug_mode and prefs.debug_updater:
+        try:
+            debug_user = os.environ['GITHUB_API_USER']
+            return debug_user
+        except Error:
+            pass
+    else:
+        return UPDATE_USER
+
+
+def get_github_repo(prefs):
+    if prefs.debug_mode and prefs.debug_updater:
+        return "bl_updater"
+    else:
+        return UPDATE_REPO
+
+
+def get_github_pat(prefs):
+    if prefs.debug_mode and prefs.debug_updater:
+        try:
+            debug_pat = os.environ['GITHUB_PAT_BL_UPDATER']
+            return debug_pat
+        except Error:
+            pass
+    else:
+        return None
 
 
 def connect_db():
@@ -101,13 +151,49 @@ class OBJECT_PT_UpdaterPanel(bpy.types.Panel):
         # Internally also checks to see if auto-check enabled
         # and if the time interval has passed
         # addon_updater_ops.check_for_update_background()
-        box = layout.box()
-        box.label("SNaP Version: " + str(bl_info['version']))
+        box = layout.box()     
+        box.label("SNaP Version: {}.{}.{}".format(bl_info['version'][0], bl_info['version'][1], bl_info['version'][2]))
         addon_updater_ops.update_notice_box_ui(self, context)
 
 
 class PREFS_Snap(bpy.types.AddonPreferences):
     bl_idname = __name__
+
+    debug_mode = bpy.props.BoolProperty(
+        name="Debug Mode",
+        description="If enabled, run in debug mode",
+        default=False,
+    )
+
+    debug_updater = bpy.props.BoolProperty(
+        name="Debug Updater",
+        description="If enabled, run updater in debug mode",
+        default=False
+    )
+
+    debug_export = bpy.props.BoolProperty(
+        name="Debug XML Export",
+        description="If enabled, run XML export in debug mode",
+        default=False,
+    )
+
+    expand_dev_panel = bpy.props.BoolProperty(
+        name="Expand Development Panel",
+        description="Expand Development panel for advanced options",
+        default=False,
+    )
+
+    use_adv_options = bpy.props.BoolProperty(
+        name="SNaP Advanced options",
+        description="Use advanced options",
+        default=False,
+    )
+
+    fake_install = bpy.props.BoolProperty(
+        name="Updater - Fake Install",
+        description="For debugging, 'pretend' to install an update to test reloading conditions",
+        default=False,
+    )
 
     auto_check_update = bpy.props.BoolProperty(
         name="Auto-check for Update",
@@ -150,13 +236,62 @@ class PREFS_Snap(bpy.types.AddonPreferences):
         default=CSV_PATH
     )
 
+    location_code = bpy.props.EnumProperty(
+        name="Location Code",
+        items=closet_materials.enum_location_code
+    )
+
+    enable_lib_manager = bpy.props.BoolProperty(
+        name="Enable Library Manager",
+        description="If enabled, show library manager panel",
+        default=False,
+    )    
+
     def draw(self, context):
+        project_prefs = bpy.context.user_preferences.addons["fd_projects"].preferences
         layout = self.layout
 
-        addon_updater_ops.update_settings_ui(self,context)
         box = layout.box()
-        box.prop(self, "default_csv_path", text="Default CSV Filepath")
+        row = box.row()
+        split = row.split(percentage=0.5)
+        row = split.row()
+        row.label("Location Code:")
+        row.prop(self, "location_code", text="")
+        row = split.row()
+        row.label("Designer ID:")
+        row.prop(project_prefs, "designer_id", text="")
+        box.prop(project_prefs, "project_dir", text="Projects Directory")
 
+        row = layout.row(align=True)
+        row.prop(
+            self,
+            "expand_dev_panel",
+            text="",
+            icon='TRIA_DOWN' if self.expand_dev_panel else 'TRIA_RIGHT',
+            emboss=False)
+        row.prop(self, "use_adv_options", text="")
+        row.label("SNaP Advanced options")
+
+        if self.expand_dev_panel:
+            box = layout.box()
+            box.label(text="Library Manager")
+            box.enabled = self.use_adv_options
+            row = box.row()
+            row.prop(self, "enable_lib_manager")
+
+            if DEV_TOOLS_AVAILABLE:
+                box = layout.box()
+                box.label(text="Debug Settings")                
+                box.enabled = self.use_adv_options
+                row = box.row()
+                row.prop(self, "debug_mode")
+                row.prop(self, "debug_updater")
+                row.prop(self, "fake_install")
+             
+            addon_updater_ops.update_settings_ui(self,context)
+
+
+bpy.utils.register_class(PREFS_Snap)
 
 @bpy.app.handlers.persistent
 def load_materials_from_db(scene=None):
@@ -185,27 +320,74 @@ def assign_material_pointers(scene=None):
  
 bpy.app.handlers.load_post.append(assign_material_pointers)
 
+def del_dir(action, name, exc):
+    os.chmod(name, stat.S_IWRITE)
+    os.remove(name)
+
 @bpy.app.handlers.persistent
 def check_for_update(scene=None):
+    source_dir = os.path.join(os.path.dirname(__file__),"snap_db_updater","source")
+    staging_dir = os.path.join(os.path.dirname(__file__),"snap_db_updater","update_staging")
+    update_dirs = [source_dir, staging_dir]
+
+    for dir_path in update_dirs:
+        if os.path.exists(dir_path):
+            shutil.rmtree(dir_path, onerror=del_dir)
+
     if "snap_db" in bpy.context.user_preferences.addons.keys():
         addon_updater_ops.check_for_update_background()   
  
 bpy.app.handlers.load_post.append(check_for_update)
 
+@bpy.app.handlers.persistent
+def refresh_filebrowser(scene=None):
+    if not bpy.app.background:
+        if "snap_db" in bpy.context.user_preferences.addons.keys():
+            wm = bpy.context.window_manager
+            mv = bpy.context.scene.mv
+            lib = wm.cabinetlib.lib_products[mv.product_library_name]
+            categories =  os.listdir(lib.lib_path)
+
+            for category in categories:
+                cat_path = os.path.join(lib.lib_path,category)
+                if os.path.isdir(cat_path):
+                    if category == bpy.context.scene.mv.product_category_name:
+                        for window in bpy.context.window_manager.windows:
+                            screen = window.screen
+                            for area in screen.areas:
+                                if area.type == 'FILE_BROWSER':
+                                    override = bpy.context.copy()
+                                    override['window'] = window
+                                    override['screen'] = screen
+                                    override['area'] = area
+                                    bpy.ops.snap.change_category(override,category_name=category)  
+ 
+bpy.app.handlers.load_post.append(refresh_filebrowser)
+
 
 classes = (
-	PREFS_Snap,
-	OBJECT_PT_UpdaterPanel
+	OBJECT_PT_UpdaterPanel,
 )
 
 
 def register():
-    addon_updater_ops.register(bl_info)
+    prefs = bpy.context.user_preferences.addons[__name__].preferences
+    addon_updater_ops.register(
+        bl_info,
+        get_github_user(prefs),
+        get_github_repo(prefs), 
+        get_github_pat(prefs),
+        prefs.fake_install
+        )
     snap_import.register()
     snap_export.register()
     closet_materials.register()
     closet_materials_ui.register()
     closet_materials_ops.register()
+    room_builder.register()
+    snap_ops.register()
+    fd_projects.register()
+    lib_manager.register()
 
     for cls in classes:
         addon_updater_ops.make_annotations(cls) # to avoid blender 2.8 warnings
@@ -219,6 +401,10 @@ def unregister():
     closet_materials.unregister()
     closet_materials_ui.unregister()
     closet_materials_ops.unregister()
+    room_builder.unregister()
+    snap_ops.unregister()
+    fd_projects.unregister()
+    lib_manager.unregister()
 
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)    

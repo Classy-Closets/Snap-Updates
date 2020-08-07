@@ -25,6 +25,29 @@ def get_machining_props():
     return props
 
 
+class LIST_Mac_Scenes(bpy.types.UIList):
+
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        layout.label(item.name, icon='SCENE_DATA')
+
+    def filter_items(self, context, data, propname):
+        flt_flags = []
+        flt_neworder = []
+        scenes = getattr(data, propname)
+        helper_funcs = bpy.types.UI_UL_list
+        
+        if not flt_flags:
+            flt_flags = [self.bitflag_filter_item] * len(scenes)
+
+        for i, scene in enumerate(scenes):
+            if scene.mv.plan_view_scene or scene.mv.elevation_scene:
+                flt_flags[i] &= ~self.bitflag_filter_item
+
+        flt_neworder = helper_funcs.sort_items_by_name(scenes, "name")
+
+        return flt_flags, flt_neworder
+
+
 class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
     bl_idname = MACHINING_PROPERTY_NAMESPACE + ".prepare_closet_for_export"
     bl_label = "Prepare Closet for Export"
@@ -279,7 +302,44 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
         pull.location.y = 0
         pull.location.x = 0
         pull.mv.associative_rotation = 0
-        
+
+    def add_blind_corner_panel_drilling(self,assembly):
+        macp = get_machining_props()
+        self.remove_machining_token(assembly, 'System Holes Right Bottom Front')
+        self.remove_machining_token(assembly, 'System Holes Right Bottom Rear')
+
+        left = assembly.get_prompt("Is Left Blind Corner Panel")
+        right = assembly.get_prompt("Is Right Blind Corner Panel")
+        part_length = math.fabs(assembly.obj_x.location.x)
+        part_width = math.fabs(assembly.obj_y.location.y)
+        dim_to_front = macp.dim_to_front_system_hole
+        dim_to_rear = macp.dim_to_rear_system_hole
+
+        if left.value():
+            obj, token = assembly.add_machine_token('System Holes Right Bottom Front','BORE','5')
+            token.dim_in_x = part_length + unit.inch(0.455) - macp.dim_to_system_top_hole - macp.dim_between_holes
+            token.dim_in_y = dim_to_front
+            token.dim_in_z = macp.system_hole_bore_depth
+            token.end_dim_in_x =  -unit.inch(0.455) + macp.dim_to_system_top_hole + macp.dim_between_holes
+            token.end_dim_in_y = dim_to_front + part_width
+            token.face_bore_dia = macp.system_hole_dia
+            token.distance_between_holes = macp.dim_between_holes
+            token.associative_dia = 0
+            token.associative_depth = 0
+
+        elif right.value():
+            obj, token = assembly.add_machine_token('System Holes Left Bottom Front','BORE','6')
+            token.dim_in_x = part_length + unit.inch(0.455) - macp.dim_to_system_top_hole - macp.dim_between_holes
+            token.dim_in_y = part_width - dim_to_rear
+            token.dim_in_z = macp.system_hole_bore_depth
+            token.end_dim_in_x = -unit.inch(0.455) + macp.dim_to_system_top_hole + macp.dim_between_holes
+            token.end_dim_in_y = part_width - dim_to_rear
+            token.face_bore_dia = macp.system_hole_dia
+            token.distance_between_holes = macp.dim_between_holes
+            token.associative_dia = 0
+            token.associative_depth = 0
+
+
     def add_panel_drilling(self,assembly):
         '''
             This should only be added if they have the option to always drill panels turned on.
@@ -302,7 +362,6 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
             
             part_length = math.fabs(assembly.obj_x.location.x)
             part_width = math.fabs(assembly.obj_y.location.y)
-            part_thickness = math.fabs(assembly.obj_z.location.z)
             dim_to_front = macp.dim_to_front_system_hole
             dim_to_rear = macp.dim_to_rear_system_hole
             left_depth = assembly.get_prompt('Left Depth')
@@ -312,84 +371,62 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
             sdbr = assembly.get_prompt('Stop Drilling Bottom Right').value()
             sdtr = assembly.get_prompt('Stop Drilling Top Right').value()
             
-            panel_has_custom_drilling = False
-            use_stop_drilling = False
-            if sdbl > 0 or sdtl > 0 or sdbr > 0 or sdtr > 0 or left_depth.value() != right_depth.value():
-                panel_has_custom_drilling = True
-            if sdbl > 0 or sdtl > 0 or sdbr > 0 or sdtr > 0:
-                use_stop_drilling = True
-            
             #ALWAYS DRILL BOTTOM
             if right_depth.value() > 0 or sdbr > 0:
-                
                 obj, token = assembly.add_machine_token('System Holes Right Bottom Front','BORE','5')
-                token.dim_in_x = unit.millimeter(9.5)
+                token.dim_in_x = part_length - unit.millimeter(9.5)
                 token.dim_in_y = dim_to_front + (part_width - right_depth.value())
-                token.dim_in_z = macp.system_hole_bore_depth if panel_has_custom_drilling else part_thickness
-                token.face_bore_dia = macp.system_hole_dia
-                if sdbr == 0:
-                    token.end_dim_in_x = part_length - unit.millimeter(9.5)
-                else:
-                    token.end_dim_in_x = sdbr
+                token.dim_in_z = macp.system_hole_bore_depth
+                token.end_dim_in_x = unit.millimeter(9.5) if sdbr == 0 else sdbr
                 token.end_dim_in_y = dim_to_front + (part_width - right_depth.value())
+                token.face_bore_dia = macp.system_hole_dia
                 token.distance_between_holes = unit.millimeter(32)
                 token.associative_dia = 0
                 token.associative_depth = 0
                 
                 obj, token = assembly.add_machine_token('System Holes Right Bottom Rear','BORE','5')
-                token.dim_in_x = unit.millimeter(9.5)
+                token.dim_in_x = part_length - unit.millimeter(9.5)
                 token.dim_in_y = part_width - dim_to_rear
-                token.dim_in_z = macp.system_hole_bore_depth if panel_has_custom_drilling else part_thickness
-                token.face_bore_dia = macp.system_hole_dia
-                if sdbr == 0:
-                    token.end_dim_in_x = part_length - unit.millimeter(9.5)
-                else:
-                    token.end_dim_in_x = sdbr
+                token.dim_in_z = macp.system_hole_bore_depth
+                token.end_dim_in_x = unit.millimeter(9.5) if sdbr == 0 else sdbr
                 token.end_dim_in_y = part_width - dim_to_rear
+                token.face_bore_dia = macp.system_hole_dia
                 token.distance_between_holes = unit.millimeter(32)
                 token.associative_dia = 0
                 token.associative_depth = 0
-            
-            if left_depth.value() != right_depth.value() or sdbl > 0 or sdbr > 0:
+
+            if left_depth.value() > 0 or sdbl > 0 or sdbr > 0:
+                obj, token = assembly.add_machine_token('System Holes Left Bottom Front','BORE','6')
+                token.dim_in_x = part_length - unit.millimeter(9.5)
+                token.dim_in_y = dim_to_front + (part_width - left_depth.value())
+                token.dim_in_z = macp.system_hole_bore_depth
+                token.end_dim_in_x = unit.millimeter(9.5) if sdbl == 0 else sdbl
+                token.end_dim_in_y = dim_to_front + (part_width - left_depth.value())
+                token.face_bore_dia = macp.system_hole_dia
+                token.distance_between_holes = unit.millimeter(32)
+                token.associative_dia = 0
+                token.associative_depth = 0
                 
-                if left_depth.value() > 0:
-                    obj, token = assembly.add_machine_token('System Holes Left Bottom Front','BORE','6')
-                    token.dim_in_x = unit.millimeter(9.5)
-                    token.dim_in_y = dim_to_front + (part_width - left_depth.value())
-                    token.dim_in_z = macp.system_hole_bore_depth if panel_has_custom_drilling else part_thickness
-                    token.face_bore_dia = macp.system_hole_dia
-                    if sdbl == 0:
-                        token.end_dim_in_x = part_length - unit.millimeter(9.5)
-                    else:
-                        token.end_dim_in_x = sdbl
-                    token.end_dim_in_y = dim_to_front + (part_width - left_depth.value())
-                    token.distance_between_holes = unit.millimeter(32)
-                    token.associative_dia = 0
-                    token.associative_depth = 0
-                    
-                    obj, token = assembly.add_machine_token('System Holes Left Bottom Rear','BORE','6')
-                    token.dim_in_x = unit.millimeter(9.5)
-                    token.dim_in_y = part_width - dim_to_rear
-                    token.dim_in_z = macp.system_hole_bore_depth if panel_has_custom_drilling else part_thickness
-                    token.face_bore_dia = macp.system_hole_dia
-                    if sdbl == 0:
-                        token.end_dim_in_x = part_length - unit.millimeter(9.5)
-                    else:
-                        token.end_dim_in_x = sdbl
-                    token.end_dim_in_y = part_width - dim_to_rear
-                    token.distance_between_holes = unit.millimeter(32)
-                    token.associative_dia = 0
-                    token.associative_depth = 0
+                obj, token = assembly.add_machine_token('System Holes Left Bottom Rear','BORE','6')
+                token.dim_in_x = part_length - unit.millimeter(9.5)
+                token.dim_in_y = part_width - dim_to_rear
+                token.dim_in_z = macp.system_hole_bore_depth
+                token.end_dim_in_x = unit.millimeter(9.5) if sdbl == 0 else sdbl
+                token.end_dim_in_y = part_width - dim_to_rear
+                token.face_bore_dia = macp.system_hole_dia
+                token.distance_between_holes = unit.millimeter(32)
+                token.associative_dia = 0
+                token.associative_depth = 0
                     
             #DRILL TOP IF STOP DRILLING IS FOUND
             if right_depth.value() > 0 and sdtr > 0:
                 obj, token = assembly.add_machine_token('System Holes Right Top Front','BORE','5')
                 token.dim_in_x = part_length - unit.millimeter(9.5)
                 token.dim_in_y = dim_to_front + (part_width - right_depth.value())
-                token.dim_in_z = macp.system_hole_bore_depth if panel_has_custom_drilling else part_thickness
-                token.face_bore_dia = macp.system_hole_dia
+                token.dim_in_z = macp.system_hole_bore_depth
                 token.end_dim_in_x = part_length - sdtr
                 token.end_dim_in_y = dim_to_front + (part_width - right_depth.value())
+                token.face_bore_dia = macp.system_hole_dia
                 token.distance_between_holes = unit.millimeter(32)
                 token.associative_dia = 0
                 token.associative_depth = 0
@@ -397,10 +434,10 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
                 obj, token = assembly.add_machine_token('System Holes Right Top Rear','BORE','5')
                 token.dim_in_x = part_length - unit.millimeter(9.5)
                 token.dim_in_y = part_width - dim_to_rear
-                token.dim_in_z = macp.system_hole_bore_depth if panel_has_custom_drilling else part_thickness
-                token.face_bore_dia = macp.system_hole_dia
+                token.dim_in_z = macp.system_hole_bore_depth
                 token.end_dim_in_x = part_length - sdtr
                 token.end_dim_in_y = part_width - dim_to_rear
+                token.face_bore_dia = macp.system_hole_dia
                 token.distance_between_holes = unit.millimeter(32)
                 token.associative_dia = 0
                 token.associative_depth = 0
@@ -412,9 +449,9 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
                     token.dim_in_x = part_length - unit.millimeter(9.5)
                     token.dim_in_y = dim_to_front + (part_width - left_depth.value())
                     token.dim_in_z = unit.millimeter(15)
-                    token.face_bore_dia = macp.system_hole_dia
                     token.end_dim_in_x = part_length - sdtl
                     token.end_dim_in_y = dim_to_front + (part_width - left_depth.value())
+                    token.face_bore_dia = macp.system_hole_dia
                     token.distance_between_holes = unit.millimeter(32)
                     token.associative_dia = 0
                     token.associative_depth = 0
@@ -423,9 +460,9 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
                     token.dim_in_x = part_length - unit.millimeter(9.5)
                     token.dim_in_y = part_width - dim_to_rear
                     token.dim_in_z = unit.millimeter(15)
-                    token.face_bore_dia = macp.system_hole_dia
                     token.end_dim_in_x = part_length - sdtl
                     token.end_dim_in_y = part_width - dim_to_rear
+                    token.face_bore_dia = macp.system_hole_dia
                     token.distance_between_holes = unit.millimeter(32)
                     token.associative_dia = 0
                     token.associative_depth = 0
@@ -1188,7 +1225,7 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
                         
             if box_type == 'MEL':
                 drawer_bottom.cutpart('Drawer_Bottom')
-#                 self.set_manufacturing_material(drawer_bottom)
+                # self.set_manufacturing_material(drawer_bottom)
                 
         for drawer_front in drawer_fronts:
             # Add Drilling for drawer systems
@@ -1241,7 +1278,7 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
                     #
                     #rows.clear()                 
 
-#Mepla Partial Extension                    
+                    #Mepla Partial Extension                    
                     # if slide_name == 'Mepla Partial Extension':
                     #     obj, token = drawer_side.add_machine_token('Slide Drilling' ,'SLIDE','1')
                     #     token.dim_from_drawer_bottom = unit.inch(0.4378)  
@@ -1265,7 +1302,7 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
                     #     else:
                     #         token.dim_to_second_hole = unit.millimeter(165)      
 
-#Mepla Full Extension                    
+                    #Mepla Full Extension                    
                     # if slide_name == 'Mepla Full Extension':
                     #     obj, token = drawer_side.add_machine_token('Slide Drilling' ,'SLIDE','1')
                     #     token.dim_from_drawer_bottom = unit.inch(1.6977)  
@@ -1289,7 +1326,7 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
                     #     else:
                     #         token.dim_to_second_hole = unit.millimeter(165)                             
                     
-#HBB                    
+                    #HBB                    
                     # if slide_name == 'HBB':
                     #     obj, token = drawer_side.add_machine_token('Slide Drilling' ,'SLIDE','1')
                     #     token.dim_from_drawer_bottom = unit.inch(1.6977)  
@@ -1313,7 +1350,7 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
                     #     else:
                     #         token.dim_to_second_hole = unit.millimeter(165)  
                     
-#Salice Undermount                   
+                    #Salice Undermount                   
                     # if slide_name == 'Salice Undermount':
                     #     obj, token = drawer_side.add_machine_token('Slide Drilling' ,'SLIDE','1')
                     #     token.dim_from_drawer_bottom = unit.inch(0.4378)  
@@ -1333,7 +1370,7 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
                     #     else:
                     #         token.dim_to_second_hole = unit.millimeter(229)                               
 
-#Blum Undermount                   
+                    #Blum Undermount                   
                     # if slide_name == 'Blum Undermount':
                     #     obj, token = drawer_side.add_machine_token('Slide Drilling' ,'SLIDE','1')
                     #     token.dim_from_drawer_bottom = unit.inch(0.4378)  
@@ -1353,7 +1390,7 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
                     #     else:
                     #         token.dim_to_second_hole = unit.millimeter(229)   
 
-#King Undermount                   
+                    #King Undermount                   
                     # if slide_name == 'King Undermount':
                     #     obj, token = drawer_side.add_machine_token('Slide Drilling' ,'SLIDE','1')
                     #     token.dim_from_drawer_bottom = unit.inch(0.4378)  
@@ -1552,22 +1589,20 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
         drawer_backs = []
         drawer_sub_fronts = []
         panels = []
-        
-        mac_props.dim_to_front_system_hole = unit.millimeter(37)
-        mac_props.dim_to_rear_system_hole = unit.millimeter(37)
+
             
         #SET PANEL NUMBER
-#         for wall_bp in common_closet_utils.scene_walls(context):
-#             panels = self.get_wall_panels(wall_bp) #GET SORTED LIST OF PANELS
-#             for i , panel_bp in enumerate(panels):
-#                 panel_bp.mv.opening_name = str(i + 1)
-#                 panel_bp.mv.comment_2 = str(i + 1)
+        # for wall_bp in common_closet_utils.scene_walls(context):
+        #     panels = self.get_wall_panels(wall_bp) #GET SORTED LIST OF PANELS
+        #     for i , panel_bp in enumerate(panels):
+        #         panel_bp.mv.opening_name = str(i + 1)
+        #         panel_bp.mv.comment_2 = str(i + 1)
                 
         for assembly in common_closet_utils.scene_parts(context):
             
             props = props_closet.get_object_props(assembly.obj_bp)
             
-#             self.set_manufacturing_material(assembly)
+            # self.set_manufacturing_material(assembly)
             self.set_manufacturing_prompts(assembly)
             
             #PANELS
@@ -1575,8 +1610,11 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
                 panels.append(assembly)
             else:
                 pass
-#                 if assembly.obj_bp.mv.opening_name != "":
-#                     self.set_section_number(assembly)
+                # if assembly.obj_bp.mv.opening_name != "":
+                #     self.set_section_number(assembly)
+
+            if props.is_blind_corner_panel_bp:
+                self.add_blind_corner_panel_drilling(assembly)
             
             #DOORS
             if props.is_door_bp:
@@ -1627,15 +1665,15 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
                             
             if props.is_drawer_side_bp:
                 drawer_sides.append(assembly)
-#                 self.add_slide_token(assembly)
+                # self.add_slide_token(assembly)
                     
             if props.is_drawer_sub_front_bp:
                 drawer_sub_fronts.append(assembly)
-#                 self.add_drawer_wood_box_machining(assembly)
+                # self.add_drawer_wood_box_machining(assembly)
                     
             if props.is_drawer_bottom_bp:
                 drawer_bottoms.append(assembly)
-#                 self.add_drawer_bottom_dado(assembly)
+                # self.add_drawer_bottom_dado(assembly)
                 
             if props.is_drawer_back_bp:
                 drawer_backs.append(assembly)                
@@ -1726,13 +1764,40 @@ class PROPS_Machining_Defaults(bpy.types.PropertyGroup):
                                              description="Check this box to include routing operations on panels",
                                              default=True)
     
-    dim_to_front_system_hole = FloatProperty(name="Dim To First System Hole",
-                                             description="Enter the distance from the front of the part to center of the front system hole.",
-                                             default=unit.inch(1.25),unit='LENGTH')
+    dim_between_holes = FloatProperty(
+        name="Dim Between System Holes",
+        description="Enter the distance between system holes.",
+        default=unit.millimeter(32),
+        unit='LENGTH'
+        )
+
+    dim_to_front_system_hole = FloatProperty(
+        name="Dim To First System Hole",
+        description="Enter the distance from the front of the part to center of the front system hole.",
+        default=unit.millimeter(37),
+        unit='LENGTH'
+        )
     
-    dim_to_rear_system_hole = FloatProperty(name="Dim To Rear System Hole",
-                                            description="Enter the distance from the back of the part to center of the rear system hole.",
-                                            default=unit.inch(1.25),unit='LENGTH')
+    dim_to_rear_system_hole = FloatProperty(
+        name="Dim To Rear System Hole",
+        description="Enter the distance from the back of the part to center of the rear system hole.",
+        default=unit.millimeter(37),
+        unit='LENGTH'
+        )
+
+    dim_to_system_top_hole = FloatProperty(
+        name="Dim To First System Hole",
+        description="Enter the distance from the top of the part to center of the top system hole.",
+        default=unit.millimeter(9.5),
+        unit='LENGTH'
+        )
+
+    dim_to_system_bottom_hole = FloatProperty(
+        name="Dim To First System Hole",
+        description="Enter the distance from the bottom of the part to center of the bottom system hole.",
+        default=unit.millimeter(9.5),
+        unit='LENGTH'
+        ) 
     
     dim_to_toe_kick_cam = FloatProperty(name="Dim To Toe Kick Cam",
                                             description="Enter the distance top of the toe kick to place the cam hole.",
@@ -1815,17 +1880,16 @@ class PROPS_Machining_Defaults(bpy.types.PropertyGroup):
     
     #SYSTEM HOLE SETTINGS
     system_hole_bore_depth = FloatProperty(name="System Hole Bore Depth",
-                                           description="Enter the drilling depth for the system holes when not drilling through",
+                                           description="Enter the drilling depth for the system holes",
                                            default=unit.inch(.5),
                                            unit='LENGTH')
     
-    system_hole_dia = FloatProperty(
-        name="System Hole Dia",
+    system_hole_dia = FloatProperty(name="System Hole Dia",
         description="Enter the drilling dia for the system holes.",
         default=unit.inch(0.197),
         unit='LENGTH',
         precision=3
-    )  
+        )  
     
     #DOWEL SETTINGS
     dowel_bore_face_depth = FloatProperty(name="Dowel Bore Face Depth",
@@ -1933,15 +1997,15 @@ class PROPS_Machining_Defaults(bpy.types.PropertyGroup):
         row = main_col.row(align=True)
         row.scale_y = 1.1
         row.prop_enum(self, "machining_tabs", 'MAIN', icon='PREFERENCES', text="Machining")
-        row.prop_enum(self, "machining_tabs", 'HARDWARE', icon='PREFERENCES', text="Hardware") 
-#         row.prop_enum(self, "machining_tabs", '2D', icon='PREFERENCES', text="2D") 
+        #row.prop_enum(self, "machining_tabs", 'HARDWARE', icon='PREFERENCES', text="Hardware") 
+        # row.prop_enum(self, "machining_tabs", '2D', icon='PREFERENCES', text="2D") 
         
         if self.machining_tabs == 'MAIN':
-            
             box = main_col.box()
             col = box.column()
             col.label("System Hole Drilling:")
             col.prop(self,'panel_drilling_type',text="Panel")
+
             if self.panel_drilling_type != 'NONE':
                 row = col.row(align=True)
                 row.label("Hole Locations:")
@@ -1950,59 +2014,69 @@ class PROPS_Machining_Defaults(bpy.types.PropertyGroup):
                 row = col.row(align=True)
                 row.label("Drilling Info:")
                 row.prop(self,'system_hole_bore_depth',text="Drill Depth")
-                row.prop(self,'system_hole_dia',text="Drill Diameter")               
-            
-            box = main_col.box()
-            box.label("Cam Drilling:")
-            box.prop(self,'drill_cams_for_lock_shelves',text="Lock Shelf")
-            box.prop(self,'drill_cams_for_toe_kicks',text="Toe Kick")
-            
-            if self.drill_cams_for_toe_kicks:
-                row = box.row(align=True)
-                row.label("Toe Kick Cam Location:") 
-                row.prop(self,'dim_to_toe_kick_cam',text="From Top")               
+                row.prop(self,'system_hole_dia',text="Drill Diameter")
 
-            if self.drill_cams_for_lock_shelves or self.drill_cams_for_toe_kicks:
-                row = box.row(align=True)
-                row.label("Cam Distance from Shelf Edge:")
-                row.prop(self,'cam_backset',text="From Edge") 
-                row = box.row(align=True)
-                row.label("Cam Diameter:")
-                row.prop(self,'cam_dia',text='Dia')                
-                row = box.row(align=True)
-                row.label("Diameter")
-                row.prop(self,'cam_bore_face_dia',text="Face")
-                row.prop(self,'cam_bore_edge_dia',text="Edge")
-                row = box.row(align=True)
-                row.label("Depth")
-                row.prop(self,'cam_bore_face_depth',text="Face")
-                row.prop(self,'cam_bore_edge_depth',text="Edge")
-            
             box = main_col.box()
-            col = box.column()
-            col.label("Drawer Box Machining:")        
-            row = col.row()
-            row.prop(self,'wood_drawer_box_machining',text="Drawer Box")
-            row = col.row()
-            row.prop(self,'route_dado_for_drawer_bottom')
+            box.template_list(
+                "LIST_Mac_Scenes", 
+                " ",
+                bpy.data, 
+                "scenes", 
+                bpy.context.window_manager.mv, 
+                "elevation_scene_index"
+            )           
+ 
+            # box = main_col.box()
+            # box.label("Cam Drilling:")
+            # box.prop(self,'drill_cams_for_lock_shelves',text="Lock Shelf")
+            # box.prop(self,'drill_cams_for_toe_kicks',text="Toe Kick")
             
-            box = main_col.box()
-            col = box.column()
-            col.label("Slanted Shoe Shelf Machining:")
-            col.prop(self,'slanted_shoe_shelf_machining_type',text="Slanted Shelf")            
-            if self.slanted_shoe_shelf_machining_type != 'NONE':
-                row = col.row()
-                row.label("Machining Distance From Rear")
-                row.prop(self,'slanted_shoe_shelf_machining_distance_from_rear',text="")
-            box = main_col.box()
-            col = box.column()
-            col.label("Routing:")
+            # if self.drill_cams_for_toe_kicks:
+            #     row = box.row(align=True)
+            #     row.label("Toe Kick Cam Location:") 
+            #     row.prop(self,'dim_to_toe_kick_cam',text="From Top")               
+
+            # if self.drill_cams_for_lock_shelves or self.drill_cams_for_toe_kicks:
+            #     row = box.row(align=True)
+            #     row.label("Cam Distance from Shelf Edge:")
+            #     row.prop(self,'cam_backset',text="From Edge") 
+            #     row = box.row(align=True)
+            #     row.label("Cam Diameter:")
+            #     row.prop(self,'cam_dia',text='Dia')                
+            #     row = box.row(align=True)
+            #     row.label("Diameter")
+            #     row.prop(self,'cam_bore_face_dia',text="Face")
+            #     row.prop(self,'cam_bore_edge_dia',text="Edge")
+            #     row = box.row(align=True)
+            #     row.label("Depth")
+            #     row.prop(self,'cam_bore_face_depth',text="Face")
+            #     row.prop(self,'cam_bore_edge_depth',text="Edge")
             
-            row = box.row()
-            row.prop(self,'tool_number')
-            row = box.row()
-            row.label("Router Lead")
-            row.prop(self,'router_lead',text="")
+            # box = main_col.box()
+            # col = box.column()
+            # col.label("Drawer Box Machining:")        
+            # row = col.row()
+            # row.prop(self,'wood_drawer_box_machining',text="Drawer Box")
+            # row = col.row()
+            # row.prop(self,'route_dado_for_drawer_bottom')
+            
+            # box = main_col.box()
+            # col = box.column()
+            # col.label("Slanted Shoe Shelf Machining:")
+            # col.prop(self,'slanted_shoe_shelf_machining_type',text="Slanted Shelf")            
+            # if self.slanted_shoe_shelf_machining_type != 'NONE':
+            #     row = col.row()
+            #     row.label("Machining Distance From Rear")
+            #     row.prop(self,'slanted_shoe_shelf_machining_distance_from_rear',text="")
+            # box = main_col.box()
+            # col = box.column()
+            # col.label("Routing:")
+            
+            # row = box.row()
+            # row.prop(self,'tool_number')
+            # row = box.row()
+            # row.label("Router Lead")
+            # row.prop(self,'router_lead',text="")
             
         if self.machining_tabs == 'HARDWARE':
             hardware_box = main_col.box()
@@ -2090,15 +2164,17 @@ class PROPS_Machining_Defaults(bpy.types.PropertyGroup):
             #Use Closet Defaults, Enter in Name, Use Lookup
             #Add Non associative drilling, hole dia, pull length drilling
             
-#             hardware_box = main_col.box()
-#             hardware_box.label("Locks:")            
-#             hardware_box.prop(self,'use_associative_hardware_for_locks',text="Locks")
+            # hardware_box = main_col.box()
+            # hardware_box.label("Locks:")            
+            # hardware_box.prop(self,'use_associative_hardware_for_locks',text="Locks")
+
             #Use Closet Defaults, Enter in Name, Use Lookup
             #Add Non associative drilling, hole dia, pull length drilling
             
-#             hardware_box = main_col.box()
-#             hardware_box.label("Closet Rod Cups:")
-#             hardware_box.prop(self,'use_associative_hardware_for_closet_rod_cups',text="Closet Rod Cups")
+            # hardware_box = main_col.box()
+            # hardware_box.label("Closet Rod Cups:")
+            # hardware_box.prop(self,'use_associative_hardware_for_closet_rod_cups',text="Closet Rod Cups")
+
             #Use Closet Defaults, Enter in Name, Use Lookup
             #Add Non associative drilling, hole dia, pull length drilling
         
@@ -2107,22 +2183,22 @@ class PROPS_Machining_Defaults(bpy.types.PropertyGroup):
             #Solid Stock Naming; (AUTO) Name then Color , Use Lookup
             #Buyout Naming; (AUTO) Name, Use Lookup
         
-#         if self.machining_tabs == '2D':
-#             plan_box = main_col.box()
-#             plan_box.label("Plan View:")
-#             plan_box.prop(self,'use_associative_hardware_for_slides',text="Add Panel Names")
-#             plan_box.prop(self,'use_associative_hardware_for_slides',text="Add Section Widths")
-#             plan_box.prop(self,'use_associative_hardware_for_slides',text="Add Section Names")
-#             plan_box = main_col.box()
-#             plan_box.label("Elevation View:")
-#             plan_box.prop(self,'use_associative_hardware_for_slides',text="Add Section Widths")
-#             plan_box.prop(self,'use_associative_hardware_for_slides',text="Add Section Heights")
-#             plan_box.prop(self,'use_associative_hardware_for_slides',text="Add Doors Front Heights")        
-#             plan_box.prop(self,'use_associative_hardware_for_slides',text="Add Drawer Front Heights")   
-#             plan_box.prop(self,'use_associative_hardware_for_slides',text="Add Hanging Rod Locations")  
-#             plan_box.prop(self,'use_associative_hardware_for_slides',text="Add Hamper Annotations") 
-#             plan_box.prop(self,'use_associative_hardware_for_slides',text="Add Ironing Board Annotations") 
-#             plan_box.prop(self,'use_associative_hardware_for_slides',text="Add Wall Heights") 
+        # if self.machining_tabs == '2D':
+        #     plan_box = main_col.box()
+        #     plan_box.label("Plan View:")
+        #     plan_box.prop(self,'use_associative_hardware_for_slides',text="Add Panel Names")
+        #     plan_box.prop(self,'use_associative_hardware_for_slides',text="Add Section Widths")
+        #     plan_box.prop(self,'use_associative_hardware_for_slides',text="Add Section Names")
+        #     plan_box = main_col.box()
+        #     plan_box.label("Elevation View:")
+        #     plan_box.prop(self,'use_associative_hardware_for_slides',text="Add Section Widths")
+        #     plan_box.prop(self,'use_associative_hardware_for_slides',text="Add Section Heights")
+        #     plan_box.prop(self,'use_associative_hardware_for_slides',text="Add Doors Front Heights")        
+        #     plan_box.prop(self,'use_associative_hardware_for_slides',text="Add Drawer Front Heights")   
+        #     plan_box.prop(self,'use_associative_hardware_for_slides',text="Add Hanging Rod Locations")  
+        #     plan_box.prop(self,'use_associative_hardware_for_slides',text="Add Hamper Annotations") 
+        #     plan_box.prop(self,'use_associative_hardware_for_slides',text="Add Ironing Board Annotations") 
+        #     plan_box.prop(self,'use_associative_hardware_for_slides',text="Add Wall Heights") 
 
 
 class PANEL_Closet_Machining_Setup(bpy.types.Panel):
@@ -2131,8 +2207,17 @@ class PANEL_Closet_Machining_Setup(bpy.types.Panel):
     bl_region_type = "TOOLS"
     bl_context = "objectmode"
     bl_label = "Closet Machining Setup"
-    bl_category = "Fluid Designer"
+    bl_category = "SNaP"
     bl_options = {'DEFAULT_CLOSED'}
+    
+    @classmethod
+    def poll(cls, context):
+        debug_mode = context.user_preferences.addons["snap_db"].preferences.debug_mode
+        
+        if snap_db.DEV_TOOLS_AVAILABLE and debug_mode:
+            return True
+        else:
+            return False
     
     def draw_header(self, context):
         layout = self.layout
@@ -2146,14 +2231,17 @@ class PANEL_Closet_Machining_Setup(bpy.types.Panel):
 # REGISTER CLASSES
 bpy.utils.register_class(PROPS_Machining_Defaults)
 bpy.utils.register_class(OPERATOR_Prepare_Closet_For_Export)
-#bpy.utils.register_class(PANEL_Closet_Machining_Setup)
+bpy.utils.register_class(PANEL_Closet_Machining_Setup)
+bpy.utils.register_class(LIST_Mac_Scenes)
 exec("bpy.types.Scene." + MACHINING_PROPERTY_NAMESPACE + "= PointerProperty(type = PROPS_Machining_Defaults)")
 
 
 # AUTO CALL OPERATOR ON SAVE
 @bpy.app.handlers.persistent
 def assign_machining(scene=None):
-    props = get_machining_props()
-    if props.auto_machine_on_save:
-        exec("bpy.ops." + MACHINING_PROPERTY_NAMESPACE + ".prepare_closet_for_export()")
+    if not bpy.app.background:
+        props = get_machining_props()
+        if props.auto_machine_on_save:
+            exec("bpy.ops." + MACHINING_PROPERTY_NAMESPACE + ".prepare_closet_for_export()")
+            
 bpy.app.handlers.save_pre.append(assign_machining)

@@ -27,6 +27,7 @@ class Belt_Accessories(fd_types.Assembly):
 
     def draw(self):
         self.create_assembly()
+        self.obj_bp.lm_closets.is_accessory_bp = True        
         
         self.add_tab(name='Main Options',tab_type='VISIBLE')
         self.add_tab(name='Formulas',tab_type='HIDDEN')
@@ -80,7 +81,7 @@ class Belt_Accessories(fd_types.Assembly):
         accessory_height_dim.end_z('-World_Z',[World_Z])
         
         panel = common_parts.add_accessory_panel(self)
-        panel.set_name('Accessory Rack')
+        panel.set_name('Accessory Cleat')
         panel.x_dim('width', [width])
         panel.y_dim('depth',[depth])
         panel.z_dim('height',[height])        
@@ -94,7 +95,7 @@ class Belt_Accessories(fd_types.Assembly):
         panel.cutpart("Panel")
         
         deco_panel = self.add_assembly(DECO_PANEL)
-        deco_panel.set_name('Deco Accessory Rack')
+        deco_panel.set_name('Deco Accessory Cleat')
         deco_panel.x_dim('width', [width])
         deco_panel.y_dim('depth',[depth])
         deco_panel.z_dim('height',[height])        
@@ -108,7 +109,7 @@ class Belt_Accessories(fd_types.Assembly):
         deco_panel.cutpart("Panel")
         
         pin = self.add_object(PEG_OBJECT)
-        pin.set_name('Accessory Pin')        
+        pin.set_name('Belt Rack')        
         pin.x_loc('Pin_Offset',[Pin_Offset])
         pin.y_loc('depth/2', [depth])
         pin.z_loc('height/2', [height])
@@ -138,6 +139,7 @@ class Tie_Accessories(fd_types.Assembly):
 
     def draw(self):
         self.create_assembly()
+        self.obj_bp.lm_closets.is_accessory_bp = True
         
         self.add_tab(name='Main Options',tab_type='VISIBLE')
         self.add_tab(name='Formulas',tab_type='HIDDEN')
@@ -197,7 +199,7 @@ class Tie_Accessories(fd_types.Assembly):
         accessory_height_dim.end_z('-World_Z',[World_Z])
         
         panel = common_parts.add_accessory_panel(self)
-        panel.set_name('Accessory Rack')
+        panel.set_name('Accessory Cleat')
         panel.x_dim('width', [width])
         panel.y_dim('depth',[depth])
         panel.z_dim('height',[height])        
@@ -211,7 +213,7 @@ class Tie_Accessories(fd_types.Assembly):
         panel.cutpart("Panel")
         
         deco_panel = self.add_assembly(DECO_PANEL)
-        deco_panel.set_name('Deco Accessory Rack')
+        deco_panel.set_name('Deco Accessory Cleat')
         deco_panel.x_dim('width', [width])
         deco_panel.y_dim('depth',[depth])
         deco_panel.z_dim('height',[height])        
@@ -225,7 +227,7 @@ class Tie_Accessories(fd_types.Assembly):
         deco_panel.cutpart("Panel")
         
         top_pin = self.add_object(PEG_OBJECT)
-        top_pin.set_name('Accessory Pin')        
+        top_pin.set_name('Tie Rack')        
         top_pin.x_loc('Pin_Offset',[Pin_Offset])
         top_pin.y_loc('depth/2', [depth])
         top_pin.z_loc('height/1.5', [height])
@@ -245,7 +247,8 @@ class Tie_Accessories(fd_types.Assembly):
         count_driver.driver.expression = "Top_Pin_Qty"
         
         bot_pin = self.add_object(PEG_OBJECT)
-        bot_pin.set_name('Accessory Pin')        
+        bot_pin.obj.cabinetlib.type_mesh = 'NONE'
+        bot_pin.set_name('Tie Rack')        
         bot_pin.x_loc('Pin_Offset*1.5',[Pin_Offset])
         bot_pin.y_loc('depth/2', [depth])
         bot_pin.z_loc('height/3', [height])
@@ -274,6 +277,7 @@ class Tie_and_Belt_Accessories(fd_types.Assembly):
 
     def draw(self):
         self.create_assembly()
+        self.obj_bp.lm_closets.is_accessory_bp = True
         
         self.add_tab(name='Main Options',tab_type='VISIBLE')
         self.add_tab(name='Formulas',tab_type='HIDDEN')
@@ -333,7 +337,7 @@ class Tie_and_Belt_Accessories(fd_types.Assembly):
         accessory_height_dim.end_z('-World_Z',[World_Z])
         
         panel = common_parts.add_accessory_panel(self)
-        panel.set_name('Accessory Rack')
+        panel.set_name('Accessory Cleat')
         panel.x_dim('width', [width])
         panel.y_dim('depth',[depth])
         panel.z_dim('height',[height])        
@@ -347,7 +351,7 @@ class Tie_and_Belt_Accessories(fd_types.Assembly):
         panel.cutpart("Panel")
         
         deco_panel = self.add_assembly(DECO_PANEL)
-        deco_panel.set_name('Deco Accessory Rack')
+        deco_panel.set_name('Deco Accessory Cleat')
         deco_panel.x_dim('width', [width])
         deco_panel.y_dim('depth',[depth])
         deco_panel.z_dim('height',[height])        
@@ -410,6 +414,7 @@ class Robe_Hook_Accessories(fd_types.Assembly):
 
     def draw(self):
         self.create_assembly()
+        self.obj_bp.lm_closets.is_accessory_bp = True
         
         self.add_tab(name='Main Options',tab_type='VISIBLE')
         self.add_tab(name='Formulas',tab_type='HIDDEN')
@@ -458,7 +463,7 @@ class Robe_Hook_Accessories(fd_types.Assembly):
         accessory_height_dim.end_z('-World_Z',[World_Z])
         
         panel = common_parts.add_accessory_panel(self)
-        panel.set_name('Accessory Rack')
+        panel.set_name('Accessory Cleat')
         panel.x_dim('width', [width])
         panel.y_dim('depth',[depth])
         panel.z_dim('height',[height])        
@@ -472,7 +477,7 @@ class Robe_Hook_Accessories(fd_types.Assembly):
         panel.cutpart("Panel")
         
         deco_panel = self.add_assembly(DECO_PANEL)
-        deco_panel.set_name('Deco Accessory Rack')
+        deco_panel.set_name('Deco Accessory Cleat')
         deco_panel.x_dim('width', [width])
         deco_panel.y_dim('depth',[depth])
         deco_panel.z_dim('height',[height])        
@@ -515,6 +520,7 @@ class Double_Robe_Hook_Accessories(fd_types.Assembly):
 
     def draw(self):
         self.create_assembly()
+        self.obj_bp.lm_closets.is_accessory_bp = True
         
         self.add_tab(name='Main Options',tab_type='VISIBLE')
         self.add_tab(name='Formulas',tab_type='HIDDEN')
@@ -563,7 +569,7 @@ class Double_Robe_Hook_Accessories(fd_types.Assembly):
         accessory_height_dim.end_z('-World_Z',[World_Z])
         
         panel = common_parts.add_accessory_panel(self)
-        panel.set_name('Accessory Rack')
+        panel.set_name('Accessory Cleat')
         panel.x_dim('width', [width])
         panel.y_dim('depth',[depth])
         panel.z_dim('height',[height])        
@@ -577,7 +583,7 @@ class Double_Robe_Hook_Accessories(fd_types.Assembly):
         panel.cutpart("Panel")
         
         deco_panel = self.add_assembly(DECO_PANEL)
-        deco_panel.set_name('Deco Accessory Rack')
+        deco_panel.set_name('Deco Accessory Cleat')
         deco_panel.x_dim('width', [width])
         deco_panel.y_dim('depth',[depth])
         deco_panel.z_dim('height',[height])        
@@ -620,6 +626,7 @@ class DORB_Hook_Accessories(fd_types.Assembly):
 
     def draw(self):
         self.create_assembly()
+        self.obj_bp.lm_closets.is_accessory_bp = True
         
         self.add_tab(name='Main Options',tab_type='VISIBLE')
         self.add_tab(name='Formulas',tab_type='HIDDEN')
@@ -669,7 +676,7 @@ class DORB_Hook_Accessories(fd_types.Assembly):
         accessory_height_dim.end_z('-World_Z',[World_Z])
         
         panel = common_parts.add_accessory_panel(self)
-        panel.set_name('Accessory Rack')
+        panel.set_name('Accessory Cleat')
         panel.x_dim('width', [width])
         panel.y_dim('depth',[depth])
         panel.z_dim('height',[height])        
@@ -683,7 +690,7 @@ class DORB_Hook_Accessories(fd_types.Assembly):
         panel.cutpart("Panel")
         
         deco_panel = self.add_assembly(DECO_PANEL)
-        deco_panel.set_name('Deco Accessory Rack')
+        deco_panel.set_name('Deco Accessory Cleat')
         deco_panel.x_dim('width', [width])
         deco_panel.y_dim('depth',[depth])
         deco_panel.z_dim('height',[height])        
@@ -726,6 +733,7 @@ class Coat_and_Hat_Hook_Accessories(fd_types.Assembly):
 
     def draw(self):
         self.create_assembly()
+        self.obj_bp.lm_closets.is_accessory_bp = True
         
         self.add_tab(name='Main Options',tab_type='VISIBLE')
         self.add_tab(name='Formulas',tab_type='HIDDEN')
@@ -773,7 +781,7 @@ class Coat_and_Hat_Hook_Accessories(fd_types.Assembly):
         accessory_height_dim.end_z('-World_Z',[World_Z])
         
         panel = common_parts.add_accessory_panel(self)
-        panel.set_name('Accessory Rack')
+        panel.set_name('Accessory Cleat')
         panel.x_dim('width', [width])
         panel.y_dim('depth',[depth])
         panel.z_dim('height',[height])        
@@ -787,7 +795,7 @@ class Coat_and_Hat_Hook_Accessories(fd_types.Assembly):
         panel.cutpart("Panel")
         
         deco_panel = self.add_assembly(DECO_PANEL)
-        deco_panel.set_name('Deco Accessory Rack')
+        deco_panel.set_name('Deco Accessory Cleat')
         deco_panel.x_dim('width', [width])
         deco_panel.y_dim('depth',[depth])
         deco_panel.z_dim('height',[height])        
