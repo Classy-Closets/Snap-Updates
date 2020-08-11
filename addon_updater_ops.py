@@ -21,6 +21,7 @@ import os
 import bpy
 from bpy.app.handlers import persistent
 import snap_db
+import subprocess
 
 # updater import, import safely
 # Prevents popups for users with invalid python installs e.g. missing libraries
@@ -274,12 +275,11 @@ class addon_updater_update_now(bpy.types.Operator):
 						req_ver_name = "v{}.{}.0".format(new_ver[0], new_ver[1])
 						print("Need to update to version {} first".format(str(req_ver)))
 
-						updater.update_version = (new_ver[0], new_ver[1], 0)
 						bpy.ops.snap_updater.updater_update_target('EXEC_DEFAULT', target_name=req_ver_name)
 						return {'FINISHED'}
 
 	def execute(self,context):
-		self.check_minor_version(context)
+		#self.check_minor_version(context)
 
 		# in case of error importing updater
 		if updater.invalidupdater == True:
@@ -479,13 +479,30 @@ class addon_updater_updated_successful(bpy.types.Operator):
 
 	def __del__(self):
 		self.open_release_notes()
-		bpy.ops.fd_general.load_snap_defaults()
+
+	def load_defaults_background(self):
+		script = os.path.join(bpy.app.tempdir, 'load_defaults.py')
+		script_file = open(script, 'w')
+		script_file.write("import bpy\n")
+		script_file.write("bpy.ops.fd_general.load_snap_defaults()\n")
+		script_file.close()
+		subprocess.call(bpy.app.binary_path + ' -b --python ' '"' + script + '"')
 
 	def invoke(self, context, event):
+		self.load_defaults_background()
 		return context.window_manager.invoke_props_dialog(self, width=400)
 
 	def open_release_notes(self):
-		str_ver = "v{}".format(''.join(str(i) for i in updater.update_version))
+		if type(updater.update_version) is tuple:
+			str_ver = "v{}".format(
+				''.join(str(i) for i in updater.update_version)
+				)
+				
+		if type(updater.update_version) is str:
+			str_ver = "v{}".format(
+				''.join([c for c in updater.update_version if c.isdigit()])
+				) 
+
 		bpy.ops.wm.url_open(url=snap_db.INFO_SITE_URL + str_ver)
 
 	def draw(self, context):
@@ -545,7 +562,6 @@ class addon_updater_updated_successful(bpy.types.Operator):
 
 	def execute(self, context):
 		self.open_release_notes()
-		bpy.ops.fd_general.load_snap_defaults()
 		bpy.ops.wm.quit_blender()
 		return {'FINISHED'}
 

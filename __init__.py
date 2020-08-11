@@ -2,7 +2,7 @@
 bl_info = {
     "name": "SNaP",
     "author": "Ryan Montes",
-    "version": (1, 2, 1),
+    "version": (1, 2, 0),
     "blender": (2, 7, 8),
     "location": "Tools Shelf",
     "description": "SNaP",
@@ -71,35 +71,6 @@ except ImportError:
     pass
 else:
     pass
-
-
-def get_github_user(prefs):
-    if prefs.debug_mode and prefs.debug_updater:
-        try:
-            debug_user = os.environ['GITHUB_API_USER']
-            return debug_user
-        except Error:
-            pass
-    else:
-        return UPDATE_USER
-
-
-def get_github_repo(prefs):
-    if prefs.debug_mode and prefs.debug_updater:
-        return "bl_updater"
-    else:
-        return UPDATE_REPO
-
-
-def get_github_pat(prefs):
-    if prefs.debug_mode and prefs.debug_updater:
-        try:
-            debug_pat = os.environ['GITHUB_PAT_BL_UPDATER']
-            return debug_pat
-        except Error:
-            pass
-    else:
-        return None
 
 
 def connect_db():
@@ -372,13 +343,7 @@ classes = (
 
 def register():
     prefs = bpy.context.user_preferences.addons[__name__].preferences
-    addon_updater_ops.register(
-        bl_info,
-        get_github_user(prefs),
-        get_github_repo(prefs), 
-        get_github_pat(prefs),
-        prefs.fake_install
-        )
+    addon_updater_ops.register(bl_info, UPDATE_USER, UPDATE_REPO, None, prefs.fake_install)
     snap_import.register()
     snap_export.register()
     closet_materials.register()
