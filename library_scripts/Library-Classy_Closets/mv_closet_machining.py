@@ -173,45 +173,45 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
                     plate.location.x = 0
                     plate.mv.associative_rotation = 0
     
-    def add_door_pull_drilling(self,assembly):
-        macp = get_machining_props()
-        self.remove_machining_token(assembly, 'Pull Drilling')
+    #def add_door_pull_drilling(self,assembly):
+        # macp = get_machining_props()
+        # self.remove_machining_token(assembly, 'Pull Drilling')
 
-        if macp.add_machining_for_pulls:
-            no_pulls = assembly.get_prompt("No Pulls")
+        # if macp.add_machining_for_pulls:
+        #     no_pulls = assembly.get_prompt("No Pulls")
             
-            if not no_pulls.value():
-                door_type = assembly.get_prompt("Door Type")
-                door_swing = assembly.get_prompt("Door Swing")
-                obj, token = assembly.add_machine_token('Pull Drilling' ,'BORE','5')
+        #     if not no_pulls.value():
+        #         door_type = assembly.get_prompt("Door Type")
+        #         door_swing = assembly.get_prompt("Door Swing")
+        #         obj, token = assembly.add_machine_token('Pull Drilling' ,'BORE','5')
                 
-                if door_type.value() == 'Base':
-                    if door_swing.value() == 'Bottom':
-                        token.dim_in_x = assembly.obj_x.location.x - macp.pull_location_on_base_upper_doors
-                        token.end_dim_in_x  = assembly.obj_x.location.x - macp.pull_location_on_base_upper_doors
-                    else:
-                        token.dim_in_x = assembly.obj_x.location.x - macp.pull_location_on_base_upper_doors
-                        token.end_dim_in_x  = assembly.obj_x.location.x - macp.pull_location_on_base_upper_doors - macp.door_pull_length
-                elif door_type.value() == 'Upper':
-                    token.dim_in_x = macp.pull_location_on_base_upper_doors
-                    token.end_dim_in_x  = macp.pull_location_on_base_upper_doors + macp.door_pull_length
-                elif door_type.value() == 'Tall':
-                    token.dim_in_x = macp.pull_location_on_tall_doors + (macp.door_pull_length/2)
-                    token.end_dim_in_x  = macp.pull_location_on_tall_doors - (macp.door_pull_length/2)
+        #         if door_type.value() == 'Base':
+        #             if door_swing.value() == 'Bottom':
+        #                 token.dim_in_x = assembly.obj_x.location.x - macp.pull_location_on_base_upper_doors
+        #                 token.end_dim_in_x  = assembly.obj_x.location.x - macp.pull_location_on_base_upper_doors
+        #             else:
+        #                 token.dim_in_x = assembly.obj_x.location.x - macp.pull_location_on_base_upper_doors
+        #                 token.end_dim_in_x  = assembly.obj_x.location.x - macp.pull_location_on_base_upper_doors - macp.door_pull_length
+        #         elif door_type.value() == 'Upper':
+        #             token.dim_in_x = macp.pull_location_on_base_upper_doors
+        #             token.end_dim_in_x  = macp.pull_location_on_base_upper_doors + macp.door_pull_length
+        #         elif door_type.value() == 'Tall':
+        #             token.dim_in_x = macp.pull_location_on_tall_doors + (macp.door_pull_length/2)
+        #             token.end_dim_in_x  = macp.pull_location_on_tall_doors - (macp.door_pull_length/2)
                     
-                if door_swing.value() == 'Left':
-                    token.dim_in_y = macp.pull_from_edge
-                    token.end_dim_in_y = macp.pull_from_edge                    
-                elif door_swing.value() == 'Right':
-                    token.dim_in_y = math.fabs(assembly.obj_y.location.y) - macp.pull_from_edge
-                    token.end_dim_in_y = math.fabs(assembly.obj_y.location.y) - macp.pull_from_edge
-                else: #TOP AND BOTTOM SWING
-                    token.dim_in_y = (math.fabs(assembly.obj_y.location.y)/2) - (macp.door_pull_length/2)
-                    token.end_dim_in_y = (math.fabs(assembly.obj_y.location.y)/2) + (macp.door_pull_length/2)
+        #         if door_swing.value() == 'Left':
+        #             token.dim_in_y = macp.pull_from_edge
+        #             token.end_dim_in_y = macp.pull_from_edge                    
+        #         elif door_swing.value() == 'Right':
+        #             token.dim_in_y = math.fabs(assembly.obj_y.location.y) - macp.pull_from_edge
+        #             token.end_dim_in_y = math.fabs(assembly.obj_y.location.y) - macp.pull_from_edge
+        #         else: #TOP AND BOTTOM SWING
+        #             token.dim_in_y = (math.fabs(assembly.obj_y.location.y)/2) - (macp.door_pull_length/2)
+        #             token.end_dim_in_y = (math.fabs(assembly.obj_y.location.y)/2) + (macp.door_pull_length/2)
                     
-                token.dim_in_z = math.fabs(assembly.obj_z.location.z) + unit.inch(.1)
-                token.face_bore_dia = macp.pull_bore_dia
-                token.distance_between_holes = macp.door_pull_length
+        #         token.dim_in_z = math.fabs(assembly.obj_z.location.z) + unit.inch(.1)
+        #         token.face_bore_dia = macp.pull_bore_dia
+        #         token.distance_between_holes = macp.door_pull_length
 
     def add_door_hinge_drilling(self, assembly):
         self.remove_machining_token(assembly, 'Door Hinge Drilling')
@@ -224,8 +224,6 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
     def add_drawer_front_pull_drilling(self,assembly):
         macp = get_machining_props()
         self.remove_machining_token(assembly, 'Pull Drilling')
-
-        print("PULL ASSEMBLY", assembly.obj_bp.name)
         
         if macp.add_machining_for_pulls:
             no_pulls = assembly.get_prompt("No Pulls")
@@ -339,7 +337,6 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
             token.associative_dia = 0
             token.associative_depth = 0
 
-
     def add_panel_drilling(self,assembly):
         '''
             This should only be added if they have the option to always drill panels turned on.
@@ -357,9 +354,9 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
         self.remove_machining_token(assembly, 'System Holes Left Top Front')
         self.remove_machining_token(assembly, 'System Holes Left Top Rear')
 
-        if macp.panel_drilling_type == '32MM':
-            product = self.get_product_from_part(assembly)
-            
+        tokens = []
+
+        if macp.panel_drilling_type == '32MM':            
             part_length = math.fabs(assembly.obj_x.location.x)
             part_width = math.fabs(assembly.obj_y.location.y)
             dim_to_front = macp.dim_to_front_system_hole
@@ -370,103 +367,154 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
             sdtl = assembly.get_prompt('Stop Drilling Top Left').value()
             sdbr = assembly.get_prompt('Stop Drilling Bottom Right').value()
             sdtr = assembly.get_prompt('Stop Drilling Top Right').value()
+
+            single_sided = False if right_depth.value() and left_depth.value() else True
             
             #ALWAYS DRILL BOTTOM
-            if right_depth.value() > 0 or sdbr > 0:
-                obj, token = assembly.add_machine_token('System Holes Right Bottom Front','BORE','5')
-                token.dim_in_x = part_length - unit.millimeter(9.5)
-                token.dim_in_y = dim_to_front + (part_width - right_depth.value())
-                token.dim_in_z = macp.system_hole_bore_depth
-                token.end_dim_in_x = unit.millimeter(9.5) if sdbr == 0 else sdbr
-                token.end_dim_in_y = dim_to_front + (part_width - right_depth.value())
-                token.face_bore_dia = macp.system_hole_dia
-                token.distance_between_holes = unit.millimeter(32)
-                token.associative_dia = 0
-                token.associative_depth = 0
-                
-                obj, token = assembly.add_machine_token('System Holes Right Bottom Rear','BORE','5')
-                token.dim_in_x = part_length - unit.millimeter(9.5)
-                token.dim_in_y = part_width - dim_to_rear
-                token.dim_in_z = macp.system_hole_bore_depth
-                token.end_dim_in_x = unit.millimeter(9.5) if sdbr == 0 else sdbr
-                token.end_dim_in_y = part_width - dim_to_rear
-                token.face_bore_dia = macp.system_hole_dia
-                token.distance_between_holes = unit.millimeter(32)
-                token.associative_dia = 0
-                token.associative_depth = 0
+            if single_sided:
+                if right_depth.value() > 0 or sdbr > 0:
+                    obj, token = assembly.add_machine_token('System Holes Right Bottom Front','BORE','5')
+                    token.dim_in_y = right_depth.value() - dim_to_front
+                    token.end_dim_in_x = macp.dim_to_system_bottom_hole if sdbr == 0 else sdbr
+                    token.end_dim_in_y = right_depth.value() - dim_to_front
+                    tokens.append(token)
+                    
+                    obj, token = assembly.add_machine_token('System Holes Right Bottom Rear','BORE','5')
+                    token.dim_in_y = dim_to_rear
+                    token.end_dim_in_x = macp.dim_to_system_bottom_hole if sdbr == 0 else sdbr
+                    token.end_dim_in_y = dim_to_rear
+                    tokens.append(token)
 
-            if left_depth.value() > 0 or sdbl > 0 or sdbr > 0:
-                obj, token = assembly.add_machine_token('System Holes Left Bottom Front','BORE','6')
-                token.dim_in_x = part_length - unit.millimeter(9.5)
-                token.dim_in_y = dim_to_front + (part_width - left_depth.value())
-                token.dim_in_z = macp.system_hole_bore_depth
-                token.end_dim_in_x = unit.millimeter(9.5) if sdbl == 0 else sdbl
-                token.end_dim_in_y = dim_to_front + (part_width - left_depth.value())
-                token.face_bore_dia = macp.system_hole_dia
-                token.distance_between_holes = unit.millimeter(32)
-                token.associative_dia = 0
-                token.associative_depth = 0
-                
-                obj, token = assembly.add_machine_token('System Holes Left Bottom Rear','BORE','6')
-                token.dim_in_x = part_length - unit.millimeter(9.5)
-                token.dim_in_y = part_width - dim_to_rear
-                token.dim_in_z = macp.system_hole_bore_depth
-                token.end_dim_in_x = unit.millimeter(9.5) if sdbl == 0 else sdbl
-                token.end_dim_in_y = part_width - dim_to_rear
-                token.face_bore_dia = macp.system_hole_dia
-                token.distance_between_holes = unit.millimeter(32)
-                token.associative_dia = 0
-                token.associative_depth = 0
+                if left_depth.value() > 0 or sdbl > 0 or sdbr > 0:
+                    obj, token = assembly.add_machine_token('System Holes Left Bottom Front','BORE','5')
+                    token.dim_in_y = left_depth.value() - dim_to_front
+                    token.end_dim_in_x = macp.dim_to_system_bottom_hole if sdbl == 0 else sdbl
+                    token.end_dim_in_y = left_depth.value() - dim_to_front
+                    tokens.append(token)
                     
-            #DRILL TOP IF STOP DRILLING IS FOUND
-            if right_depth.value() > 0 and sdtr > 0:
-                obj, token = assembly.add_machine_token('System Holes Right Top Front','BORE','5')
-                token.dim_in_x = part_length - unit.millimeter(9.5)
-                token.dim_in_y = dim_to_front + (part_width - right_depth.value())
-                token.dim_in_z = macp.system_hole_bore_depth
-                token.end_dim_in_x = part_length - sdtr
-                token.end_dim_in_y = dim_to_front + (part_width - right_depth.value())
-                token.face_bore_dia = macp.system_hole_dia
-                token.distance_between_holes = unit.millimeter(32)
-                token.associative_dia = 0
-                token.associative_depth = 0
+                    obj, token = assembly.add_machine_token('System Holes Left Bottom Rear','BORE','5')
+                    token.dim_in_y = dim_to_rear
+                    token.end_dim_in_x = macp.dim_to_system_bottom_hole if sdbl == 0 else sdbl
+                    token.end_dim_in_y = dim_to_rear
+                    tokens.append(token)
+            else:
+                if right_depth.value() > 0 or sdbr > 0:
+                    obj, token = assembly.add_machine_token('System Holes Right Bottom Front','BORE','5')
+                    token.dim_in_y = right_depth.value() - dim_to_front
+                    token.end_dim_in_x = macp.dim_to_system_bottom_hole if sdbr == 0 else sdbr
+                    token.end_dim_in_y = right_depth.value() - dim_to_front
+                    tokens.append(token)
+                    
+                    obj, token = assembly.add_machine_token('System Holes Right Bottom Rear','BORE','5')
+                    token.dim_in_y = dim_to_rear
+                    token.end_dim_in_x = macp.dim_to_system_bottom_hole if sdbr == 0 else sdbr
+                    token.end_dim_in_y = dim_to_rear
+                    tokens.append(token)
+
+                if left_depth.value() > 0 or sdbl > 0 or sdbr > 0:
+                    obj, token = assembly.add_machine_token('System Holes Left Bottom Front','BORE','6')
+                    token.dim_in_y = left_depth.value() - dim_to_front
+                    token.end_dim_in_x = macp.dim_to_system_bottom_hole if sdbl == 0 else sdbl
+                    token.end_dim_in_y = left_depth.value() - dim_to_front
+                    tokens.append(token)
+                    
+                    obj, token = assembly.add_machine_token('System Holes Left Bottom Rear','BORE','6')
+                    token.dim_in_y = dim_to_rear
+                    token.end_dim_in_x = macp.dim_to_system_bottom_hole if sdbl == 0 else sdbl
+                    token.end_dim_in_y = dim_to_rear
+                    tokens.append(token)
+                    
+            # #DRILL TOP IF STOP DRILLING IS FOUND
+            # if right_depth.value() > 0 and sdtr > 0:
+            #     obj, token = assembly.add_machine_token('System Holes Right Top Front','BORE','5')
+            #     token.dim_in_y = dim_to_front + (part_width - right_depth.value())
+            #     token.end_dim_in_x = part_length - sdtr
+            #     token.end_dim_in_y = dim_to_front + (part_width - right_depth.value())
+            #     tokens.append(token)
                 
-                obj, token = assembly.add_machine_token('System Holes Right Top Rear','BORE','5')
-                token.dim_in_x = part_length - unit.millimeter(9.5)
-                token.dim_in_y = part_width - dim_to_rear
-                token.dim_in_z = macp.system_hole_bore_depth
-                token.end_dim_in_x = part_length - sdtr
-                token.end_dim_in_y = part_width - dim_to_rear
-                token.face_bore_dia = macp.system_hole_dia
-                token.distance_between_holes = unit.millimeter(32)
-                token.associative_dia = 0
-                token.associative_depth = 0
+            #     obj, token = assembly.add_machine_token('System Holes Right Top Rear','BORE','5')
+            #     token.dim_in_y = part_width - dim_to_rear
+            #     token.end_dim_in_x = part_length - sdtr
+            #     token.end_dim_in_y = part_width - dim_to_rear
+            #     tokens.append(token)
             
-            if sdtl > 0 or sdtr > 0:
+            # if sdtl > 0 or sdtr > 0:
                 
-                if left_depth.value() != right_depth.value() and left_depth.value() > 0:
-                    obj, token = assembly.add_machine_token('System Holes Left Top Front','BORE','6')
-                    token.dim_in_x = part_length - unit.millimeter(9.5)
-                    token.dim_in_y = dim_to_front + (part_width - left_depth.value())
-                    token.dim_in_z = unit.millimeter(15)
-                    token.end_dim_in_x = part_length - sdtl
-                    token.end_dim_in_y = dim_to_front + (part_width - left_depth.value())
-                    token.face_bore_dia = macp.system_hole_dia
-                    token.distance_between_holes = unit.millimeter(32)
-                    token.associative_dia = 0
-                    token.associative_depth = 0
+            #     if left_depth.value() != right_depth.value() and left_depth.value() > 0:
+            #         obj, token = assembly.add_machine_token('System Holes Left Top Front','BORE','6')
+            #         token.dim_in_y = dim_to_front + (part_width - left_depth.value())
+            #         token.end_dim_in_x = part_length - sdtl
+            #         token.end_dim_in_y = dim_to_front + (part_width - left_depth.value())
+            #         tokens.append(token)
                     
-                    obj, token = assembly.add_machine_token('System Holes Left Top Rear','BORE','6')
+            #         obj, token = assembly.add_machine_token('System Holes Left Top Rear','BORE','6')
+            #         token.dim_in_y = part_width - dim_to_rear
+            #         token.end_dim_in_x = part_length - sdtl
+            #         token.end_dim_in_y = part_width - dim_to_rear
+            #         tokens.append(token)
+
+        for token in tokens:
+            token.dim_in_x = part_length - macp.dim_to_system_top_hole
+            token.dim_in_z = macp.system_hole_bore_depth
+            token.face_bore_dia = macp.system_hole_dia
+            token.distance_between_holes = macp.dim_between_holes
+    
+    def add_panel_drilling_for_middle_hanging_rods(self,hanging_rod):
+        macp = get_machining_props()
+        insert_bp = utils.get_bp(hanging_rod.obj_bp,'INSERT')        
+
+        if insert_bp:
+            insert = fd_types.Assembly(insert_bp)
+            set_back = insert.get_prompt("Add Rod Setback")
+            left_panel, right_panel = self.get_adj_panels(insert_bp)
+
+            if set_back and set_back.value() > macp.dim_to_front_system_hole:
+                dim_to_front = macp.dim_to_front_system_hole
+                drill_depth = macp.system_hole_bore_depth
+                drill_dia = macp.system_hole_dia                
+
+                #Left panel
+                part_length = math.fabs(left_panel.obj_x.location.x)
+                part_width = math.fabs(left_panel.obj_y.location.y)
+                right_depth = left_panel.get_prompt('Right Depth')
+                sdbr = left_panel.get_prompt('Stop Drilling Bottom Right').value()
+                #sdtr = left_panel.get_prompt('Stop Drilling Top Right').value()
+                dim_to_front = dim_to_front + (part_width - right_depth.value())
+                
+                if right_depth.value() > 0 or sdbr > 0:
+                    self.remove_machining_token(left_panel, 'System Holes Mid Right')
+                    obj, token = left_panel.add_machine_token('System Holes Mid Right','BORE','5')
                     token.dim_in_x = part_length - unit.millimeter(9.5)
-                    token.dim_in_y = part_width - dim_to_rear
-                    token.dim_in_z = unit.millimeter(15)
-                    token.end_dim_in_x = part_length - sdtl
-                    token.end_dim_in_y = part_width - dim_to_rear
-                    token.face_bore_dia = macp.system_hole_dia
+                    token.dim_in_y = dim_to_front + set_back.value()
+                    token.dim_in_z = drill_depth
+                    token.end_dim_in_x = unit.millimeter(9.5) if sdbr == 0 else sdbr
+                    token.end_dim_in_y = dim_to_front + set_back.value()
+                    token.face_bore_dia = drill_dia
                     token.distance_between_holes = unit.millimeter(32)
                     token.associative_dia = 0
                     token.associative_depth = 0
-    
+
+                #Right panel
+                part_length = math.fabs(right_panel.obj_x.location.x)
+                part_width = math.fabs(right_panel.obj_y.location.y)                
+                left_depth = right_panel.get_prompt('Left Depth')
+                sdbl = right_panel.get_prompt('Stop Drilling Bottom Left').value()
+                #sdtl = right_panel.get_prompt('Stop Drilling Top Left').value()
+                dim_to_front = dim_to_front + (part_width - right_depth.value())
+
+                if left_depth.value() > 0 or sdbl > 0:
+                    self.remove_machining_token(right_panel, 'System Holes Mid Left')
+                    obj, token = right_panel.add_machine_token('System Holes Mid Left','BORE','6')
+                    token.dim_in_x = part_length - unit.millimeter(9.5)
+                    token.dim_in_y = dim_to_front + set_back.value()
+                    token.dim_in_z = drill_depth
+                    token.end_dim_in_x = unit.millimeter(9.5) if sdbl == 0 else sdbl
+                    token.end_dim_in_y = dim_to_front + set_back.value()
+                    token.face_bore_dia = drill_dia
+                    token.distance_between_holes = unit.millimeter(32)
+                    token.associative_dia = 0
+                    token.associative_depth = 0
+
     def add_panel_routing(self,assembly):
         '''
             This adds the routing for panels for the hanging notch, base molding notch, top chamfers (rear and front)
@@ -836,40 +884,43 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
         if is_lock_shelf and is_lock_shelf.value():        
         
             if macp.drill_cams_for_lock_shelves:
-                width = math.fabs(assembly.obj_y.location.y)             
+                width = math.fabs(assembly.obj_y.location.y)
+                depth = math.fabs(assembly.obj_x.location.x)             
                 drill_on_top = assembly.get_prompt("Drill On Top")
                 remove_left_holes = assembly.get_prompt("Remove Left Holes")
                 remove_right_holes = assembly.get_prompt("Remove Right Holes")                
                 
-                for i in range(0,4):
-                    hardware = self.add_hardware("KD FITTING", assembly)
-                    hardware.mv.comment_2 = "1015"
-                
+                #for i in range(0,4):
+                    #hardware = self.add_hardware("KD FITTING", assembly)
+                    #hardware.mv.comment_2 = "1015"
+
                 if not remove_left_holes.value():
-                    obj, token = assembly.add_machine_token('Left Drilling' ,'CAMLOCK','3')
-                    token.hole_locations[0] = macp.dim_to_front_system_hole
-                    token.hole_locations[1] = width - macp.dim_to_rear_system_hole
+                    obj, token = assembly.add_machine_token('Left Drilling' ,'CAMLOCK','5')
+                    token.hole_locations[0] = macp.cam_backset
+                    token.hole_locations[1] = depth - macp.cam_backset
                     token.edge_bore_depth = macp.cam_bore_edge_depth
                     token.edge_bore_dia = macp.cam_bore_edge_dia
                     token.face_bore_depth = macp.cam_bore_face_depth
                     token.face_bore_dia = macp.cam_bore_face_dia
                     token.face_bore_depth_2 = macp.cam_depth
                     token.face_bore_dia_2 = macp.cam_dia
-                    token.backset = macp.cam_backset
-                    token.cam_face = '6' if drill_on_top.value() else '5'                    
-                    
+                    token.backset = width - macp.dim_to_front_system_hole
+                    token.cam_face = '5'                    
+                
                 if not remove_right_holes.value():
-                    obj, token = assembly.add_machine_token('Right Drilling' ,'CAMLOCK','4')
-                    token.hole_locations[0] = macp.dim_to_front_system_hole
-                    token.hole_locations[1] = width - macp.dim_to_rear_system_hole
+                    obj, token = assembly.add_machine_token('Right Drilling' ,'CAMLOCK','5')
+                    token.hole_locations[0] = macp.cam_backset
+                    token.hole_locations[1] = depth - macp.cam_backset
                     token.edge_bore_depth = macp.cam_bore_edge_depth
                     token.edge_bore_dia = macp.cam_bore_edge_dia
+
                     token.face_bore_depth = macp.cam_bore_face_depth
+                    
                     token.face_bore_dia = macp.cam_bore_face_dia
                     token.face_bore_depth_2 = macp.cam_depth
                     token.face_bore_dia_2 = macp.cam_dia
-                    token.backset = macp.cam_backset
-                    token.cam_face = '6' if drill_on_top.value() else '5'
+                    token.backset = macp.dim_to_rear_system_hole
+                    token.cam_face = '5'
 
     def add_toe_kick_machining(self,assembly):
         '''
@@ -1010,7 +1061,6 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
             if options.slide_name == 'Accuride Slides':
             
                 obj, token = assembly.add_machine_token('Slide Drilling' ,'SLIDE','1')
-                print(macp.drawer_slide_dim_from_bottom)
                 token.dim_from_drawer_bottom = macp.drawer_slide_dim_from_bottom
                 token.dim_to_first_hole = unit.inch(1.5817) if depth > unit.inch(1.5817) else 0
                 token.dim_to_second_hole = unit.inch(6.6211) if depth > unit.inch(6.6211) else 0
@@ -1024,7 +1074,6 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
             elif options.slide_name == 'Blum Slides':
                 
                 obj, token = assembly.add_machine_token('Slide Drilling' ,'SLIDE','1')
-                print(macp.drawer_slide_dim_from_bottom)                
                 token.dim_from_drawer_bottom = macp.drawer_slide_dim_from_bottom
                 token.dim_to_first_hole = unit.inch(1.5817) if depth > unit.inch(1.5817) else 0
                 token.dim_to_second_hole = unit.inch(6.6211) if depth > unit.inch(6.6211) else 0
@@ -1038,7 +1087,6 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
             elif options.slide_name == 'Grass Slides':
                 
                 obj, token = assembly.add_machine_token('Slide Drilling' ,'SLIDE','1')
-                print(macp.drawer_slide_dim_from_bottom)
                 token.dim_from_drawer_bottom = macp.drawer_slide_dim_from_bottom
                 token.dim_to_first_hole = unit.inch(1.5817) if depth > unit.inch(1.5817) else 0
                 token.dim_to_second_hole = unit.inch(6.6211) if depth > unit.inch(6.6211) else 0
@@ -1087,12 +1135,12 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
             override_height = drawer_box.get_prompt("Override Height")  
             
             #OVERRIDE DRAWER BOX HEIGHT FOR SMALLER SIZES
-            if drawer_box_height < unit.inch(1.5):
-                override_height.set_value(unit.inch(1.62))
-            elif drawer_box_height < unit.inch(2.75):
-                override_height.set_value(unit.inch(2))
-            else:
-                override_height.set_value(0)
+            #if drawer_box_height < unit.inch(1.5):
+            #    override_height.set_value(unit.inch(1.62))
+            #elif drawer_box_height < unit.inch(2.75):
+            #    override_height.set_value(unit.inch(2))
+            #else:
+            #    override_height.set_value(0)
             
             if box_type == 'MEL':
                 override_depth.set_value(0)
@@ -1520,10 +1568,10 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
                 left_panel_bp = panels[i-1]
                 break
             
-        left_panel = fd_types.Assembly(left_panel_bp)
-        right_panel = fd_types.Assembly(right_panel_bp)
+        left_panel = fd_types.Part(left_panel_bp)
+        right_panel = fd_types.Part(right_panel_bp)
         return left_panel, right_panel
-            
+
     def update_panel_prompts_for_drawer_stack(self,drawer_stack):
         left_panel, right_panel = self.get_adj_panels(drawer_stack.obj_bp)
         
@@ -1532,49 +1580,13 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
         stop_drilling_top_right = left_panel.get_prompt("Stop Drilling Top Right")
         stop_drilling_bottom_left = right_panel.get_prompt("Stop Drilling Bottom Left")
         stop_drilling_top_left = right_panel.get_prompt("Stop Drilling Top Left")
-                    
         dist_from_top = drawer_stack.obj_z.location.z - drawer_stack_height.value()
                     
         stop_drilling_bottom_left.set_value(unit.inch(.01))
         stop_drilling_bottom_right.set_value(unit.inch(.01))
         stop_drilling_top_left.set_value(dist_from_top + unit.millimeter(32))
         stop_drilling_top_right.set_value(dist_from_top + unit.millimeter(32))
-        
-    def add_panel_drilling_for_middle_hanging_rods(self,hanging_rod):
-        macp = get_machining_props()
-        insert_bp = utils.get_bp(hanging_rod.obj_bp,'INSERT')
-        if insert_bp:
-            left_panel, right_panel = self.get_adj_panels(insert_bp)
-            self.remove_machining_token(left_panel, 'System Holes Mid')
-            self.remove_machining_token(right_panel, 'System Holes Mid')        
-            props = get_machining_props()
-                        
-            set_back = hanging_rod.get_prompt("Hanging Rod Setback")
-            
-            if set_back and set_back.value() > props.dim_to_front_system_hole:
-    
-                obj, token = left_panel.add_machine_token('System Holes Mid','BORE','5')
-                token.dim_in_x = unit.millimeter(9.5)
-                token.dim_in_y = set_back.value()
-                token.dim_in_z = props.system_hole_bore_depth
-                token.face_bore_dia = macp.system_hole_dia
-                token.end_dim_in_x = left_panel.obj_x.location.x - unit.millimeter(9.5)
-                token.end_dim_in_y = set_back.value()
-                token.distance_between_holes = unit.millimeter(32)
-                token.associative_dia = 0
-                token.associative_depth = 0
-                
-                obj, token = right_panel.add_machine_token('System Holes Mid','BORE','5')
-                token.dim_in_x = unit.millimeter(9.5)
-                token.dim_in_y = set_back.value()
-                token.dim_in_z = props.system_hole_bore_depth
-                token.face_bore_dia = macp.system_hole_dia
-                token.end_dim_in_x = right_panel.obj_x.location.x - unit.millimeter(9.5)
-                token.end_dim_in_y = set_back.value()
-                token.distance_between_holes = unit.millimeter(32)
-                token.associative_dia = 0
-                token.associative_depth = 0
-                        
+                           
     def execute(self, context):
         common_closet_utils.clear_temp_hardware()
         mac_props = get_machining_props()
@@ -1589,6 +1601,9 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
         drawer_backs = []
         drawer_sub_fronts = []
         panels = []
+        
+        # mac_props.dim_to_front_system_hole = unit.millimeter(37)
+        # mac_props.dim_to_rear_system_hole = unit.millimeter(43)
 
             
         #SET PANEL NUMBER
@@ -1619,12 +1634,12 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
             #DOORS
             if props.is_door_bp:
                 self.add_associative_hinges(assembly)
-                self.add_door_pull_drilling(assembly)
+                #self.add_door_pull_drilling(assembly)
                 self.add_door_hinge_drilling(assembly)
                 
             if props.is_hamper_front_bp:
                 self.add_hamper_front_hinges(assembly)
-                self.add_hamper_front_pull_drilling(assembly)
+                # self.add_hamper_front_pull_drilling(assembly)
                 self.add_hamper_door_hinge_drilling(assembly)
                 
             if props.is_ironing_board_door_front_bp:
@@ -1718,7 +1733,7 @@ class PROPS_Machining_Defaults(bpy.types.PropertyGroup):
     
     drill_cams_for_lock_shelves = BoolProperty(name="Route Cams for Lock Shelves",
                                                 description="Check this box to drill cams for lock shelves",
-                                                default=False)
+                                                default=True)
     
     drill_cams_for_toe_kicks = BoolProperty(name="Route Cams for Toe Kicks",
                                             description="Check this box to drill cams for toe kicks",
@@ -1764,6 +1779,14 @@ class PROPS_Machining_Defaults(bpy.types.PropertyGroup):
                                              description="Check this box to include routing operations on panels",
                                              default=True)
     
+    # dim_to_front_system_hole = FloatProperty(name="Dim To First System Hole",
+    #                                          description="Enter the distance from the front of the part to center of the front system hole.",
+    #                                          default=unit.millimeter(37),unit='LENGTH')
+    
+    # dim_to_rear_system_hole = FloatProperty(name="Dim To Rear System Hole",
+    #                                         description="Enter the distance from the back of the part to center of the rear system hole.",
+    #                                         default=unit.millimeter(43),unit='LENGTH')
+
     dim_between_holes = FloatProperty(
         name="Dim Between System Holes",
         description="Enter the distance between system holes.",
@@ -1781,7 +1804,7 @@ class PROPS_Machining_Defaults(bpy.types.PropertyGroup):
     dim_to_rear_system_hole = FloatProperty(
         name="Dim To Rear System Hole",
         description="Enter the distance from the back of the part to center of the rear system hole.",
-        default=unit.millimeter(37),
+        default=unit.millimeter(43),
         unit='LENGTH'
         )
 
@@ -1852,7 +1875,7 @@ class PROPS_Machining_Defaults(bpy.types.PropertyGroup):
     #CAM HOLE SETTINGS
     cam_bore_face_depth = FloatProperty(name="Cam Bore Face Depth",
                                         description="Enter the face drilling depth for cams. This is the depth to drill on the associated panel.",
-                                        default=unit.inch(.5),unit='LENGTH')    
+                                        default=unit.millimeter(15),unit='LENGTH')    
     
     cam_bore_edge_depth = FloatProperty(name="Cam Bore Edge Depth",
                                         description="Enter the edge drilling depth for cams.",
@@ -1864,11 +1887,11 @@ class PROPS_Machining_Defaults(bpy.types.PropertyGroup):
     
     cam_depth = FloatProperty(name="Cam Depth",
                               description="Enter the face drilling depth for the cam. This is the drilling on the shelf for the cam.",
-                              default=unit.inch(.625),unit='LENGTH')          
+                              default=unit.inch(0.5),unit='LENGTH')          
     
     cam_backset = FloatProperty(name="Cam Backset",
                               description="Enter the distance from the edge of the shelf to the center of the cam placement",
-                              default=unit.inch(.5),unit='LENGTH')       
+                              default=unit.millimeter(9.5),unit='LENGTH')       
     
     cam_bore_face_dia = FloatProperty(name="Cam Bore Face Dia",
                                       description="Enter the face drilling dia for cam holes. This is the drilling on the associated panel. ENTER VALUE IN MILLIMETERS",
@@ -1881,7 +1904,7 @@ class PROPS_Machining_Defaults(bpy.types.PropertyGroup):
     #SYSTEM HOLE SETTINGS
     system_hole_bore_depth = FloatProperty(name="System Hole Bore Depth",
                                            description="Enter the drilling depth for the system holes",
-                                           default=unit.inch(.5),
+                                           default=unit.inch(0.5),
                                            unit='LENGTH')
     
     system_hole_dia = FloatProperty(name="System Hole Dia",

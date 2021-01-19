@@ -4,7 +4,8 @@ Utility Functions
 
 import bpy
 import os
-from mv import utils
+import math
+from mv import utils, unit
 import snap_db
 
 def update_file_browser_space(context,path):
@@ -165,7 +166,8 @@ def assign_materials_from_pointers(obj):
         if material:
             obj.material_slots[index].material = material
         else:
-            print("MATERIAL NOT FOUND",slot.library_name,slot.category_name,slot.item_name,obj.mv.name_object)
+            pass
+            # print("MATERIAL NOT FOUND",slot.library_name,slot.category_name,slot.item_name,obj.mv.name_object)
 
     #MAKE SURE OBJECT IS TEXTURED
     if obj.mv.type == 'CAGE':
@@ -195,4 +197,44 @@ def save_assembly(assembly,path):
     assembly.set_name(assembly.assembly_name)
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(path,assembly.assembly_name + ".blend"))
             
-            
+def get_part_thickness(obj):
+    '''Backing should no longer be attached to a static spec group thickness
+    however, material pointers are still needed so keeping cutpart 'Back' for now
+    
+    TODO: Allow for cutpart pointer thickness to be optional, in this case get_part_thickness
+    will return actual part thickness
+    '''
+    if obj.parent:
+        obj_props = obj.parent.lm_closets
+
+        backing_parts = [
+            obj_props.is_back_bp,
+            obj_props.is_top_back_bp,
+            obj_props.is_bottom_back_bp
+        ]            
+
+        if any(backing_parts):
+            for child in obj.parent.children:
+                if child.mv.type == 'VPDIMZ':
+                    return math.fabs(child.location.z)
+
+    if obj.cabinetlib.type_mesh == 'CUTPART':
+        spec_group = bpy.context.scene.mv.spec_groups[obj.cabinetlib.spec_group_index]
+        if obj.cabinetlib.cutpart_name in spec_group.cutparts:
+            return spec_group.cutparts[obj.cabinetlib.cutpart_name].thickness
+        else:
+            if obj.parent:
+                for child in obj.parent.children:
+                    if child.mv.type == 'VPDIMZ':
+                        return math.fabs(child.location.z)
+                    
+    if obj.cabinetlib.type_mesh in {'SOLIDSTOCK','BUYOUT'}:
+        if obj.parent:
+            for child in obj.parent.children:
+                if child.mv.type == 'VPDIMZ':
+                    return math.fabs(child.location.z)
+                
+    if obj.cabinetlib.type_mesh == 'EDGEBANDING':
+        for mod in obj.modifiers:
+            if mod.type == 'SOLIDIFY':
+                return mod.thickness            

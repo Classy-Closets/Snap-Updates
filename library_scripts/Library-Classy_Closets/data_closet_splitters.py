@@ -83,6 +83,10 @@ class Vertical_Splitters(fd_types.Assembly):
                             value=size,
                             tab_index=0,
                             equal=True if size == 0 else False)
+
+                            
+        for i in range(1,self.vertical_openings):
+            self.add_prompt(name="Shelf " + str(i) + " Setback",prompt_type='DISTANCE',value=0,tab_index=1)
     
         self.add_prompt(name="Thickness",prompt_type='DISTANCE',value=unit.inch(.75),tab_index=1)
         self.add_prompt(name="Left Thickness",prompt_type='DISTANCE',value=unit.inch(.75),tab_index=1)
@@ -91,7 +95,7 @@ class Vertical_Splitters(fd_types.Assembly):
         self.add_prompt(name="Bottom Thickness",prompt_type='DISTANCE',value=unit.inch(.75),tab_index=1)
         self.add_prompt(name="Extend Top Amount",prompt_type='DISTANCE',value=unit.inch(0),tab_index=1)
         self.add_prompt(name="Extend Bottom Amount",prompt_type='DISTANCE',value=unit.inch(0),tab_index=1)
-        self.add_prompt(name="Inlcude Bottom Shelf",prompt_type='CHECKBOX',value=True,tab_index=1)
+        self.add_prompt(name="Remove Bottom Shelf",prompt_type='CHECKBOX',value=False,tab_index=1)
         
         sgi = self.get_var('cabinetlib.spec_group_index','sgi')
         Thickness = self.get_var('Thickness')
@@ -154,7 +158,7 @@ class Vertical_Splitters(fd_types.Assembly):
         Height = self.get_var('dim_z','Height')
         Depth = self.get_var('dim_y','Depth')
         Thickness = self.get_var('Thickness')
-        Inlcude_Bottom_Shelf = self.get_var('Inlcude Bottom Shelf')
+        Remove_Bottom_Shelf = self.get_var('Remove Bottom Shelf')
         
         previous_splitter = None
         
@@ -168,7 +172,8 @@ class Vertical_Splitters(fd_types.Assembly):
         bottom_shelf.x_dim('Width',[Width])
         bottom_shelf.y_dim('-Depth',[Depth])
         bottom_shelf.z_dim('-Thickness',[Thickness])
-        bottom_shelf.prompt('Hide','IF(Inlcude_Bottom_Shelf,False,True)',[Inlcude_Bottom_Shelf])
+        bottom_shelf.prompt('Hide','IF(Remove_Bottom_Shelf,True,False)',[Remove_Bottom_Shelf])
+        bottom_shelf.prompt('Is Locked Shelf',value=True)
         
         for i in range(1,self.vertical_openings):
 
@@ -186,6 +191,7 @@ class Vertical_Splitters(fd_types.Assembly):
             Adj_Shelf_Setback = splitter.get_var('Adj Shelf Setback')
             Locked_Shelf_Setback = splitter.get_var('Locked Shelf Setback')
             Adj_Shelf_Clip_Gap = splitter.get_var('Adj Shelf Clip Gap')    
+            Shelf_Setback = self.get_var("Shelf " + str(i) + " Setback", 'Shelf_Setback')
             
             splitter.x_loc('IF(Is_Locked_Shelf,0,Adj_Shelf_Clip_Gap)',[Is_Locked_Shelf,Adj_Shelf_Clip_Gap])
             splitter.y_loc('Depth',[Depth])
@@ -199,7 +205,7 @@ class Vertical_Splitters(fd_types.Assembly):
             splitter.y_rot(value = 0)
             splitter.z_rot(value = 0)
             splitter.x_dim('Width-IF(Is_Locked_Shelf,0,Adj_Shelf_Clip_Gap*2)',[Width,Is_Locked_Shelf,Adj_Shelf_Clip_Gap])
-            splitter.y_dim('-Depth+IF(Is_Locked_Shelf,Locked_Shelf_Setback,Adj_Shelf_Setback)',[Depth,Locked_Shelf_Setback,Is_Locked_Shelf,Adj_Shelf_Setback])
+            splitter.y_dim('-Depth+IF(Is_Locked_Shelf,Locked_Shelf_Setback,Adj_Shelf_Setback)+Shelf_Setback',[Depth,Locked_Shelf_Setback,Is_Locked_Shelf,Adj_Shelf_Setback,Shelf_Setback])
             splitter.z_dim('-Thickness',[Thickness])
             remove_splitter = eval("self.remove_splitter_" + str(i))
             if remove_splitter:
@@ -524,6 +530,7 @@ class PROMPTS_Vertical_Splitter_Prompts(bpy.types.Operator):
                 
                 for i in range(1,10):
                     opening = self.assembly.get_prompt("Opening " + str(i) + " Height")
+                    setback = self.assembly.get_prompt("Shelf " + str(i) + " Setback")
                     if opening:
                         row = box.row()
                         row.label("Opening " + str(i) + " Height:")
@@ -537,9 +544,14 @@ class PROMPTS_Vertical_Splitter_Prompts(bpy.types.Operator):
                             else:
                                 row.prop(opening,'DistanceValue',text="")
                             row.prop(opening,'equal',text="")
+                    
+                    if setback:
+                        row = box.row()
+                        row.label("Shelf " + str(i) + " Setback")
+                        row.prop(setback,'DistanceValue',text="")
                 
-                include_bottom_shelf=self.assembly.get_prompt('Inlcude Bottom Shelf')
-                include_bottom_shelf.draw_prompt(box)            
+                remove_bottom_shelf=self.assembly.get_prompt('Remove Bottom Shelf')
+                remove_bottom_shelf.draw_prompt(box)            
                         
 class PROMPTS_Horizontal_Splitter_Prompts(bpy.types.Operator):
     bl_idname = props_closet.LIBRARY_NAME_SPACE + ".horizontal_splitters"

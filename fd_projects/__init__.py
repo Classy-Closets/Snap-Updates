@@ -31,6 +31,7 @@ bl_info = {
 import bpy
 from mv import fd_types, utils, unit
 import os
+import shutil
 import re
 import pathlib
 from distutils.dir_util import copy_tree
@@ -99,7 +100,10 @@ def reload_projects():
 
                                 for elm in root.findall("Rooms"):
                                     for sub_elm in elm:
-                                        proj.add_room_from_file(sub_elm.get("name"), sub_elm.get("path"))
+                                        #print("Name: ", sub_elm.get("name"))
+                                        #print("Category: ", sub_elm.get("category"))
+                                        #print("Path: ", sub_elm.get("path"))
+                                        proj.add_room_from_file(sub_elm.get("name"), sub_elm.get("category"), sub_elm.get("path"))
 
 
 class CCP():
@@ -307,13 +311,13 @@ class Room(bpy.types.PropertyGroup, CollectionMixIn):
     file_path = bpy.props.StringProperty(name="Room Filepath", default="", subtype='FILE_PATH')
     selected = bpy.props.BoolProperty(name="Room Selected",default=False)
 
-    def init(self, name, path=None):
+    def init(self, name, category, path=None):
         wm = bpy.context.window_manager.fd_project
         col = wm.projects[wm.project_index].rooms
         super().init(col, name=name)
 
         #Set file name
-        self.file_name = self.get_clean_name(self.name)
+        self.file_name = self.get_clean_name(category + "_" + self.name)
 
         if path:
             self.file_path = path
@@ -331,7 +335,7 @@ class Room(bpy.types.PropertyGroup, CollectionMixIn):
             root = tree.getroot()
 
             for elm in root.findall("Rooms"):
-                elm_room = ET.Element("Room", {'name': self.name, 'path': self.file_path})
+                elm_room = ET.Element("Room", {'name': self.name,'category' : category, 'path': self.file_path})
                 elm_room.text = self.name
                 elm.append(elm_room)
 
@@ -360,6 +364,9 @@ class Project(bpy.types.PropertyGroup, CollectionMixIn):
     customer_name = bpy.props.StringProperty(name="Customer Name", description="Customer Name", update=update_project_props)
     client_id = bpy.props.StringProperty(name="Client ID", description="Client ID", update=update_project_props)
     project_address = bpy.props.StringProperty(name="Project Address", description="Project Address", update=update_project_props)
+    city = bpy.props.StringProperty(name="City", description="City", update=update_project_props)
+    state = bpy.props.StringProperty(name="State", description="State", update=update_project_props)
+    zip_code = bpy.props.StringProperty(name="Zip Code", description="Zip Code", update=update_project_props)
     customer_phone_1 = bpy.props.StringProperty(name="Customer Phone 1", description="Customer Phone 1", update=update_project_props)
     customer_phone_2 = bpy.props.StringProperty(name="Customer Phone 2", description="Customer Phone 2", update=update_project_props)
     customer_email = bpy.props.StringProperty(name="Customer Email", description="Customer Email", update=update_project_props)
@@ -373,6 +380,9 @@ class Project(bpy.types.PropertyGroup, CollectionMixIn):
                                        default = 'INFO')
 
     def init(self, name, path=None):
+        if bpy.app.background:
+            return
+
         col = bpy.context.window_manager.fd_project.projects
         super().init(col, name=name)
         self.create_dir()
@@ -418,6 +428,9 @@ class Project(bpy.types.PropertyGroup, CollectionMixIn):
         ccp.add_element_with_text(project_info, "customer_name", "None")
         ccp.add_element_with_text(project_info, "client_id", "None")
         ccp.add_element_with_text(project_info, "project_address", "None")
+        ccp.add_element_with_text(project_info, "city", "None")
+        ccp.add_element_with_text(project_info, "state", "None")
+        ccp.add_element_with_text(project_info, "zip_code", "None")
         ccp.add_element_with_text(project_info, "customer_phone_1", "None")
         ccp.add_element_with_text(project_info, "customer_phone_2", "None")
         ccp.add_element_with_text(project_info, "customer_email", "None")
@@ -445,6 +458,15 @@ class Project(bpy.types.PropertyGroup, CollectionMixIn):
                     
                 if item.tag == 'project_address':
                     item.text = self.project_address
+                
+                if item.tag == 'city':
+                    item.text = self.city
+                
+                if item.tag == 'state':
+                    item.text = self.state
+                
+                if item.tag == 'zip_code':
+                    item.text = self.zip_code
 
                 if item.tag == 'customer_phone_1':
                     item.text = self.customer_phone_1
@@ -488,6 +510,15 @@ class Project(bpy.types.PropertyGroup, CollectionMixIn):
                     if item.tag == 'project_address':
                         self.project_address = item.text
 
+                    if item.tag == 'city':
+                        self.city = item.text
+                    
+                    if item.tag == 'state':
+                        self.state = item.text
+
+                    if item.tag == 'zip_code':
+                        self.zip_code = item.text
+
                     if item.tag == 'customer_phone_1':
                         self.customer_phone_1 = item.text
 
@@ -513,6 +544,9 @@ class Project(bpy.types.PropertyGroup, CollectionMixIn):
         col.prop(self, 'customer_name')
         col.prop(self, 'client_id')
         col.prop(self, 'project_address')
+        col.prop(self, 'city')
+        col.prop(self, 'state')
+        col.prop(self, 'zip_code')
         col.prop(self, 'customer_phone_1')
         col.prop(self, 'customer_phone_2')
         col.prop(self, 'customer_email')
@@ -549,13 +583,18 @@ class Project(bpy.types.PropertyGroup, CollectionMixIn):
         if self.main_tabs == 'ROOMS':
             self.draw_room_info(box)
 
-    def add_room(self, name):
+    def add_room(self, name, category):
         room = self.rooms.add()
-        room.init(name)
+        room.init(name, category)
 
-    def add_room_from_file(self, name, path):
+    def add_room_from_file(self, name, category, path):
         room = self.rooms.add()
-        room.init(name, path)
+        #if("_" in name):
+        #    room_category,room_name = name.split("_")
+        #else:
+        #    room_category = "Please Select"
+        #    room_name = name
+        room.init(name, category, path)
 
 bpy.utils.register_class(Project)
 
@@ -716,16 +755,23 @@ class OPERATOR_Delete_Project(Operator):
 
     def execute(self, context):
         props = context.window_manager.fd_project
-
+        proj = props.projects[self.index]
         proj_filepath = props.projects[self.index].file_path
-
+        proj.proj_dir = os.path.join(get_project_dir(), proj.name)
+        rbin_path = os.path.join(os.path.expanduser("~"), "Documents", "SNaP Projects Recycle Bin")
+        rbin_proj_path = os.path.join(rbin_path, proj.name)
         props.projects.remove(self.index)
         props.project_index = 0
 
-        #ToDo: install send2trash to interpreter to use here instead
-        os.remove(proj_filepath)
+        if os.path.exists(rbin_proj_path):
+            shutil.rmtree(rbin_proj_path)
 
-        return {'FINISHED'}  
+        if not os.path.exists(rbin_path):  
+            os.mkdir(rbin_path)
+
+        shutil.move(proj.proj_dir, rbin_path)
+
+        return {'FINISHED'}
 
 
 class OPERATOR_Add_Room(bpy.types.Operator):
@@ -736,13 +782,27 @@ class OPERATOR_Add_Room(bpy.types.Operator):
     bl_description = "Adds a room to the active project"
 
     room_name = bpy.props.StringProperty(name="Room Name", description="Room Name")
-
+    room_category = EnumProperty(name="Room Category",
+                                description="Select the Category of the Room",
+                                items=[("Please Select","REQUIRED Please Select a Category","Please Select a Category"),
+                                       ("41110","Closet","Closet"),
+                                       ("41120","Entertainment Center","Entertainment Center"),
+                                       ("41130","Garage","Garage"),
+                                       ("41140","Home Office","Home Office"),
+                                       ("41150","Laundry","Laundry"),
+                                       ("41160","Mud Room","Mud Room"),
+                                       ("41170","Pantry","Pantry"),
+                                       ("41210","Kitchen","Kitchen"),
+                                       ("41220","Bathroom","Bathroom"),
+                                       ("41230","Reface","Reface"),
+                                       ("41240","Remodel","Remodel"),
+                                       ("41250","Stone","Stone")]) 
     def execute(self, context):
         props = context.window_manager.fd_project
 
         if len(props.projects) > 0:
             project = props.projects[props.project_index]
-            room = project.add_room(self.room_name)
+            room = project.add_room(self.room_name, self.room_category)
             project.main_tabs = 'ROOMS'       
 
         return {'FINISHED'}

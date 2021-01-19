@@ -15,6 +15,8 @@ def add_closet_carcass_prompts(assembly):
     assembly.add_prompt(name="Toe Kick Height",prompt_type='DISTANCE',value=defaults.toe_kick_height,tab_index=1)
     assembly.add_prompt(name="Toe Kick Setback",prompt_type='DISTANCE',value=defaults.toe_kick_setback,tab_index=1)
     assembly.add_prompt(name="Add Backing",prompt_type='CHECKBOX',value=defaults.add_backing,tab_index=1)
+    assembly.add_prompt(name="Add Hutch Backing",prompt_type='CHECKBOX',value=False,tab_index=1)
+    assembly.add_prompt(name="Has Capping Bottom",prompt_type='CHECKBOX',value=False,tab_index=1)
     assembly.add_prompt(name="First Rear Notch Height",prompt_type='DISTANCE',value=defaults.rear_notch_height_1,tab_index=1)
     assembly.add_prompt(name="First Rear Notch Depth",prompt_type='DISTANCE',value=defaults.rear_notch_depth_1,tab_index=1)
     assembly.add_prompt(name="Second Rear Notch Height",prompt_type='DISTANCE',value=defaults.rear_notch_height_2,tab_index=1)
@@ -27,8 +29,8 @@ def add_closet_carcass_prompts(assembly):
     assembly.add_prompt(name="Remove Top Shelf",prompt_type='CHECKBOX',value=defaults.remove_top_shelf,tab_index=1)
     assembly.add_prompt(name="Extend Left Side",prompt_type='CHECKBOX',value=False,tab_index=1)
     assembly.add_prompt(name="Extend Right Side",prompt_type='CHECKBOX',value=False,tab_index=1)
-    assembly.add_prompt(name="Height Left Side",prompt_type='DISTANCE',value=unit.millimeter(float(defaults.hanging_panel_height)),tab_index=1)
-    assembly.add_prompt(name="Height Right Side",prompt_type='DISTANCE',value=unit.millimeter(float(defaults.hanging_panel_height)),tab_index=1)
+    assembly.add_prompt(name="Height Left Side",prompt_type='DISTANCE',value=0,tab_index=1)
+    assembly.add_prompt(name="Height Right Side",prompt_type='DISTANCE',value=0,tab_index=1)
     assembly.add_prompt(name="Loc Left Side",prompt_type='DISTANCE',value=defaults.hanging_height,tab_index=1)
     assembly.add_prompt(name="Loc Right Side",prompt_type='DISTANCE',value=defaults.hanging_height,tab_index=1)
     assembly.add_prompt(name="Height To Add Mid Cleat",prompt_type='DISTANCE',value=defaults.height_to_add_mid_cleat,tab_index=1)
@@ -78,6 +80,11 @@ def add_closet_carcass_prompts(assembly):
                             value=props.closet_defaults.remove_top_shelf,
                             tab_index=1)
 
+        assembly.add_prompt(name="Top KD " + str(i) + ' Vertical Offset',
+                            prompt_type='DISTANCE',
+                            value=0,
+                            tab_index=1)
+
     #For adding individual panel prompts
     for i in range(1,assembly.opening_qty+2):
         assembly.add_prompt(name="Dog Ear Partition " + str(i),
@@ -122,15 +129,16 @@ def add_closet_carcass_prompts(assembly):
         
 def add_countertop_prompts(assembly,prompt_tab=0):
     assembly.add_prompt(name="Deck Overhang",prompt_type='DISTANCE',value=unit.inch(1.5),tab_index=prompt_tab)
+    assembly.add_prompt(name="Side Deck Overhang",prompt_type='DISTANCE',value=unit.inch(0.75),tab_index=prompt_tab)
     
     assembly.add_prompt(name="Countertop Type",
                           prompt_type='COMBOBOX',
                           value=0,
                           tab_index=prompt_tab,
-                          items=['Granite',
+                          items=['Melamine',
                                  'HPL',
-                                 'Melamine'],
-                          columns=3)
+                                 'Granite'],
+                          columns=3) #2
     
     assembly.add_prompt(name="Countertop Thickness",
                           prompt_type='COMBOBOX',
@@ -152,13 +160,12 @@ def add_countertop_prompts(assembly,prompt_tab=0):
      
     assembly.add_prompt(name="HPL Material Name",prompt_type='TEXT',value="",tab_index=prompt_tab)
     assembly.add_prompt(name="HPL Material Number",prompt_type='TEXT',value="",tab_index=prompt_tab)
-    assembly.add_prompt(name="Deck Thickness",prompt_type='DISTANCE',value=unit.inch(1.5),tab_index=prompt_tab)
+    assembly.add_prompt(name="Deck Thickness",prompt_type='DISTANCE',value=unit.inch(1.5),tab_index=prompt_tab) #1.5
     
     Countertop_Type = assembly.get_var('Countertop Type')
-    Countertop_Thickness = assembly.get_var('Countertop Thickness')    
 
-    assembly.prompt("Deck Thickness",'IF(Countertop_Type==2,INCH(.75),INCH(1.5))',
-                    [Countertop_Type])
+    #assembly.prompt("Deck Thickness",'IF(Countertop_Type==2,INCH(.75),INCH(.75))',
+    #                [Countertop_Type])
 
 def add_front_overlay_prompts(assembly):
     #Requires add_thickness_prompts to be added
@@ -284,7 +291,7 @@ def add_thickness_prompts(assembly):
     assembly.add_prompt(name="Right Side Thickness",prompt_type='DISTANCE',value=unit.inch(0.75),tab_index=1)
     assembly.add_prompt(name="Top Thickness",prompt_type='DISTANCE',value=unit.inch(0.75),tab_index=1)
     assembly.add_prompt(name="Bottom Thickness",prompt_type='DISTANCE',value=unit.inch(0.75),tab_index=1)
-    assembly.add_prompt(name="Back Thickness",prompt_type='DISTANCE',value=unit.inch(0.25),tab_index=1)
+    assembly.add_prompt(name="Back Thickness",prompt_type='DISTANCE',value=unit.inch(0.75),tab_index=1)
     assembly.add_prompt(name="Shelf Thickness",prompt_type='DISTANCE',value=unit.inch(0.75),tab_index=1)
     assembly.add_prompt(name="Division Thickness",prompt_type='DISTANCE',value=unit.inch(0.75),tab_index=1)
     assembly.add_prompt(name="Toe Kick Thickness",prompt_type='DISTANCE',value=unit.inch(0.75),tab_index=1)

@@ -7,7 +7,6 @@ from . import common_parts
 from . import common_lists
 
 ASSEMBLY_DIR = path.join(common_parts.LIBRARY_DATA_DIR,"Closet Assemblies")
-CLOSET_PANEL = path.join(ASSEMBLY_DIR,"Closet Panel.blend")
 PART_WITH_EDGEBANDING = path.join(ASSEMBLY_DIR,"Part with Edgebanding.blend")
 PART_WITH_FRONT_EDGEBANDING = path.join(ASSEMBLY_DIR,"Part with Front Edgebanding.blend")
 PART_WITH_NO_EDGEBANDING = path.join(ASSEMBLY_DIR,"Part with No Edgebanding.blend")

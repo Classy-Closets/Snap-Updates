@@ -16,7 +16,7 @@ class Standard_Pull(fd_types.Assembly):
         obj_props = props_closet.get_object_props(self.obj_bp)
         obj_props.is_handle = True
         
-        pull = self.add_object(path.join(common_parts.LIBRARY_DATA_DIR,
+        pull = self.add_object(path.join(path.dirname(__file__),
                                          props_closet.PULL_FOLDER_NAME,
                                          props.pull_category,
                                          props.pull_name+".blend"))

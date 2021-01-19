@@ -8,6 +8,7 @@ from mv import unit
 LIBRARY_DATA_DIR = path.join(path.dirname(bpy.app.binary_path),"data","libraries","Library-Classy_Closets")
 ASSEMBLY_DIR = path.join(LIBRARY_DATA_DIR,"Closet Assemblies")
 HANGING_RODS_DIR = path.join(ASSEMBLY_DIR,"Hanging Rods")
+SNAPDB_ASSEMBLY_DIR = path.join(path.dirname(__file__), "Closet Assemblies")
 
 OVAL_ROD = path.join(HANGING_RODS_DIR,"Oval Rod.blend")
 PART_WITH_FRONT_EDGEBANDING = path.join(ASSEMBLY_DIR,"Part with Front Edgebanding.blend")
@@ -19,7 +20,7 @@ FACE = path.join(ASSEMBLY_DIR,"Face.blend")
 CORNER_NOTCH_PART = path.join(ASSEMBLY_DIR,"Corner Notch Part.blend")
 CHAMFERED_PART = path.join(ASSEMBLY_DIR,"Chamfered Part.blend")
 RADIUS_PART = path.join(ASSEMBLY_DIR,"Radius Corner Part with Edgebanding.blend")
-CLOSET_PANEL = path.join(ASSEMBLY_DIR,"Closet Panel.blend")
+CLOSET_PANEL = path.join(SNAPDB_ASSEMBLY_DIR,"Closet Panel.blend")
 BENDING_PART = path.join(ASSEMBLY_DIR,"Bending Part.blend")
 STRAIGHT_COUNTER_TOP = path.join(LIBRARY_DATA_DIR,"Closet Assemblies","Countertop.blend")    
 ISLAND_COUNTER_TOP = path.join(LIBRARY_DATA_DIR,"Closet Assemblies","Island Countertop.blend")
@@ -286,6 +287,7 @@ def add_flat_crown(assembly):
     shelf = assembly.add_assembly(PART_WITH_ALL_EDGES)
     props = props_closet.get_object_props(shelf.obj_bp)
     props.is_crown_molding = True    
+    props.is_flat_crown_bp = True
     shelf.add_prompt(name="Exposed Left",prompt_type='CHECKBOX',value=False,tab_index=0)
     shelf.add_prompt(name="Exposed Right",prompt_type='CHECKBOX',value=False,tab_index=0)    
     shelf.add_prompt(name="Exposed Back",prompt_type='CHECKBOX',value=False,tab_index=0)  
@@ -294,14 +296,14 @@ def add_flat_crown(assembly):
     shelf.y_rot(value = 0)
     shelf.z_rot(value = 0)        
     shelf.cutpart("Shelf")
-    shelf.edgebanding('Edge',l1 = True,l2 = True,w1 = True,w2 = True)
-    shelf.set_material_pointers("Closet_Part_Edges_Secondary","Edgebanding")
+    shelf.edgebanding('Edge',l1 = True,l2 = True,w1 = True,w2 = True)  
+    shelf.set_material_pointers("Closet_Part_Edges","Edgebanding")
     shelf.set_material_pointers("Core","LeftEdge")
     shelf.set_material_pointers("Core","RightEdge")
     shelf.set_material_pointers("Core","BackEdge")
     for child in shelf.obj_bp.children:
         if child.cabinetlib.type_mesh == 'CUTPART':
-            child.mv.use_multiple_edgeband_pointers = True    
+            child.mv.use_multiple_edgeband_pointers = True  
     return shelf
 
 def add_hpl_top(assembly):
@@ -342,12 +344,6 @@ def add_drawer_pull(assembly):
     return pull_hardware
 
 def add_drawer_file_rails(assembly):
-    
-    #cover_cleat.obj_bp.mv.comment_2 = "1028"
-    
-    #props.is_cleat_bp = True
-    
-
     assembly.add_prompt("Use File Rail",prompt_type='CHECKBOX',value=False,tab_index=0)
     assembly.add_prompt("File Rail Type",prompt_type='COMBOBOX',value=1,items=['Letter', 'Legal'],tab_index=0)
     assembly.add_prompt("File Rail Direction",prompt_type='COMBOBOX',value=0,items=['Front to Back', 'Lateral'],tab_index=0)
@@ -369,7 +365,8 @@ def add_drawer_file_rails(assembly):
 
     left_rail = assembly.add_assembly(PART_WITH_FRONT_EDGEBANDING)
     props = props_closet.get_object_props(left_rail.obj_bp)
-    left_rail.set_name("Left File Rail")
+    props.is_file_rail_bp = True
+    left_rail.set_name("File Rail")
     left_rail.cutpart("Left File Rail")
     left_rail.edgebanding("Edge_2",l1 = True)
 
@@ -382,8 +379,9 @@ def add_drawer_file_rails(assembly):
     left_rail.prompt('Hide', 'IF(Use_File_Rail,IF(File_Rail_Direction==0,Hide,True),True)',[Hide, Use_File_Rail,File_Rail_Type,File_Rail_Direction])
     
     right_rail = assembly.add_assembly(PART_WITH_FRONT_EDGEBANDING)
-    props = props_closet.get_object_props(left_rail.obj_bp)
-    right_rail.set_name("Right File Rail")
+    props = props_closet.get_object_props(right_rail.obj_bp)
+    props.is_file_rail_bp = True
+    right_rail.set_name("File Rail")
     right_rail.cutpart("Right File Rail")
     right_rail.edgebanding("Edge_2",l1 = True)
 
@@ -398,8 +396,9 @@ def add_drawer_file_rails(assembly):
 
 
     front_rail = assembly.add_assembly(PART_WITH_FRONT_EDGEBANDING)
-    props = props_closet.get_object_props(left_rail.obj_bp)
-    front_rail.set_name("Front File Rail")
+    props = props_closet.get_object_props(front_rail.obj_bp)
+    props.is_file_rail_bp = True
+    front_rail.set_name("File Rail")
     front_rail.cutpart("Front File Rail")
     front_rail.edgebanding("Edge_2",l1 = True)
 
@@ -412,8 +411,9 @@ def add_drawer_file_rails(assembly):
     front_rail.prompt('Hide', 'IF(Use_File_Rail,IF(File_Rail_Direction==1,Hide,True),True)',[Hide, Use_File_Rail,File_Rail_Type,File_Rail_Direction])
     
     back_rail = assembly.add_assembly(PART_WITH_FRONT_EDGEBANDING)
-    props = props_closet.get_object_props(left_rail.obj_bp)
-    back_rail.set_name("Back File Rail")
+    props = props_closet.get_object_props(back_rail.obj_bp)
+    props.is_file_rail_bp = True
+    back_rail.set_name("File Rail")
     back_rail.cutpart("Back File Rail")
     back_rail.edgebanding("Edge_2",l1 = True)
 
@@ -682,7 +682,16 @@ def add_countertop(assembly):
     ctop.obj_bp.mv.comment_2 = "1605" 
     props = props_closet.get_object_props(ctop.obj_bp)
     props.is_countertop_bp = True
-    ctop.set_name("Countertop Deck")
+    ctop.set_name("Countertop")
+    ctop.material("Countertop_Surface")
+    return ctop
+
+def add_granite_countertop(assembly):
+    ctop = assembly.add_assembly(STRAIGHT_COUNTER_TOP)
+    ctop.obj_bp.mv.comment_2 = "1605" 
+    props = props_closet.get_object_props(ctop.obj_bp)
+    props.is_countertop_bp = True
+    ctop.set_name("Countertop")
     ctop.material("Countertop_Surface")
     return ctop
 
@@ -696,12 +705,29 @@ def add_back_splash(assembly):
     return b_splash    
 
 def add_cc_countertop(assembly):
-    ctop = assembly.add_assembly(STRAIGHT_CC_COUNTER_TOP)
+    #ctop = assembly.add_assembly(STRAIGHT_CC_COUNTER_TOP)
+    ctop = assembly.add_assembly(PART_WITH_ALL_EDGES)
     ctop.obj_bp.mv.comment_2 = "1605" 
     props = props_closet.get_object_props(ctop.obj_bp)
     props.is_countertop_bp = True
-    ctop.set_name("Countertop Deck")
-    ctop.material("Countertop_Surface")
+    ctop.set_name("Countertop")
+    ctop.material("Countertop_Surface")  
+    ctop.add_prompt(name="Exposed Left",prompt_type='CHECKBOX',value=False,tab_index=0)
+    ctop.add_prompt(name="Exposed Right",prompt_type='CHECKBOX',value=False,tab_index=0)    
+    ctop.add_prompt(name="Exposed Back",prompt_type='CHECKBOX',value=False,tab_index=0)
+    ctop.add_prompt(name="Edge Type", prompt_type='CHECKBOX',value=False,tab_index=0)
+    ctop.x_rot(value = 0)
+    ctop.y_rot(value = 0)
+    ctop.z_rot(value = 0)        
+    ctop.cutpart("Shelf")
+    ctop.edgebanding('Edge',l1 = True,l2 = True,w1 = True,w2 = True)
+    ctop.set_material_pointers("Closet_Part_Edges","Edgebanding")
+    ctop.set_material_pointers("Core","LeftEdge")
+    ctop.set_material_pointers("Core","RightEdge")
+    ctop.set_material_pointers("Core","BackEdge")
+    for child in ctop.obj_bp.children:     #shelf.obj_bp.children:
+        if child.cabinetlib.type_mesh == 'CUTPART':
+            child.mv.use_multiple_edgeband_pointers = True    
     return ctop
 
 def add_cc_corner_countertop(assembly):
@@ -722,6 +748,7 @@ def add_door(assembly):
     door.add_prompt(name="Door Type",prompt_type='COMBOBOX',value=0,tab_index=0,items=['Base','Tall','Upper'],columns=4)
     door.add_prompt(name="Door Swing",prompt_type='COMBOBOX',value=0,tab_index=0,items=['Left','Right','Top','Bottom'],columns=4)
     door.add_prompt(name="No Pulls",prompt_type='CHECKBOX',value=False,tab_index=0)
+    door.add_prompt(name="Door Style",prompt_type='TEXT',value="Slab Door",tab_index=0)
     door.obj_bp.mv.is_cabinet_door = True
     obj_props = props_closet.get_object_props(door.obj_bp)
     obj_props.is_door_bp = True
@@ -751,6 +778,7 @@ def add_drawer_front(assembly):
     front.add_prompt(name="Use Double Pulls",prompt_type='CHECKBOX',value=False,tab_index=0)
     front.add_prompt(name="Center Pulls on Drawers",prompt_type='CHECKBOX',value=False,tab_index=0)
     front.add_prompt(name="Drawer Pull From Top",prompt_type='DISTANCE',value=0,tab_index=0)
+    front.add_prompt(name="Door Style",prompt_type='TEXT',value="Slab Door",tab_index=0)
     front.edgebanding('Door_Edges',l1 = True, w1 = True, l2 = True, w2 = True)
     front.obj_bp.mv.is_cabinet_drawer_front = True
     front.obj_bp.mv.comment = "Melamine Drawer Face"

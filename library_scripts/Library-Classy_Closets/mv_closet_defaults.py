@@ -17,6 +17,7 @@ from . import common_lists
 from . import common_parts
 import snap_db
 from snap_db import property_groups
+from snap_db import utils as sn_utils
 import csv
 
 #---------COMMON FOLDER NAMES
@@ -220,7 +221,7 @@ def update_rods(self,context):
         if 'Polished Brass' in self.rods_name:
             rod_finish.item_name = "Polished Brass"  
         if 'Chrome' in self.rods_name:
-            rod_finish.item_name = "Polished Chrome"              
+            rod_finish.item_name = "Polished Chrome"
     
     for assembly in scene_parts(context):
         props = get_object_props(assembly.obj_bp)
@@ -278,31 +279,7 @@ def enum_pulls(self,context):
     icon_dir = os.path.join(os.path.dirname(__file__),PULL_FOLDER_NAME,self.pull_category)
     pcoll = preview_collections["pulls"]
     return utils.get_image_enum_previews(icon_dir,pcoll)
-
-def update_pulls(self,context):
-    for spec_group in context.scene.mv.spec_groups:    
-        pull_finish = spec_group.materials["Pull_Finish"]
-        pull_finish.library_name = "Cabinet Materials"
-        pull_finish.category_name = "Metals"
-         
-        if 'Staineless' in self.pull_category:
-            pull_finish.item_name = "Stainless Steel"
-        if 'Nickel' in self.pull_category:
-            pull_finish.item_name = "Satin Nickel"  
-        if 'Matte Nickel' in self.pull_category:
-            pull_finish.item_name = "Matte Nickel"                          
-        if 'Bronze' in self.pull_category:
-            pull_finish.item_name = "Oil Rubbed Bronze" 
-        if 'Chrome' in self.pull_category:
-            pull_finish.item_name = "Polished Chrome"
-        if 'Matte Chrome' in self.pull_category:
-            pull_finish.item_name = "Matte Chrome"  
-        if 'Black' in self.pull_category:
-            pull_finish.item_name = "Black Anodized Metal"  
-        if 'Matte Black' in self.pull_category:
-            pull_finish.item_name = "Cast Iron" 
             
-    bpy.ops.cabinetlib.update_scene_from_pointers()            
 
 def update_pull_category(self,context):
     if preview_collections["pulls"]:
@@ -942,7 +919,7 @@ class Closet_Options(PropertyGroup):
     rods_name = bpy.props.EnumProperty(name="Rod Name",items=enum_rods,update=update_rods)
     
     pull_category = bpy.props.EnumProperty(name="Pull Category",items=enum_pull_categories,update=update_pull_category)
-    pull_name = bpy.props.EnumProperty(name="Pull Name",items=enum_pulls,update=update_pulls)
+    pull_name = bpy.props.EnumProperty(name="Pull Name",items=enum_pulls)
     
     hinge_name = bpy.props.EnumProperty(name="Hinge Name",items=enum_hinges,update=update_hinge)    
     
@@ -1183,9 +1160,20 @@ class PROPERTIES_Object_Properties(PropertyGroup):
     is_closet_top_bp = BoolProperty(name="Is Closet Top BP",
                                     description="Used to determine if the object is a closet top base point",
                                     default=False)
+
+    is_empty_molding = BoolProperty(name="Is Empty Molding",
+                                    description="Used to determine if the object is an empty assembly used for molding export")
+                    
+    is_closet_bottom_bp = BoolProperty(name="Is Closet Bottom BP",
+                                    description="Used to determine if the object is a closet bottom base point",
+                                    default=False)
     
     is_crown_molding = BoolProperty(name="Is Crown Molding",
                                     description="Used to determine if the object is closet crown molding",
+                                    default=False)
+
+    is_flat_crown_bp= BoolProperty(name="Is Flat Crown BP",
+                                    description="Used to determine if the object is closet flat crown bp",
                                     default=False)
     
     is_base_molding = BoolProperty(name="Is Base Molding",
@@ -1261,6 +1249,10 @@ class PROPERTIES_Object_Properties(PropertyGroup):
     is_plant_on_top_bp = BoolProperty(name="Is Plant on Top Base Point",
                                       description="Used to determine if the assembly is a plant on top",
                                       default=False)
+
+    is_bottom_capping_bp = BoolProperty(name="Is Bottom Capping Base Point",
+                              description="Used to determine if the assembly is bottom capping",
+                              default=False)
     
     is_hpl_top_bp = BoolProperty(name="Is HPL Top Base Point",
                                       description="Used to determine if the assembly is a hpl top",
@@ -1333,10 +1325,15 @@ class PROPERTIES_Object_Properties(PropertyGroup):
 
     is_top_back_bp = BoolProperty(name="Is Top Back Base Point",
                               description="Used to determine if the assembly is a top section back",
-
                               default=False)
+
+
     is_bottom_back_bp = BoolProperty(name="Is Bottom Back Base Point",
                               description="Used to determine if the assembly is a bottom section back",
+                              default=False)
+    
+    is_hutch_back_bp = BoolProperty(name="Is Hutch Back Base Point",
+                              description="Used to determine if the assembly is a hutch back",
                               default=False)
     
     is_drawer_stack_bp = BoolProperty(name="Is Drawer Stack Base Point",
@@ -1409,7 +1406,11 @@ class PROPERTIES_Object_Properties(PropertyGroup):
 
     is_accessory_bp = BoolProperty(name="Is Accessory Base Point",
                               description="Used to determine if the assembly is an accessory",
-                              default=False)    
+                              default=False)   
+
+    is_file_rail_bp = BoolProperty(name="Is File Rail Base Point",
+                              description="Used to determine if the assembly is an file rail",
+                              default=False)   
 
     opening_type = StringProperty(name="Opening Type",
                                   description="Type of Opening")
@@ -1528,6 +1529,7 @@ class OPERATOR_Auto_Add_Molding(bpy.types.Operator):
     bl_options = {'UNDO'}
 
     molding_type = bpy.props.StringProperty(name="Molding Type")
+    crown_to_ceiling = bpy.props.BoolProperty(name="Crown To Ceiling", default=False)
 
     crown_profile = None
     base_profile = None
@@ -1750,15 +1752,69 @@ class OPERATOR_Auto_Add_Molding(bpy.types.Operator):
                                 else:
                                     start_x += width.value() + thickness.value()
                                     points.append((start_x,-depth.value(),0))
-        
+
+                        empty_assembly = fd_types.Assembly()
+                        empty_assembly.create_assembly()
+                        empty_assembly.obj_bp.mv.type_mesh = 'CUTPART' 
+                        empty_assembly.obj_x.hide = True
+                        empty_assembly.obj_y.hide = True
+                        empty_assembly.obj_z.hide = True
+                    
                         curve = self.create_extrusion(points,is_crown,product)
-                        curve.parent = product.obj_bp
+                        curve.parent = empty_assembly.obj_bp
                         curve.mv.property_id = product.obj_bp.mv.property_id
+
+                        empty_assembly.obj_bp.parent = product.obj_bp
+
+                        length = 0
+                        if(len(curve.data.splines[0].bezier_points) == 3):
+                            x1 = curve.data.splines[0].bezier_points[0].co[0]
+                            x2 = curve.data.splines[0].bezier_points[1].co[0]
+                            x3 = curve.data.splines[0].bezier_points[2].co[0]
+                            y1 = curve.data.splines[0].bezier_points[0].co[1]
+                            y2 = curve.data.splines[0].bezier_points[1].co[1]
+                            y3 = curve.data.splines[0].bezier_points[2].co[1]
+                            if(x1 == x2):
+                                length += abs(x1-x3)
+                            if(x1 == x3):
+                                length += abs(x1-x2)
+                            if(x2 == x3):
+                                length += abs(x3-x1)
+                            if(y1 == y2):
+                                length += abs(y1-y3)
+                            if(y1 == y3):
+                                length += abs(y1-y2)
+                            if(y2 == y3):
+                                length += abs(y3-y1)
+
+                        else:
+                            x1 = curve.data.splines[0].bezier_points[0].co[0]
+                            x2 = curve.data.splines[0].bezier_points[1].co[0]
+                            y1 = curve.data.splines[0].bezier_points[0].co[1]
+                            y2 = curve.data.splines[0].bezier_points[1].co[1]
+                            length += abs(x1-x2)
+                            length += abs(y1-y2)
+
+                        empty_assembly.obj_x.location.x = length
+                        empty_assembly.obj_z.location.z = unit.inch(3)
+                        
+                        
+                        obj_props = get_object_props(empty_assembly.obj_bp)
+                        props = get_scene_props().closet_options
+                        obj_props.is_empty_molding = True
                         if is_crown:
+                            obj_props.is_crown_molding = True
+                            empty_assembly.obj_bp.mv.name_object = props.crown_molding
+                            empty_assembly.add_tab(name='Crown Molding Options',tab_type='HIDDEN')
+                            empty_assembly.add_prompt(name="Crown To Ceiling",prompt_type='CHECKBOX',value=self.crown_to_ceiling,tab_index=0)
                             if floor.value():
                                 curve.location.z = height.value()
                             else:
                                 curve.location.z = product.obj_z.location.z
+                        else:
+                            obj_props.is_base_molding = True
+                            empty_assembly.obj_bp.mv.name_object = props.base_molding
+
 
     def add_hutch_molding(self,product,is_crown=True):
         points = []
@@ -1834,6 +1890,18 @@ class OPERATOR_Auto_Add_Molding(bpy.types.Operator):
         curve.parent = product.obj_bp
         curve.mv.property_id = product.obj_bp.mv.property_id
         curve.location.z = 0       
+
+
+    def invoke(self, context, event):
+        wm = context.window_manager
+        return wm.invoke_props_dialog(self, width=400)
+
+    def draw(self,context):
+        layout = self.layout
+        box = layout.box()
+        row = box.row()
+        row.label("Crown to Ceiling ")
+        row.prop(self, 'crown_to_ceiling',text="") 
         
     def execute(self, context):
         self.clean_up_room()
@@ -1951,7 +2019,7 @@ class OPERATOR_Update_Door_Selection(bpy.types.Operator):
                 new_door.obj_bp.rotation_euler = door_assembly.obj_bp.rotation_euler
             
             property_id = door_assembly.obj_bp.mv.property_id
-            
+
             utils.copy_drivers(door_assembly.obj_bp,new_door.obj_bp)
             utils.copy_prompt_drivers(door_assembly.obj_bp,new_door.obj_bp)
             utils.copy_drivers(door_assembly.obj_x,new_door.obj_x)
@@ -1965,6 +2033,15 @@ class OPERATOR_Update_Door_Selection(bpy.types.Operator):
             utils.delete_obj_list(utils.get_child_objects(door_assembly.obj_bp,[]))
             new_door.obj_bp.mv.property_id = property_id
             new_door.obj_bp.mv.is_cabinet_door = True
+            
+            parent_assembly = fd_types.Assembly(new_door.obj_bp.parent)
+            parent_door_style = parent_assembly.get_prompt("Door Style")
+            new_door.add_prompt(name="Door Style",prompt_type='TEXT',value="Slab Door",tab_index=0)
+            door_style = new_door.get_prompt("Door Style")
+            if(door_style):
+                door_style.set_value(props.door_style)
+            if(parent_door_style):
+                parent_door_style.set_value(props.door_style)
             self.update_door_children_properties(new_door.obj_bp, property_id, props.door_style)
 
         return {'FINISHED'}
@@ -2087,26 +2164,58 @@ class OPERATOR_Update_Pull_Selection(bpy.types.Operator):
             pull_assembly = fd_types.Assembly(pull.parent)
             pull_assembly.set_name(props.pull_name)
             pull_length = pull_assembly.get_prompt("Pull Length")
-            new_pull = utils.get_object(os.path.join(common_parts.LIBRARY_DATA_DIR,
-                                                  PULL_FOLDER_NAME,
-                                                  props.pull_category,
-                                                  props.pull_name+".blend"))
+            new_pull = utils.get_object(
+                os.path.join(
+                    os.path.dirname(__file__),
+                    PULL_FOLDER_NAME,
+                    props.pull_category,
+                    props.pull_name + ".blend"))
             new_pull.mv.is_cabinet_pull = True
-            new_pull.mv.name_object = pull.mv.name_object
+            new_pull.mv.name_object = props.pull_name
             new_pull.mv.comment = props.pull_name
             new_pull.parent = pull.parent
             new_pull.location = pull.location
             new_pull.rotation_euler = pull.rotation_euler
             for slot in new_pull.cabinetlib.material_slots:
-                slot.pointer_name = "Pull_Finish"            
+                slot.library_name = "Cabinet Materials"
+                slot.category_name = "Metals"
+                slot.item_name = self.update_pulls(context)
             
-            utils.assign_materials_from_pointers(new_pull)
+            sn_utils.assign_materials_from_pointers(new_pull)
             pull_length.set_value(new_pull.dimensions.x)
             utils.copy_drivers(pull,new_pull)
             
         utils.delete_obj_list(pulls)
         
         return {'FINISHED'}
+    
+    def update_pulls(self,context):
+        props = get_scene_props().closet_options
+            
+        if 'Stainless Steel Look' in props.pull_category:
+            return "Chrome"
+        elif 'Satin Nickel' in props.pull_category:
+            return "Matte Chrome"
+        elif 'Matte Nickel' in props.pull_category:
+            return "Matte Chrome"
+        elif 'Bronze' in props.pull_category:
+            return "Oil Rubbed Bronze"
+        elif 'Polished Chrome' in props.pull_category:
+            return "Polished Chrome"
+        elif 'Matte Chrome' in props.pull_category:
+            return "Matte Chrome"  
+        elif 'Matte Black' in props.pull_category:
+            return "Black Anodized Metal"  
+        elif 'Oil Rubbed Bronze' in props.pull_category:
+            return "Oil Rubbed Bronze"
+        elif 'Matte Gold' in props.pull_category:
+            return "Polished Brass"
+        elif 'Antique Satin Brass' in props.pull_category:
+            return "Antique Satin Brass"
+        elif 'Brushed Nickel' in props.pull_category:
+            return "Matte Chrome"
+        else:
+            return "Blue Anodized Metal"
 
 class OPERATOR_Combine_Parts(bpy.types.Operator):
     bl_idname = LIBRARY_NAME_SPACE + ".combine_parts"

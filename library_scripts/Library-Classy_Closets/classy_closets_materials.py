@@ -144,7 +144,7 @@ class PROPERTIES_Classy_Materials(bpy.types.PropertyGroup):
                                                         ('QUARTZ',"Quartz","This is the countertop type"),
                                                         ('GRANITE',"Granite","This is the countertop type")],
                                                  description="This is the countertop type selection",
-                                                 default="GRANITE",
+                                                 default="MELAMINE",
                                                  update=update_countertop)
     
     hpl_manufacturer = bpy.props.EnumProperty(name="HPL Manufacturer",
@@ -763,7 +763,6 @@ class OPERATOR_Assign_Materials(bpy.types.Operator):
                     exposed_left = assembly.get_prompt("Exposed Left")
                     exposed_right = assembly.get_prompt("Exposed Right")
                     exposed_back = assembly.get_prompt("Exposed Back")
-                    
                     if exposed_left:
                         if exposed_left.value():
                             for child in assembly.obj_bp.children:
@@ -875,7 +874,7 @@ class OPERATOR_Assign_Materials(bpy.types.Operator):
                         if scene_props.ct_type == 'HPL':
                             ctop_type.set_value('HPL')    
                         if scene_props.ct_type == 'QUARTZ':                   
-                            ctop_type.set_value('Granite')    
+                            ctop_type.set_value('Quartz')   #Granite 
                         if scene_props.ct_type == 'GRANITE':                   
                             ctop_type.set_value('Granite')            
                 

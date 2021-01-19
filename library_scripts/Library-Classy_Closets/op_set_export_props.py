@@ -1,5 +1,6 @@
 import bpy
-from mv import fd_types, unit, utils, opengl_dim
+from snap_db.fd_2dviews import opengl_dim
+from mv import fd_types, unit, utils
 from . import mv_closet_defaults as props_closet
 
 def part_is_not_hidden(part):

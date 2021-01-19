@@ -21,6 +21,7 @@ import sqlite3
 from sqlite3 import Error
 from . import snap_xml
 import snap_db
+from snap_db import utils as snap_utils
 from pprint import pprint
 
 try:
@@ -172,7 +173,7 @@ def get_hardware_sku(obj_bp, assembly, item_name):
                 Name LIKE '{}'\
             ;".format(
                 "%" + slide_name + "%",
-                "%" + str(slide_len) + "in%",
+                "%" + str(slide_len) + "%",
             )
         )    
 
@@ -183,7 +184,6 @@ def get_hardware_sku(obj_bp, assembly, item_name):
             #print("FOUND SLIDE SKU: ", sku)            
         
         conn.close()
-
         return sku        
 
     #Hamper Basket
@@ -554,6 +554,21 @@ class OPS_Export_XML(Operator):
 
     cover_cleat_lengths = []
     cover_cleat_bp = None
+
+    single_exposed_flat_crown = []
+    top_edgebanded_flat_crown = []
+    flat_crown_heights = []
+    flat_crown_lengths = []
+    flat_crown_bp = None
+
+    crown_molding_lengths = []
+    crown_molding_bp = None
+
+    inverted_base_lengths = []
+    inverted_base_bp = None
+
+    base_molding_lengths = []
+    base_molding_bp = None
     
     buyout_materials = []
     edgeband_materials = {}
@@ -608,7 +623,7 @@ class OPS_Export_XML(Operator):
         for wall in self.walls:
             self.walls.remove(wall)
 
-        bpy.ops.fd_material.get_materials()
+        #bpy.ops.fd_material.get_materials()
 
         for scene in bpy.data.scenes:
             if not scene.mv.plan_view_scene and not scene.mv.elevation_scene:
@@ -667,6 +682,7 @@ class OPS_Export_XML(Operator):
                     return True
         return False
 
+
     def get_product_z_location(self,product):
         #Height Above Floor
         if product.obj_bp.location.z > 0:
@@ -697,6 +713,15 @@ class OPS_Export_XML(Operator):
             if not assembly.obj_bp.lm_closets.is_toe_kick_stringer_bp:
                 width += unit.inch(3.0)
 
+        if assembly.obj_bp.lm_closets.is_bottom_capping_bp:
+            against_left_wall = assembly.get_prompt("Against Left Wall")
+            against_right_wall = assembly.get_prompt("Against Right Wall")
+            if(against_left_wall and against_right_wall):
+                if(against_left_wall.value()):
+                    width += unit.inch(3.0)
+                if(against_right_wall.value()):
+                    width += unit.inch(3.0)
+
         return self.distance(width)
     
     def get_part_length(self,assembly):
@@ -725,8 +750,30 @@ class OPS_Export_XML(Operator):
                 length = self.get_os_top_shelf_length(length)
                 length = unit.inch(length)
                 print("Top shelf oversize length",length)
+        
+        if parent_bp.lm_closets.is_closet_bottom_bp:
+            capping_bottom_assembly = fd_types.Assembly(parent_bp)
+            against_left_wall = capping_bottom_assembly.get_prompt("Against Left Wall")
+            against_right_wall = capping_bottom_assembly.get_prompt("Against Right Wall")
+            if against_left_wall:
+                if against_left_wall.value():
+                    length += unit.inch(3)
+            if against_right_wall:
+                if against_right_wall.value():
+                    length += unit.inch(3)
                 
         return self.distance(length)
+
+    def get_os_top_shelf_length(self, x):
+        for i,length in enumerate(self.top_shelf_sizes):
+            if unit.meter_to_inch(x) + self.top_shelf_offset >= self.top_shelf_sizes[-1]:
+                return self.top_shelf_sizes[-1]
+
+            if unit.meter_to_inch(x) < length:
+                if length - unit.meter_to_inch(x) <= self.top_shelf_offset:
+                    return self.top_shelf_sizes[i+1]
+                else:
+                    return self.top_shelf_sizes[i]  
         
     def get_part_x_location(self,obj,value):
         if obj.parent is None or obj.parent.mv.type_group == 'PRODUCT':
@@ -853,6 +900,470 @@ class OPS_Export_XML(Operator):
                 self.edgeband_materials[edge_mat_name] = thickness                
             return edge_mat_name
 
+    def get_pull_drilling(self, assembly, token, circles):
+        normal_z = 1
+        org_displacement = 0
+
+        if token.face == '6':
+            normal_z = -1
+            org_displacement = self.distance(snap_utils.get_part_thickness(assembly.obj_bp))
+
+        param_dict = token.create_parameter_dictionary()  
+        dim_in_x = float(param_dict['Par1'])
+        dim_in_y = float(param_dict['Par2'])
+        dim_in_z = float(param_dict['Par3'])
+        bore_dia_meter = unit.millimeter(float(param_dict['Par4']))
+        bore_dia = unit.meter_to_inch(bore_dia_meter)
+        end_dim_in_x = float(param_dict['Par5'])
+        end_dim_in_y = float(param_dict['Par6'])
+        #distance_between_holes = float(param_dict['Par7'])                                          
+
+        #Hole 1
+        cir_dict = {}
+        cir_dict['cen_x'] = dim_in_x
+        cir_dict['cen_y'] = dim_in_y
+        cir_dict['cen_z'] = dim_in_z
+        cir_dict['diameter'] = bore_dia
+        cir_dict['normal_z'] = normal_z
+        cir_dict['org_displacement'] = 0
+        circles.append(cir_dict)
+
+        #Hole 2
+        cir_dict = {}
+        cir_dict['cen_x'] = end_dim_in_x
+        cir_dict['cen_y'] = end_dim_in_y
+        cir_dict['cen_z'] = dim_in_z
+        cir_dict['diameter'] = bore_dia
+        cir_dict['normal_z'] = normal_z
+        cir_dict['org_displacement'] = 0
+        circles.append(cir_dict)
+
+        return circles
+
+    def get_door_hinge_drilling(self, assembly, token, circles):
+        door_swing = assembly.get_prompt("Door Swing").value()
+        door_x_dim = unit.meter_to_inch(assembly.obj_x.location.x)
+        door_y_dim = abs(unit.meter_to_inch(assembly.obj_y.location.y))
+        normal_z = -1
+        org_displacement = self.distance(snap_utils.get_part_thickness(assembly.obj_bp))
+        bore_dia = unit.meter_to_inch(unit.millimeter(35))
+        dim_in_x = unit.meter_to_inch(unit.millimeter(78))
+        dim_in_y = unit.meter_to_inch(unit.millimeter(21))
+        bore_depth = unit.meter_to_inch(unit.millimeter(14))
+        screw_hole_y_dim = unit.meter_to_inch(unit.millimeter(10))
+        screw_hole_dia = unit.meter_to_inch(unit.millimeter(2))
+        distance_between_holes = unit.meter_to_inch(unit.millimeter(45))
+        mid_hole_offset = unit.meter_to_inch(unit.millimeter(16))
+        screw_hole_depth = unit.meter_to_inch(unit.millimeter(4))
+
+        if door_swing == "Bottom":
+            print("Bottom swing hamper door")
+
+        #Bottom
+        #Add Main hole
+        cir = {}
+        cir['cen_x'] = -dim_in_x
+        cir['cen_y'] = dim_in_y
+        cir['cen_z'] = bore_depth
+        cir['diameter'] = bore_dia 
+        cir['normal_z'] = normal_z
+        cir['org_displacement'] = org_displacement
+        circles.append(cir)                                        
+
+        #Add screw hole left
+        cir = {}
+        cir['cen_x'] = -(dim_in_x - distance_between_holes * 0.5)
+        cir['cen_y'] = dim_in_y + screw_hole_y_dim
+        cir['cen_z'] = screw_hole_depth
+        cir['diameter'] = screw_hole_dia 
+        cir['normal_z'] = normal_z
+        cir['org_displacement'] = org_displacement
+        circles.append(cir)                                        
+
+        #add screw hole right
+        cir = {}
+        cir['cen_x'] = -(dim_in_x + distance_between_holes * 0.5)
+        cir['cen_y'] = dim_in_y + screw_hole_y_dim
+        cir['cen_z'] = screw_hole_depth
+        cir['diameter'] = screw_hole_dia 
+        cir['normal_z'] = normal_z
+        cir['org_displacement'] = org_displacement
+        circles.append(cir)
+
+        dim_in_x = door_x_dim - dim_in_x
+
+        #Top
+        #Add Main hole
+        cir = {}
+        cir['cen_x'] = -dim_in_x
+        cir['cen_y'] = dim_in_y
+        cir['cen_z'] = bore_depth
+        cir['diameter'] = bore_dia 
+        cir['normal_z'] = normal_z
+        cir['org_displacement'] = org_displacement
+        circles.append(cir)                                        
+
+        #Add screw hole left
+        cir = {}
+        cir['cen_x'] = -(dim_in_x - distance_between_holes * 0.5)
+        cir['cen_y'] = dim_in_y + screw_hole_y_dim
+        cir['cen_z'] = screw_hole_depth
+        cir['diameter'] = screw_hole_dia 
+        cir['normal_z'] = normal_z
+        cir['org_displacement'] = org_displacement
+        circles.append(cir)                                        
+
+        #add screw hole right
+        cir = {}
+        cir['cen_x'] = -(dim_in_x + distance_between_holes * 0.5)
+        cir['cen_y'] = dim_in_y + screw_hole_y_dim
+        cir['cen_z'] = screw_hole_depth
+        cir['diameter'] = screw_hole_dia 
+        cir['normal_z'] = normal_z
+        cir['org_displacement'] = org_displacement
+        circles.append(cir)
+
+        #Mid hinge drilling for doors longer than 39H Count
+        if door_x_dim > 50:
+            if(round(unit.meter_to_millimeter(door_x_dim)/32) % 2 == 0):
+                if door_swing == "Left":
+                    dim_in_x = door_x_dim * 0.5 + mid_hole_offset
+                else:
+                    dim_in_x = door_x_dim * 0.5 - mid_hole_offset
+            else:
+                dim_in_x = door_x_dim * 0.5            
+
+            #Add Main hole
+            cir = {}
+            cir['cen_x'] = -dim_in_x
+            cir['cen_y'] = dim_in_y
+            cir['cen_z'] = bore_depth
+            cir['diameter'] = bore_dia 
+            cir['normal_z'] = normal_z
+            cir['org_displacement'] = org_displacement
+            circles.append(cir)                                        
+
+            #Add screw hole left
+            cir = {}
+            cir['cen_x'] = -(dim_in_x - distance_between_holes * 0.5)
+            cir['cen_y'] = dim_in_y + screw_hole_y_dim
+            cir['cen_z'] = screw_hole_depth
+            cir['diameter'] = screw_hole_dia 
+            cir['normal_z'] = normal_z
+            cir['org_displacement'] = org_displacement
+            circles.append(cir)                                        
+
+            #add screw hole right
+            cir = {}
+            cir['cen_x'] = -(dim_in_x + distance_between_holes * 0.5)
+            cir['cen_y'] = dim_in_y + screw_hole_y_dim
+            cir['cen_z'] = screw_hole_depth
+            cir['diameter'] = screw_hole_dia 
+            cir['normal_z'] = normal_z
+            cir['org_displacement'] = org_displacement
+            circles.append(cir)
+
+        return circles
+
+    def get_hamper_door_hinge_drilling(self, assembly, token, circles):
+        #door_x_dim = unit.meter_to_inch(assembly.obj_x.location.x)
+        door_y_dim = abs(unit.meter_to_inch(assembly.obj_y.location.y))
+        normal_z = -1
+        org_displacement = self.distance(snap_utils.get_part_thickness(assembly.obj_bp))
+        bore_dia = unit.meter_to_inch(unit.millimeter(35))
+        dim_in_x = unit.meter_to_inch(unit.millimeter(21))
+        dim_in_y = unit.meter_to_inch(unit.millimeter(78))                                   
+        bore_depth = unit.meter_to_inch(unit.millimeter(11.5))
+        screw_hole_x_dim = unit.meter_to_inch(unit.millimeter(9.5)) 
+        screw_hole_dia = unit.meter_to_inch(unit.millimeter(0.5)) 
+        distance_between_holes = unit.meter_to_inch(unit.millimeter(45))
+
+        #Right
+        cir = {}
+        cir['cen_x'] = -dim_in_y  # -dim_in_x
+        cir['cen_y'] = dim_in_x  # dim_in_y
+        cir['cen_z'] = bore_depth
+        cir['diameter'] = bore_dia 
+        cir['normal_z'] = normal_z
+        cir['org_displacement'] = org_displacement
+        circles.append(cir)                                        
+
+        cir = {}
+        cir['cen_x'] = -(dim_in_y + distance_between_holes * 0.5)
+        cir['cen_y'] = dim_in_x + screw_hole_x_dim
+        cir['cen_z'] = bore_depth
+        cir['diameter'] = screw_hole_dia 
+        cir['normal_z'] = normal_z
+        cir['org_displacement'] = org_displacement
+        circles.append(cir)                                        
+
+        cir = {}
+        cir['cen_x'] = -(dim_in_y - distance_between_holes * 0.5)
+        cir['cen_y'] = dim_in_x + screw_hole_x_dim
+        cir['cen_z'] = bore_depth
+        cir['diameter'] = screw_hole_dia 
+        cir['normal_z'] = normal_z
+        cir['org_displacement'] = org_displacement
+        circles.append(cir)
+
+        dim_in_y = door_y_dim - dim_in_y
+
+        #Left
+        cir = {}
+        cir['cen_x'] = -dim_in_y  # -dim_in_x
+        cir['cen_y'] = dim_in_x  # dim_in_y
+        cir['cen_z'] = bore_depth
+        cir['diameter'] = bore_dia 
+        cir['normal_z'] = normal_z
+        cir['org_displacement'] = org_displacement
+        circles.append(cir)                                        
+
+        cir = {}
+        cir['cen_x'] = -(dim_in_y + distance_between_holes * 0.5)
+        cir['cen_y'] = dim_in_x + screw_hole_x_dim
+        cir['cen_z'] = bore_depth
+        cir['diameter'] = screw_hole_dia 
+        cir['normal_z'] = normal_z
+        cir['org_displacement'] = org_displacement
+        circles.append(cir)                                        
+
+        cir = {}
+        cir['cen_x'] = -(dim_in_y - distance_between_holes * 0.5)
+        cir['cen_y'] = dim_in_x + screw_hole_x_dim
+        cir['cen_z'] = bore_depth
+        cir['diameter'] = screw_hole_dia 
+        cir['normal_z'] = normal_z
+        cir['org_displacement'] = org_displacement
+        circles.append(cir)
+
+        return circles
+
+    def get_shelf_kd_drilling(self, assembly, token, token_name, circles):
+        #Two Left Holes For KD Shelf
+        if token_name == 'Left Drilling':                                   
+            normal_z = 1
+            org_displacement = 0
+
+            if token.face == '5':
+                normal_z = -1
+                org_displacement = self.distance(utils.get_part_thickness(assembly.obj_bp))
+
+            param_dict = token.create_parameter_dictionary()
+            dim_in_x_1,dim_in_x_2 = param_dict['Par1'].split(",")
+            dim_in_y = param_dict['Par7']
+            bore_depth,irrelevant = param_dict['Par6'].split(",")
+            more_irrelevant,cam_hole_dia = param_dict['Par5'].split(",")                                  
+
+            #Back Left Hole
+            cir = {}
+            cir['cen_x'] = -float(dim_in_x_2)
+            cir['cen_y'] = float(dim_in_y)
+            cir['cen_z'] = float(bore_depth)
+            cir['diameter'] = unit.meter_to_inch(unit.millimeter(float(cam_hole_dia)))
+            cir['normal_z'] = normal_z
+            cir['org_displacement'] = org_displacement
+            circles.append(cir)
+
+            #Front Left Hole
+            cir = {}
+            cir['cen_x'] = -float(dim_in_x_1)
+            cir['cen_y'] = float(dim_in_y)
+            cir['cen_z'] = float(bore_depth)
+            cir['diameter'] = unit.meter_to_inch(unit.millimeter(float(cam_hole_dia)))
+            cir['normal_z'] = normal_z
+            cir['org_displacement'] = org_displacement
+            circles.append(cir)
+
+
+        #Two Right Holes For KD Shelf
+        if token_name == 'Right Drilling':                                   
+            normal_z = 1
+            org_displacement = 0
+            if token.face == '5':
+                normal_z = -1
+                org_displacement = self.distance(utils.get_part_thickness(assembly.obj_bp))
+
+            param_dict = token.create_parameter_dictionary()
+            dim_in_x_1,dim_in_x_2 = param_dict['Par1'].split(",")
+            dim_in_y = param_dict['Par7']                          
+            bore_depth,irrelevant = param_dict['Par6'].split(",")
+            more_irrelevant,cam_hole_dia = param_dict['Par5'].split(",")                                   
+
+            #Back Right Hole
+            cir = {}
+            cir['cen_x'] = -float(dim_in_x_2)
+            cir['cen_y'] = float(dim_in_y)
+            cir['cen_z'] = float(bore_depth)
+            cir['diameter'] = unit.meter_to_inch(unit.millimeter(float(cam_hole_dia)))
+            cir['normal_z'] = normal_z
+            cir['org_displacement'] = org_displacement
+            circles.append(cir)
+            
+            #Front Right Hole
+            cir = {}
+            cir['cen_x'] = -float(dim_in_x_1)
+            cir['cen_y'] = float(dim_in_y)
+            cir['cen_z'] = float(bore_depth)
+            cir['diameter'] = unit.meter_to_inch(unit.millimeter(float(cam_hole_dia)))
+            cir['normal_z'] = normal_z
+            cir['org_displacement'] = org_displacement
+            circles.append(cir)
+
+
+        return circles
+
+    def get_system_hole_drilling(self, assembly, token, circles):
+        param_dict = token.create_parameter_dictionary()
+        start_dim_x = float(param_dict['Par1'])                                        
+        start_dim_y = float(param_dict['Par2'])
+        drill_depth = float(param_dict['Par3'])
+        bore_dia = unit.meter_to_inch(float(param_dict['Par4']))#Convert to inches
+        end_dim_x = float(param_dict['Par5'])
+        #end_dim_in_y = float(param_dict['Par6'])
+        distance_between_holes = float(param_dict['Par7'])
+
+        normal_z = 1
+        org_displacement = 0
+
+        if token.face == '5':
+            normal_z = -1
+            org_displacement = self.distance(snap_utils.get_part_thickness(assembly.obj_bp))
+            start_dim_x = -start_dim_x
+            end_dim_x = -end_dim_x                                     
+
+        #First Hole
+        cir = {}
+        cir['cen_x'] = start_dim_x
+        cir['cen_y'] = start_dim_y
+        cir['cen_z'] = drill_depth
+        cir['diameter'] = bore_dia
+        cir['normal_z'] = normal_z
+        cir['org_displacement'] = org_displacement
+        circles.append(cir)
+
+        x = start_dim_x
+    
+        #All other holes
+        if token.face == '6':
+            while x > end_dim_x:
+                x -= distance_between_holes
+                if x < 0: break
+                cir = {}
+                cir['cen_x'] = x
+                cir['cen_y'] = start_dim_y
+                cir['cen_z'] = drill_depth
+                cir['diameter'] = bore_dia
+                cir['normal_z'] = normal_z
+                cir['org_displacement'] = org_displacement
+                circles.append(cir)
+
+        if token.face == '5':
+            while x < end_dim_x and x < 0:
+                x += distance_between_holes
+                if x > 0: break
+                cir = {}
+                cir['cen_x'] = x
+                cir['cen_y'] = start_dim_y
+                cir['cen_z'] = drill_depth
+                cir['diameter'] = bore_dia
+                cir['normal_z'] = normal_z
+                cir['org_displacement'] = org_displacement
+                circles.append(cir)
+
+        return circles
+
+    def get_slide_drilling(self, assembly, token, circles):
+        closet_materials = bpy.context.scene.db_materials
+        param_dict = token.create_parameter_dictionary()
+
+        slide_type = closet_materials.get_drawer_slide_type()
+        slide_size = get_slide_size(slide_type, assembly)
+        front_hole_dim_m = unit.millimeter(slide_size.front_hole_dim_mm)
+        front_hole_dim_inch = unit.meter_to_inch(front_hole_dim_m)
+        back_hole_dim_m = unit.millimeter(slide_size.back_hole_dim_mm)
+        back_hole_dim_inch = unit.meter_to_inch(back_hole_dim_m)
+        
+        dim_from_drawer_bottom = 0.5 # 0.5" should this be added to csv files?
+        dim_to_first_hole = front_hole_dim_inch
+        dim_to_second_hole = back_hole_dim_inch
+        bore_depth_and_dia = param_dict['Par7']
+        bore_depth, bore_dia = bore_depth_and_dia.split("|")
+        bore_depth_f = float(bore_depth)
+        bore_dia_meter = unit.millimeter(float(bore_dia))
+        bore_dia_inch = unit.meter_to_inch(bore_dia_meter)
+
+        #Front Hole
+        cir = {}
+        cir['cen_x'] = dim_to_first_hole
+        cir['cen_y'] = dim_from_drawer_bottom
+        cir['cen_z'] = bore_depth_f
+        cir['diameter'] = bore_dia_inch 
+        cir['normal_z'] = 1
+        cir['org_displacement'] = 0
+        circles.append(cir)
+
+        #Back Hole
+        cir = {}
+        cir['cen_x'] = dim_to_second_hole
+        cir['cen_y'] = dim_from_drawer_bottom
+        cir['cen_z'] = bore_depth_f
+        cir['diameter'] = bore_dia_inch 
+        cir['normal_z'] = 1
+        cir['org_displacement'] = 0
+        circles.append(cir)
+
+        return circles
+
+    def get_drilling(self, assembly):
+        circles = []
+        sys_holes = (
+            'System Holes Right Top Front',
+            'System Holes Right Top Rear',
+            'System Holes Right Bottom Front',
+            'System Holes Right Bottom Rear',
+            'System Holes Left Top Front',
+            'System Holes Left Top Rear',
+            'System Holes Left Bottom Front',
+            'System Holes Left Bottom Rear',
+            'System Holes Mid Left',
+            'System Holes Mid Right'
+        )        
+
+        for child in assembly.obj_bp.children:
+            if child.type == 'MESH':
+                tokens = child.mv.mp.machine_tokens
+                if len(tokens) > 0:
+                    for token in tokens:
+                        if not token.is_disabled:
+                            token_name = token.name if token.name != "" else "Unnamed"
+
+                            if token_name == "Unnamed":
+                                print("Unnamed machine token!")
+
+                            if token.type_token == 'BORE':
+                                if token_name in sys_holes:
+                                    circles = self.get_system_hole_drilling(assembly, token, circles)
+
+                                if token_name == 'Pull Drilling':
+                                    circles = self.get_pull_drilling(assembly, token, circles)
+
+                                if token_name == 'Door Hinge Drilling':
+                                    circles = self.get_door_hinge_drilling(assembly, token, circles)                                            
+
+                                if token_name == "Hamper Door Hinge Drilling":
+                                    circles = self.get_hamper_door_hinge_drilling(assembly, token, circles)
+
+                                if token_name == 'Shelf and Rod Holes':
+                                    print("Found machine token:", token_name)
+
+                            if token.type_token == 'SLIDE':
+                                circles = self.get_slide_drilling(assembly, token, circles)
+
+                            if token.type_token == 'CAMLOCK':
+                                circles = self.get_shelf_kd_drilling(assembly, token, token_name, circles)
+
+        return circles
+
     def set_job_number(self):
         dirname = os.path.dirname(bpy.data.filepath).split("\\")[-1]
         filname = "{}.ccp".format(dirname)
@@ -896,8 +1407,8 @@ class OPS_Export_XML(Operator):
             self.xml.add_element_with_text(elm_part,'FinishedWidth', self.get_part_width(assembly))           
             self.xml.add_element_with_text(elm_part,'Length', self.distance(unit.inch(shelf_length_inch)))
             self.xml.add_element_with_text(elm_part,'FinishedLength', self.distance(unit.inch(shelf_length_inch)))
-            self.xml.add_element_with_text(elm_part,'Thickness',self.distance(utils.get_part_thickness(obj)))
-            self.xml.add_element_with_text(elm_part,'FinishedThickness', self.distance(utils.get_part_thickness(obj)))
+            self.xml.add_element_with_text(elm_part,'Thickness',self.distance(snap_utils.get_part_thickness(obj)))
+            self.xml.add_element_with_text(elm_part,'FinishedThickness', self.distance(snap_utils.get_part_thickness(obj)))
             self.xml.add_element_with_text(elm_part,'Routing', "SK1")
             self.xml.add_element_with_text(elm_part,'Class', "make")
             self.xml.add_element_with_text(elm_part,'Type', "panel")
@@ -944,19 +1455,19 @@ class OPS_Export_XML(Operator):
                 ("z", "text", self.get_part_z_location(assembly.obj_bp,assembly.obj_bp.location.z)),
                 ("lenx", "text", self.distance(unit.inch(shelf_length_inch))),
                 ("leny", "text", self.get_part_width(assembly)),
-                ("lenz", "text", self.distance(utils.get_part_thickness(obj))),
+                ("lenz", "text", self.distance(snap_utils.get_part_thickness(obj))),
                 ("rotx", "text", str(int(math.degrees(assembly.obj_bp.rotation_euler.x)))),
                 ("roty", "text", str(int(math.degrees(assembly.obj_bp.rotation_euler.x)))),
                 ("rotz", "text", str(int(math.degrees(assembly.obj_bp.rotation_euler.x)))),
                 ("boml", "text", self.distance(unit.inch(shelf_length_inch))),
-                ("bomt", "text",  self.distance(utils.get_part_thickness(obj))),
+                ("bomt", "text",  self.distance(snap_utils.get_part_thickness(obj))),
                 ("bomw", "text", self.get_part_width(assembly)),
                 ("catnum", "text", self.get_part_comment(assembly.obj_bp)),
                 ("sku", "text", closet_materials.get_mat_sku(obj, assembly, part_name)),
                 ("cncmirror", "text", ""),
                 ("cncrotation", "text", "180"),
                 ("cutl", "text", self.distance(unit.inch(shelf_length_inch))),
-                ("cutt", "text", self.distance(utils.get_part_thickness(obj))),
+                ("cutt", "text", self.distance(snap_utils.get_part_thickness(obj))),
                 ("cutw", "text", self.get_part_width(assembly)),
                 ("edgeband1", "text", edge_1),
                 ("edgeband1sku", "text", edge_1_sku),
@@ -974,7 +1485,7 @@ class OPS_Export_XML(Operator):
             #Get info for segments
             X = self.distance(unit.inch(shelf_length_inch))
             Y = self.get_part_width(assembly)
-            Z = self.distance(utils.get_part_thickness(obj))
+            Z = self.distance(snap_utils.get_part_thickness(obj))
             W = 0
 
             upper_right = (X, Y, Z, W)
@@ -1029,6 +1540,28 @@ class OPS_Export_XML(Operator):
     def write_products(self,project_node):
         specgroups = bpy.context.scene.mv.spec_groups
         item_name, _ = bpy.path.basename(bpy.data.filepath).split('.')
+        room_category_dict = {
+            "Please Select":"No Category Found",
+            "41110":"Closet",
+            "41120":"Entertainment Center",
+            "41130":"Garage",
+            "41140":"Home Office",
+            "41150":"Laundry",
+            "41160":"Mud Room",
+            "41170":"Pantry",
+            "41210":"Kitchen",
+            "41220":"Bathroom",
+            "41230":"Reface",
+            "41240":"Remodel",
+            "41250":"Stone"
+        }
+        if("_" in item_name):
+            room_category_num, room_name = item_name.split("_")
+            room_category_name = room_category_dict[room_category_num]
+        else:
+            room_name = item_name 
+            room_category_num = "No Category Found"
+            room_category_name = "No Category Found"
 
         existing_items = project_node.findall("Item")
 
@@ -1042,8 +1575,10 @@ class OPS_Export_XML(Operator):
         item_number = "{0:0=2d}".format(self.item_count + 1)
 
         self.xml.add_element_with_text(elm_product,'Name', self.job_number + "." + item_number)
-        self.xml.add_element_with_text(elm_product,'Description', item_name)#Str literal OKAY
-        self.xml.add_element_with_text(elm_product,'Note', "")#Str literal OKAY       
+        self.xml.add_element_with_text(elm_product,'Description', room_name)
+        #self.xml.add_element_with_text(elm_product,'Room Category', room_category_name)
+        #self.xml.add_element_with_text(elm_product,'GL ACCT NUM', room_category_num)
+        self.xml.add_element_with_text(elm_product,'Note', room_category_name + ":" + room_category_num)#Str literal OKAY       
 
         for obj_product in self.products:
             spec_group = specgroups[obj_product.cabinetlib.spec_group_index]
@@ -1070,8 +1605,12 @@ class OPS_Export_XML(Operator):
             if not use_recursive:
                 self.write_subassemblies_for_product(elm_product,obj_product,spec_group)
         
-        #Add Full Sized Cover Cleats
+        #Add Full Sized Products
         self.write_full_sized_cover_cleat(elm_product,spec_group,recursive=use_recursive)
+        self.write_full_sized_flat_crown(elm_product,spec_group,recursive=use_recursive)
+        self.write_full_sized_crown_molding(elm_product,spec_group,recursive=use_recursive)
+        self.write_full_sized_inverted_base(elm_product,spec_group,recursive=use_recursive)
+        self.write_full_sized_base_molding(elm_product,spec_group,recursive=use_recursive)
 
         #Add DrawingNum and RoomName Vars
         info = [('DrawingNum', self.job_number + "." + item_number),
@@ -1094,28 +1633,136 @@ class OPS_Export_XML(Operator):
             total_cover_cleat = 0
             for length in self.cover_cleat_lengths:
                 total_cover_cleat += float(length)
-            needed_full_lengths = math.ceil((total_cover_cleat/97)/2) #96
-            if(needed_full_lengths < 3):
-                needed_full_lengths += 1
-            elif(needed_full_lengths < 6):
-                needed_full_lengths += 2
+                
+            if total_cover_cleat <= 80:
+                needed_full_lengths = 1
             else:
-                needed_full_lengths += 3
-
-            if(mat_inventory_name == "Oxford White" or mat_inventory_name =="Cabinet Almond" or mat_inventory_name =="Duraply Almond" or mat_inventory_name =="Duraply White"):
-                needed_full_lengths = needed_full_lengths * 2
+                needed_full_lengths = (total_cover_cleat/96)/2 #96
+                if(mat_inventory_name == "Oxford White" or mat_inventory_name =="Cabinet Almond" or mat_inventory_name =="Duraply Almond" or mat_inventory_name =="Duraply White"):
+                    needed_full_lengths = needed_full_lengths * 2
+                needed_full_lengths = math.ceil(needed_full_lengths)
+                if(needed_full_lengths < 3):
+                    needed_full_lengths += 1
+                elif(needed_full_lengths < 6):
+                    needed_full_lengths += 2
+                else:
+                    needed_full_lengths += 3
 
             for i in range(0,needed_full_lengths):
                 cover_cleat = fd_types.Assembly(self.cover_cleat_bp)
-                cover_cleat.obj_x.location.x = unit.inch(97)
+                cover_cleat.obj_x.location.x = unit.inch(96)
                 for child in cover_cleat.obj_bp.children:
                     if child.cabinetlib.type_mesh == 'CUTPART':
                         if not child.hide:
-                            self.write_part_node(elm_parts, child, spec_group, recursive=False)            
+                            self.write_part_node(elm_parts, child, spec_group, recursive=False)    
+
+    def write_full_sized_flat_crown(self,elm_parts,spec_group,recursive=False):
+        if self.flat_crown_bp:
+            flat_crown = fd_types.Assembly(self.flat_crown_bp)
+
+            different_heights = []
+
+            for height in self.flat_crown_heights:
+                if not height in different_heights:
+                    different_heights.append(height)
+
+            
+            for height in different_heights:
+                total_flat_crown = 0
+                for i in range (len(self.flat_crown_lengths)):
+                    if(float(self.flat_crown_heights[i]) == float(height)):
+                        total_flat_crown += float(self.flat_crown_lengths[i])
+
+                if(len(self.flat_crown_lengths)==1 and total_flat_crown < unit.inch(93)):
+                    needed_full_lengths = 1
+                else:
+                    needed_full_lengths = math.ceil((total_flat_crown/96)) #96
+                    if(needed_full_lengths < 4):
+                        needed_full_lengths += 1
+                    elif(needed_full_lengths < 7):
+                        needed_full_lengths += 2
+                    else:
+                        needed_full_lengths += 3
+
+                for i in range(0,needed_full_lengths):
+                    flat_crown.obj_y.location.y = float(unit.inch_to_millimeter(height) / 1000)
+                    flat_crown.obj_x.location.x = unit.inch(96)
+                    for child in flat_crown.obj_bp.children:
+                        if child.cabinetlib.type_mesh == 'CUTPART':
+                            if not child.hide:
+                                self.write_part_node(elm_parts, child, spec_group, recursive=False)   
+
+    def write_full_sized_crown_molding(self,elm_parts,spec_group,recursive=False):     
+        if self.crown_molding_bp:
+            crown_molding = fd_types.Assembly(self.crown_molding_bp)
+            
+            total_crown_molding = 0
+            for length in self.crown_molding_lengths:
+                total_crown_molding += float(length)
+
+            if(len(self.crown_molding_lengths)==1 and total_crown_molding < unit.inch(93)):
+                needed_full_lengths = 1
+            else:
+                needed_full_lengths = math.ceil((total_crown_molding/96)) #96
+                if(needed_full_lengths < 4):
+                    needed_full_lengths += 1
+                elif(needed_full_lengths < 7):
+                    needed_full_lengths += 2
+                else:
+                    needed_full_lengths += 3
+
+            for i in range(0,needed_full_lengths):
+                crown_molding = fd_types.Assembly(self.crown_molding_bp)
+                crown_molding.obj_x.location.x = unit.inch(96)
+                self.write_part_node(elm_parts, crown_molding.obj_bp, spec_group, recursive=False)
+
+    def write_full_sized_inverted_base(self,elm_parts,spec_group,recursive=False):     
+        if self.inverted_base_bp:
+            inverted_base = fd_types.Assembly(self.inverted_base_bp)
+            inverted_base.obj_bp.mv.name_object = "Inverted Base"
+            inverted_base.obj_x.location.x = unit.inch(96)
+            total_inverted_base = 0
+            for length in self.inverted_base_lengths:
+                total_inverted_base += float(length)
+            if(len(self.inverted_base_lengths)==1 and total_inverted_base < unit.inch(93)):
+                needed_full_lengths = 1
+            else:
+                needed_full_lengths = math.ceil((total_inverted_base/96)) #96
+                if(needed_full_lengths < 4):
+                    needed_full_lengths += 1
+                elif(needed_full_lengths < 7):
+                    needed_full_lengths += 2
+                else:
+                    needed_full_lengths += 3
+
+            for i in range(0,needed_full_lengths):
+                self.write_part_node(elm_parts, inverted_base.obj_bp, spec_group, recursive=False)
+
+    def write_full_sized_base_molding(self,elm_parts,spec_group,recursive=False):       
+        if self.base_molding_bp:
+            base_molding = fd_types.Assembly(self.base_molding_bp)
+            total_base_molding = 0
+            for length in self.base_molding_lengths:
+                total_base_molding += float(length)
+
+            if(len(self.base_molding_lengths)==1 and total_base_molding < unit.inch(93)):
+                needed_full_lengths = 1
+            else:
+                needed_full_lengths = math.ceil((total_base_molding/96)) #96
+                if(needed_full_lengths < 4):
+                    needed_full_lengths += 1
+                elif(needed_full_lengths < 7):
+                    needed_full_lengths += 2
+                else:
+                    needed_full_lengths += 3
+
+            for i in range(0,needed_full_lengths):
+                base_molding = fd_types.Assembly(self.base_molding_bp)
+                base_molding.obj_x.location.x = unit.inch(96)
+                self.write_part_node(elm_parts, base_molding.obj_bp, spec_group, recursive=False)   
 
     def write_parts_for_product(self,elm_parts,obj_bp,spec_group,recursive=False):
         for child in obj_bp.children:
-
             #Write part nodes for cleat and append cover cleat length to cover_cleat_lengths
             if child.lm_closets.is_cleat_bp:
                 for nchild in child.children:
@@ -1132,6 +1779,90 @@ class OPS_Export_XML(Operator):
                                     self.cover_cleat_bp = cover_cleat_assembly.obj_bp
                                     self.cover_cleat_lengths.append(self.get_part_length(cover_cleat_assembly))
                 continue
+            if child.lm_closets.is_crown_molding or child.lm_closets.is_base_molding:
+                if(child.lm_closets.is_empty_molding):
+                    if(child.lm_closets.is_crown_molding):
+                        crown_molding_assembly = fd_types.Assembly(child)
+                        length = self.get_part_length(crown_molding_assembly)
+                        crown_to_ceiling = crown_molding_assembly.get_prompt("Crown To Ceiling").value()
+                        self.crown_molding_bp = crown_molding_assembly.obj_bp
+                        self.crown_molding_lengths.append(length)
+                        if(crown_to_ceiling):
+                            self.inverted_base_bp = crown_molding_assembly.obj_bp
+                            self.inverted_base_lengths.append(length)
+                    elif(child.lm_closets.is_base_molding):
+                        base_molding_assembly = fd_types.Assembly(child)
+                        self.base_molding_bp = child
+                        self.base_molding_lengths.append(self.get_part_length(base_molding_assembly))
+                else:
+                    for nchild in child.children:
+                        for nnchild in nchild.children:
+                            if nnchild.cabinetlib.type_mesh == 'CUTPART':
+                                if not nnchild.hide:
+                                    if(nchild.lm_closets.is_flat_crown_bp):
+                                        flat_crown_assembly = fd_types.Assembly(nnchild.parent)
+                                        p_flat_crown_assembly = fd_types.Assembly(flat_crown_assembly.obj_bp.parent)
+                                        EL = flat_crown_assembly.get_prompt("Exposed Left").value()
+                                        ER = flat_crown_assembly.get_prompt("Exposed Right").value()
+                                        EB = flat_crown_assembly.get_prompt("Exposed Back").value()
+                                        var_height = p_flat_crown_assembly.get_prompt("Extend To Ceiling")
+                                        length = self.get_part_length(flat_crown_assembly)
+                                        height = float(self.get_part_width(flat_crown_assembly))
+                                        if var_height:
+                                            if var_height.value():
+                                                height = height + 2
+
+                                        if(not EL and not ER):
+                                            self.flat_crown_heights.append(height)
+                                        if(EL and ER):
+                                            if(float(length) > 96):
+                                                flat_crown_assembly.get_prompt("Exposed Left").set_value(False)
+                                                flat_crown_assembly.get_prompt("Exposed Right").set_value(False)
+                                                if(flat_crown_assembly.obj_bp.mv.name_object != "Right" and flat_crown_assembly.obj_bp.mv.name_object != "Left"):
+                                                    self.flat_crown_bp = flat_crown_assembly.obj_bp
+                                                number_of_lengths = math.ceil(length/96)
+                                                if(number_of_lengths == 2):
+                                                    self.single_exposed_flat_crown.append(True)
+                                                    self.single_exposed_flat_crown.append(True)
+                                                    if(EB):
+                                                        self.top_edgebanded_flat_crown.append(True)
+                                                        self.top_edgebanded_flat_crown.append(True)
+                                                    self.flat_crown_lengths.append(unit.inch(96))
+                                                    self.flat_crown_lengths.append(unit.inch(96))
+                                                    self.flat_crown_heights.append(height)
+                                                else:
+                                                    self.single_exposed_flat_crown.append(True)
+                                                    self.single_exposed_flat_crown.append(True)
+                                                    if(EB):
+                                                        self.top_edgebanded_flat_crown.append(True)
+                                                        self.top_edgebanded_flat_crown.append(True)
+                                                    self.flat_crown_lengths.append(unit.inch(96))
+                                                    self.flat_crown_lengths.append(unit.inch(96))
+                                                    self.flat_crown_heights.append(height)
+                                                    number_of_lengths = number_of_lengths - 2
+                                                    for x in range(number_of_lengths):
+                                                        if(EB):
+                                                            self.top_edgebanded_flat_crown.append(True)
+                                                        self.flat_crown_lengths.append(unit.inch(96))
+                                                        self.flat_crown_heights.append(height)
+                                            else:
+                                                self.write_part_node(elm_parts, nnchild, spec_group, recursive=recursive)
+                                        elif((EL and not ER) or (not EL and ER)):
+                                            if(flat_crown_assembly.obj_bp.mv.name_object != "Right" and flat_crown_assembly.obj_bp.mv.name_object != "Left"):
+                                                self.flat_crown_bp = flat_crown_assembly.obj_bp
+                                            self.single_exposed_flat_crown.append(True)
+                                            if(EB):
+                                                self.top_edgebanded_flat_crown.append(True)
+                                            self.flat_crown_lengths.append(self.get_part_length(flat_crown_assembly))
+                                            self.flat_crown_heights.append(height)
+                                        else:
+                                            if(flat_crown_assembly.obj_bp.mv.name_object != "Right" and flat_crown_assembly.obj_bp.mv.name_object != "Left"):
+                                                self.flat_crown_bp = flat_crown_assembly.obj_bp
+                                            if(EB):
+                                                self.top_edgebanded_flat_crown.append(True)
+                                            self.flat_crown_lengths.append(self.get_part_length(flat_crown_assembly)) 
+                    print()
+                    continue 
 
             for nchild in child.children:
 
@@ -1454,7 +2185,6 @@ class OPS_Export_XML(Operator):
             assembly = fd_types.Assembly(obj)
         else:
             assembly = fd_types.Assembly(obj.parent)
-
         if assembly.obj_bp.mv.type_group != "PRODUCT":
 
             obj_props = assembly.obj_bp.lm_closets
@@ -1498,11 +2228,25 @@ class OPS_Export_XML(Operator):
             
             mat_sku = closet_materials.get_mat_sku(obj, assembly)
             mat_inventory_name = closet_materials.get_mat_inventory_name(sku=mat_sku)
-            if(part_name == "Cover Cleat"):
-                if(mat_inventory_name == "Oxford White" or  mat_inventory_name =="Duraply White"):
+            if part_name == "Cover Cleat":
+                if mat_inventory_name == "Oxford White" or  mat_inventory_name =="Duraply White":
                     mat_sku = "PM-0000001"
-                elif(mat_inventory_name == "Cabinet Almond" or mat_inventory_name =="Duraply Almond"):
+                elif mat_inventory_name == "Cabinet Almond" or mat_inventory_name =="Duraply Almond":
                     mat_sku = "PM-0000002"
+            if(part_name == "File Rail"):
+                    mat_inventory_name = "White Paper 12310"
+                    mat_sku = "PM-0000004"
+            if obj_props.is_countertop_bp:
+                l_assembly_end_cond = assembly.get_prompt("Exposed Left")
+                r_assembly_end_cond = assembly.get_prompt("Exposed Right")
+
+                if l_assembly_end_cond and l_assembly_end_cond.value != True:
+                        assembly.obj_x.location.x += unit.inch(3)
+                if r_assembly_end_cond and r_assembly_end_cond.value() != True:
+                    assembly.obj_x.location.x += unit.inch(3)
+            if(part_name == "Inverted Base"):
+                mat_inventory_name = "BASE ALDER 3 1/4X1/2 WM633"
+                mat_sku = "MD-0000025"
 
             mat_id = self.write_material(mat_inventory_name, mat_sku)
 
@@ -1518,13 +2262,35 @@ class OPS_Export_XML(Operator):
             )
 
             self.xml.add_element_with_text(elm_part, 'Name', part_name)
+
+            if(obj_props.is_door_bp or obj_props.is_drawer_front_bp):
+                if(assembly.get_prompt("Door Style")):
+                    door_style = assembly.get_prompt("Door Style").value()
+                    glaze_color = closet_materials.get_glaze_color().name
+                    glaze_style = closet_materials.get_glaze_style().name
+
+                    parent_assembly = fd_types.Assembly(obj.parent.parent)
+                    has_center_rail = parent_assembly.get_prompt("Has Center Rail")
+                    center_rail_distance_from_center = parent_assembly.get_prompt("Center Rail Distance From Center")                    
+                    prompts = [door_style,has_center_rail,center_rail_distance_from_center]
+                    
+                    if(door_style != "Slab Door"):
+                        self.xml.add_element_with_text(elm_part,'Style', door_style)
+                        self.xml.add_element_with_text(elm_part,'GlazeColor', str(glaze_color))
+                        self.xml.add_element_with_text(elm_part,'GlazeStyle', str(glaze_style))
+                        if all(prompts) and (has_center_rail.value()):
+                            self.xml.add_element_with_text(elm_part,'CenterRail', 'Yes')
+                            self.xml.add_element_with_text(elm_part,'CenterRailDistanceFromCenter', str(unit.meter_to_inch(center_rail_distance_from_center.value())))
+                        else:
+                            self.xml.add_element_with_text(elm_part,'CenterRail', 'No')
+
             self.xml.add_element_with_text(elm_part,'Quantity', self.get_part_qty(assembly))
             self.xml.add_element_with_text(elm_part,'Width', self.get_part_width(assembly)) 
             self.xml.add_element_with_text(elm_part,'FinishedWidth', self.get_part_width(assembly))           
             self.xml.add_element_with_text(elm_part,'Length', self.get_part_length(assembly))
             self.xml.add_element_with_text(elm_part,'FinishedLength', self.get_part_length(assembly))
-            self.xml.add_element_with_text(elm_part,'Thickness',self.distance(utils.get_part_thickness(obj)))
-            self.xml.add_element_with_text(elm_part,'FinishedThickness', self.distance(utils.get_part_thickness(obj)))
+            self.xml.add_element_with_text(elm_part,'Thickness',self.distance(snap_utils.get_part_thickness(obj)))
+            self.xml.add_element_with_text(elm_part,'FinishedThickness', self.distance(snap_utils.get_part_thickness(obj)))
             self.xml.add_element_with_text(elm_part,'Routing', "SK1")#Str literal okay
             if(part_name == "Cover Cleat"):
                 if(mat_inventory_name == "Oxford White" or mat_inventory_name =="Cabinet Almond" or mat_inventory_name =="Duraply Almond" or mat_inventory_name =="Duraply White"):
@@ -1583,11 +2349,22 @@ class OPS_Export_XML(Operator):
 
             #Panel, Shelf
             if obj_props.is_panel_bp or obj_props.is_shelf_bp:
-                if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
-                    edge_2 = "L1"
+                #If the Panels/Shelves are attached to an Island
+                if(obj.parent.parent and obj.parent.parent.lm_closets.is_island and fd_types.Assembly(obj.parent.parent).get_prompt("Depth 2")):
+                    if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
+                        edge_2 = "L1"
+                        edge_4 = "L2"
+                    else:
+                        edge_2 = "S1"
+                        edge_4 = "S2"
+                    edge_2_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                    edge_4_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
                 else:
-                    edge_2 = "S1"
-                edge_2_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                    if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
+                        edge_2 = "L1"
+                    else:
+                        edge_2 = "S1"
+                    edge_2_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
 
             #Blind Corner Panels
             if obj_props.is_blind_corner_panel_bp:
@@ -1640,6 +2417,13 @@ class OPS_Export_XML(Operator):
                 else:
                     edge_2 = "S1"
                 edge_2_sku = closet_materials.get_edge_sku(obj, assembly, part_name) 
+            
+            if obj_props.is_file_rail_bp:
+                if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
+                    edge_2 = "S1"
+                else:
+                    edge_2 = "L1"
+                edge_2_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
 
             #Cleats
             if obj_props.is_cleat_bp:
@@ -1734,30 +2518,251 @@ class OPS_Export_XML(Operator):
                         else:
                             edge_4 = "S2"
                         edge_4_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+
+            #Bottom Capping
+            if obj_props.is_bottom_capping_bp:
+                if(assembly.get_prompt("Is Counter Top").value() == False):
+                    if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
+                        edge_2 = "L1"
+                    else:
+                        edge_2 = "S1"
+                    edge_2_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                    
+                    carcass_bp = utils.get_parent_assembly_bp(obj)
+                    carcass_assembly = fd_types.Assembly(carcass_bp)
+                    l_carcass_end_cond = carcass_assembly.get_prompt("Left End Condition").value()
+                    r_carcass_end_cond = carcass_assembly.get_prompt("Right End Condition").value()
+                    l_assembly_end_cond = assembly.get_prompt("Exposed Left").value()
+                    r_assembly_end_cond = assembly.get_prompt("Exposed Right").value()
+                    b_assembly_end_cond = assembly.get_prompt("Exposed Back").value()
+                    if (l_carcass_end_cond == 'EP' and r_carcass_end_cond != 'EP') or (l_assembly_end_cond == True and r_assembly_end_cond != True):
+                        if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
+                            edge_1 = "S1"
+                        else:
+                            edge_1 = "L1"
+                        edge_1_sku = closet_materials.get_edge_sku(obj, assembly, part_name)                  
+
+                    if (l_carcass_end_cond != 'EP' and r_carcass_end_cond == 'EP') or (l_assembly_end_cond != True and r_assembly_end_cond == True):
+                        if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
+                            edge_3 = "S2"
+                        else:
+                            edge_3 = "L2"
+                        edge_3_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+
+                    if (l_carcass_end_cond == 'EP' and r_carcass_end_cond == 'EP') or (l_assembly_end_cond == True and r_assembly_end_cond == True):
+                        if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
+                            edge_1 = "S1"
+                            edge_3 = "S2"
+                        else:
+                            edge_1 = "L1"
+                            edge_3 = "L2"
+                        edge_1_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                        edge_3_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                    
+                    if(b_assembly_end_cond):
+                        if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
+                            edge_4 = "L2"
+                        else:
+                            edge_4 = "S2"
+                        edge_4_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+
                 #For Island Countertops
                 else:
-                    if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
-                        edge_1 = "S1"
-                        edge_2 = "L1"
-                        edge_3 = "S2"
-                        edge_4 = "L2"
+                    l_assembly_end_cond = assembly.get_prompt("Exposed Left").value()
+                    r_assembly_end_cond = assembly.get_prompt("Exposed Right").value()
+                    if(l_assembly_end_cond and r_assembly_end_cond):
+                        if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
+                            edge_1 = "S1"
+                            edge_2 = "L1"
+                            edge_3 = "S2"
+                            edge_4 = "L2"
+                        else:
+                            edge_1 = "L1"
+                            edge_2 = "S1"
+                            edge_3 = "L2"
+                            edge_4 = "S2"
+                        edge_1_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                        edge_2_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                        edge_3_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                        edge_4_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                    elif(l_assembly_end_cond == False and r_assembly_end_cond ):
+                        if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
+                            edge_2 = "L1"
+                            edge_3 = "S2"
+                            edge_4 = "L2"
+                        else:
+                            edge_2 = "S1"
+                            edge_3 = "L2"
+                            edge_4 = "S2"
+                        edge_2_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                        edge_3_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                        edge_4_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                    elif(l_assembly_end_cond and r_assembly_end_cond == False):
+                        if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
+                            edge_1 = "S1"
+                            edge_2 = "L1"
+                            edge_4 = "L2"
+                        else:
+                            edge_1 = "L1"
+                            edge_2 = "S1"
+                            edge_4 = "S2"
+                        edge_1_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                        edge_2_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                        edge_4_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
                     else:
-                        edge_1 = "L1"
-                        edge_2 = "S1"
-                        edge_3 = "L2"
-                        edge_4 = "S2"
-                    edge_1_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
-                    edge_2_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
-                    edge_3_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
-                    edge_4_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                        if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
+                            edge_2 = "L1"
+                            edge_4 = "L2"
+                        else:
+                            edge_2 = "S1"
+                            edge_4 = "S2"
+                        edge_2_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                        edge_4_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
         
             #Toe Kick
             if obj_props.is_toe_kick_end_cap_bp:
+                #If the Toe Kick is Attached to an Island
+                if(obj.parent.parent and obj.parent.parent.lm_closets.is_island):
+                    if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
+                        edge_1 = "S1"
+                        edge_3 = "S2"
+                    else:
+                        edge_1 = "L1"
+                        edge_3 = "L2"
+                    edge_1_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                    edge_3_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+
+            #Counter Top
+            if obj_props.is_countertop_bp:
                 if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
-                    edge_1 = "S1"
+                    edge_2 = "L1"
                 else:
-                    edge_1 = "L1"
-                edge_1_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                    edge_2 = "S1"
+                edge_2_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                
+                carcass_bp = utils.get_parent_assembly_bp(obj)
+                carcass_assembly = fd_types.Assembly(carcass_bp)
+                Countertop_Type = carcass_assembly.get_prompt("Countertop Type")
+
+                if Countertop_Type and Countertop_Type.value() != 'Granite':
+                    l_carcass_end_cond = carcass_assembly.get_prompt("Left End Condition").value()
+                    r_carcass_end_cond = carcass_assembly.get_prompt("Right End Condition").value()
+                    l_assembly_end_cond = assembly.get_prompt("Exposed Left").value()
+                    r_assembly_end_cond = assembly.get_prompt("Exposed Right").value()
+                    b_assembly_end_cond = assembly.get_prompt("Exposed Back").value()
+
+                    if (l_carcass_end_cond == 'EP' and r_carcass_end_cond != 'EP') or (l_assembly_end_cond == True and r_assembly_end_cond != True):
+                        if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
+                            edge_1 = "S1"
+                        else:
+                            edge_1 = "L1"
+                        edge_1_sku = closet_materials.get_edge_sku(obj, assembly, part_name)                  
+
+                    if (l_carcass_end_cond != 'EP' and r_carcass_end_cond == 'EP') or (l_assembly_end_cond != True and r_assembly_end_cond == True):
+                        if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
+                            edge_3 = "S2"
+                        else:
+                            edge_3 = "L2"
+                        edge_3_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+
+                    if (l_carcass_end_cond == 'EP' and r_carcass_end_cond == 'EP') or (l_assembly_end_cond == True and r_assembly_end_cond == True):
+                        if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
+                            edge_1 = "S1"
+                            edge_3 = "S2"
+                        else:
+                            edge_1 = "L1"
+                            edge_3 = "L2"
+                        edge_1_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                        edge_3_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                    
+                    if b_assembly_end_cond:
+                        if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
+                            edge_4 = "L2"
+                        else:
+                            edge_4 = "S2"
+                        edge_4_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+
+            if obj_props.is_back_bp:
+                if(obj.parent.parent and obj.parent.parent.lm_closets.is_island):
+                    island_assembly = fd_types.Assembly(obj.parent.parent)
+                    l_assembly_end_cond = island_assembly.get_prompt("Left Against Wall").value()
+                    r_assembly_end_cond = island_assembly.get_prompt("Right Against Wall").value()
+                    is_double = island_assembly.get_prompt("Depth 2")
+                    if(is_double == None):
+                        if(l_assembly_end_cond == False and r_assembly_end_cond == False):
+                            if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
+                                edge_2 = "S1"
+                                edge_4 = "S2"
+                            else:
+                                edge_2 = "L1"
+                                edge_4 = "L2"
+                            edge_2_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                            edge_4_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                        elif(l_assembly_end_cond == False and r_assembly_end_cond ):
+                            if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
+                                edge_2 = "S1"
+                            else:
+                                edge_2 = "L1"
+                            edge_2_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                        elif(l_assembly_end_cond and r_assembly_end_cond == False):
+                            if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
+                                edge_2 = "S1"
+                            else:
+                                edge_2 = "L1"
+                            edge_2_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+        
+            #Toe Kick
+            if obj_props.is_toe_kick_end_cap_bp:
+                #If the Toe Kick is Attached to an Island
+                if(obj.parent.parent.parent and obj.parent.parent.parent.lm_closets.is_island):
+                    if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
+                        edge_1 = "S1"
+                        edge_3 = "S2"
+                    else:
+                        edge_1 = "L1"
+                        edge_3 = "L2"
+                    edge_1_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                    edge_3_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                else:
+                    if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
+                        edge_1 = "S1"
+                    else:
+                        edge_1 = "L1"
+                    edge_1_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+
+            #Flat Crown
+            if obj_props.is_flat_crown_bp:
+                EL = assembly.get_prompt("Exposed Left").value()
+                ER = assembly.get_prompt("Exposed Right").value()
+                EB = assembly.get_prompt("Exposed Back").value()
+                edge_2 = "L1"
+                edge_2_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                if((EL and ER) and assembly.obj_y.location.y < unit.inch(96)):
+                    edge_1 = "S1"
+                    edge_3 = "S2"
+                    edge_1_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                    edge_3_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                    if(EB):
+                        edge_4 = "L2"
+                        edge_4_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                else:
+                    if(len(self.single_exposed_flat_crown) > 0 ):
+                        if(self.single_exposed_flat_crown[0]):
+                            edge_1 = "S1"
+                            edge_1_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                            self.single_exposed_flat_crown.pop()
+                    if(len(self.top_edgebanded_flat_crown) > 0 ):
+                        if(self.top_edgebanded_flat_crown[0]):
+                            edge_4 = "L2"
+                            edge_4_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+                            self.top_edgebanded_flat_crown.pop()
+
+            len_x = self.get_part_length(assembly)
+            len_y = self.get_part_width(assembly)
+
+            if obj_props.is_hamper_front_bp:
+                len_x = self.get_part_width(assembly)
+                len_y = self.get_part_length(assembly)
 
             #Create and add label
             lbl = [
@@ -1768,21 +2773,21 @@ class OPS_Export_XML(Operator):
                 ("x", "text", self.get_part_x_location(assembly.obj_bp,assembly.obj_bp.location.x)),
                 ("y", "text", self.get_part_y_location(assembly.obj_bp,assembly.obj_bp.location.y)),
                 ("z", "text", self.get_part_z_location(assembly.obj_bp,assembly.obj_bp.location.z)),
-                ("lenx", "text", self.get_part_length(assembly)),
-                ("leny", "text", self.get_part_width(assembly)),
-                ("lenz", "text", self.distance(utils.get_part_thickness(obj))),
+                ("lenx", "text", len_x),
+                ("leny", "text", len_y),
+                ("lenz", "text", self.distance(snap_utils.get_part_thickness(obj))),
                 ("rotx", "text", str(int(math.degrees(assembly.obj_bp.rotation_euler.x)))),
                 ("roty", "text", str(int(math.degrees(assembly.obj_bp.rotation_euler.x)))),
                 ("rotz", "text", str(int(math.degrees(assembly.obj_bp.rotation_euler.x)))),
                 ("boml", "text", self.get_part_length(assembly)),
-                ("bomt", "text",  self.distance(utils.get_part_thickness(obj))),
+                ("bomt", "text",  self.distance(snap_utils.get_part_thickness(obj))),
                 ("bomw", "text", self.get_part_width(assembly)),
                 ("catnum", "text", self.get_part_comment(assembly.obj_bp)),#Part Comments2
                 ("sku", "text", mat_sku),
                 ("cncmirror", "text", ""),#Str literal OKAY
                 ("cncrotation", "text", "180"),#Str literal OKAY
                 ("cutl", "text", self.get_part_length(assembly)),#Part.AdjustedCutPartLength 
-                ("cutt", "text", self.distance(utils.get_part_thickness(obj))),
+                ("cutt", "text", self.distance(snap_utils.get_part_thickness(obj))),
                 ("cutw", "text", self.get_part_width(assembly)),#Part.AdjustedCutPartWidth
                 ("edgeband1", "text", edge_1),
                 ("edgeband1sku", "text", edge_1_sku),
@@ -1805,408 +2810,19 @@ class OPS_Export_XML(Operator):
             #Get info for segments
             X = self.get_part_length(assembly)
             Y = self.get_part_width(assembly)
-            Z = self.distance(utils.get_part_thickness(obj))
+            Z = self.distance(snap_utils.get_part_thickness(obj))
             W = 0
 
-            #Drawer front assembly X and Y is flipped for wood grain direction
-            if obj_props.is_drawer_front_bp:
+            if obj_props.is_hamper_front_bp:
                 X = self.get_part_width(assembly)
                 Y = self.get_part_length(assembly)
-
 
             upper_right = (X, Y, Z, W)
             upper_left = (0, Y, Z, W)
             lower_left = (0, 0, Z, W)
             lower_right = (X, 0, Z, W)
 
-            #Add circles
-            circles = []
-
-            #Look for machine tokens in assembly meshes
-            for child in assembly.obj_bp.children:
-                if child.type == 'MESH':
-                    tokens = child.mv.mp.machine_tokens
-
-                    if len(tokens) > 0:
-                        for token in tokens:
-                            if not token.is_disabled:
-                                if token.type_token == 'BORE':
-                                    token_name = token.name if token.name != "" else "Unnamed"
-                                    
-                                    if token_name == "Unnamed":
-                                        print("Unnamed machine token!")
-
-                                    if token_name == 'Pull Drilling':                                   
-                                        normal_z = 1
-                                        org_displacement = 0
-
-                                        if token.face == '6':
-                                            normal_z = -1
-                                            org_displacement = self.distance(utils.get_part_thickness(obj))
-
-                                        param_dict = token.create_parameter_dictionary()  
-                                        dim_in_x = float(param_dict['Par1'])
-                                        dim_in_y = float(param_dict['Par2'])
-                                        dim_in_z = float(param_dict['Par3'])
-                                        bore_dia_meter = unit.millimeter(float(param_dict['Par4']))
-                                        bore_dia = unit.meter_to_inch(bore_dia_meter)
-                                        end_dim_in_x = float(param_dict['Par5'])
-                                        end_dim_in_y = float(param_dict['Par6'])
-                                        distance_between_holes = float(param_dict['Par7'])                                          
-
-                                        #Hole 1
-                                        cir_dict = {}
-                                        cir_dict['cen_x'] = dim_in_x
-                                        cir_dict['cen_y'] = dim_in_y
-                                        cir_dict['cen_z'] = dim_in_z
-                                        cir_dict['diameter'] = bore_dia
-                                        cir_dict['normal_z'] = normal_z
-                                        cir_dict['org_displacement'] = 0
-                                        circles.append(cir_dict)
-
-                                        #Hole 2
-                                        cir_dict = {}
-                                        cir_dict['cen_x'] = end_dim_in_x
-                                        cir_dict['cen_y'] = end_dim_in_y
-                                        cir_dict['cen_z'] = dim_in_z
-                                        cir_dict['diameter'] = bore_dia
-                                        cir_dict['normal_z'] = normal_z
-                                        cir_dict['org_displacement'] = 0
-                                        circles.append(cir_dict)
-
-                                    #System holes
-                                    sys_holes = (
-                                        'System Holes Right Top Front',
-                                        'System Holes Right Top Rear',
-                                        'System Holes Right Bottom Front',
-                                        'System Holes Right Bottom Rear',
-                                        'System Holes Left Top Front',
-                                        'System Holes Left Top Rear',
-                                        'System Holes Left Bottom Front',
-                                        'System Holes Left Bottom Rear',
-                                    )
-                                    
-                                    if token_name in sys_holes:                     
-                                        param_dict = token.create_parameter_dictionary()
-                                        start_dim_x = float(param_dict['Par1'])                                        
-                                        start_dim_y = float(param_dict['Par2'])
-                                        drill_depth = float(param_dict['Par3'])
-                                        bore_dia = unit.meter_to_inch(float(param_dict['Par4']))#Convert to inches
-                                        end_dim_x = float(param_dict['Par5'])
-                                        end_dim_in_y = float(param_dict['Par6'])
-                                        distance_between_holes = float(param_dict['Par7'])
-
-                                        normal_z = 1
-                                        org_displacement = 0
-
-                                        if token.face == '6':
-                                            normal_z = -1
-                                            org_displacement = self.distance(utils.get_part_thickness(obj))
-                                            start_dim_x = -start_dim_x
-                                            end_dim_x = -end_dim_x                                     
-
-                                        #First Hole
-                                        cir = {}
-                                        cir['cen_x'] = start_dim_x
-                                        cir['cen_y'] = start_dim_y
-                                        cir['cen_z'] = drill_depth
-                                        cir['diameter'] = bore_dia
-                                        cir['normal_z'] = normal_z
-                                        cir['org_displacement'] = org_displacement
-                                        circles.append(cir)
-
-                                        x = start_dim_x
-                                    
-                                        #All other holes
-                                        if token.face == '5':
-                                            if self.debug_mode:
-                                                i = 1
-                                                print("Face: 5, start_dim_x", round(start_dim_x,2))
-                                                print("Face: 5, end_dim_x", round(end_dim_x,2))
-                                                print("Face: 5, drill " + str(i) + ": x ", round(x,2))
-
-                                            while x > end_dim_x:
-                                                x -= distance_between_holes
-
-                                                if x < 0: break
-                                                
-                                                if self.debug_mode:
-                                                    i += 1
-                                                    print("Face: 5, drill " + str(i) + ": x ", round(x,2))
-
-                                                cir = {}
-                                                cir['cen_x'] = x
-                                                cir['cen_y'] = start_dim_y
-                                                cir['cen_z'] = drill_depth
-                                                cir['diameter'] = bore_dia
-                                                cir['normal_z'] = normal_z
-                                                cir['org_displacement'] = org_displacement
-                                                circles.append(cir)
-
-
-                                        if token.face == '6':
-                                            if self.debug_mode:
-                                                i = 1
-                                                print("Face: 6, start_dim_x", round(start_dim_x,2))
-                                                print("Face: 6, end_dim_x", round(end_dim_x,2))
-                                                print("Face: 6, drill " + str(i) + ": x ", round(x,2))
-
-                                            while x < end_dim_x and x < 0:
-                                                x += distance_between_holes
-
-                                                if x > 0: break
-
-                                                if self.debug_mode:
-                                                    i += 1
-                                                    print("Face: 6, drill " + str(i) + ": x ", round(x,2))
-
-                                                cir = {}
-                                                cir['cen_x'] = x
-                                                cir['cen_y'] = start_dim_y
-                                                cir['cen_z'] = drill_depth
-                                                cir['diameter'] = bore_dia
-                                                cir['normal_z'] = normal_z
-                                                cir['org_displacement'] = org_displacement
-                                                circles.append(cir)
-
-                                    if token_name == 'Door Hinge Drilling':
-                                        door_swing = assembly.get_prompt("Door Swing").value()
-                                        door_x_dim = unit.meter_to_inch(assembly.obj_x.location.x)
-                                        door_y_dim = abs(unit.meter_to_inch(assembly.obj_y.location.y))
-                                        normal_z = -1
-                                        org_displacement = self.distance(utils.get_part_thickness(obj))
-                                        bore_dia = unit.meter_to_inch(unit.millimeter(35))
-                                        dim_in_x = unit.meter_to_inch(unit.millimeter(78))
-                                        dim_in_y = unit.meter_to_inch(unit.millimeter(21))                                   
-                                        bore_depth = unit.meter_to_inch(unit.millimeter(11.5))
-                                        screw_hole_y_dim = unit.meter_to_inch(unit.millimeter(9.5)) 
-                                        screw_hole_dia = unit.meter_to_inch(unit.millimeter(0.5)) 
-                                        distance_between_holes = unit.meter_to_inch(unit.millimeter(45))
-                                        mid_hole_offset = unit.meter_to_inch(unit.millimeter(16))
-
-                                        if door_swing == "Left":
-                                            dim_in_y = door_y_dim - unit.meter_to_inch(unit.millimeter(21))
-                                            screw_hole_y_dim = -(screw_hole_y_dim)
-
-                                        if door_swing == "Bottom":
-                                            print("Bottom swing hamper door")
-
-                                        #Bottom
-                                        #Add Main hole
-                                        cir = {}
-                                        cir['cen_x'] = -dim_in_x
-                                        cir['cen_y'] = dim_in_y
-                                        cir['cen_z'] = bore_depth
-                                        cir['diameter'] = bore_dia 
-                                        cir['normal_z'] = normal_z
-                                        cir['org_displacement'] = org_displacement
-                                        circles.append(cir)                                        
-
-                                        #Add screw hole left
-                                        cir = {}
-                                        cir['cen_x'] = -(dim_in_x - distance_between_holes * 0.5)
-                                        cir['cen_y'] = dim_in_y + screw_hole_y_dim
-                                        cir['cen_z'] = bore_depth
-                                        cir['diameter'] = screw_hole_dia 
-                                        cir['normal_z'] = normal_z
-                                        cir['org_displacement'] = org_displacement
-                                        circles.append(cir)                                        
-
-                                        #add screw hole right
-                                        cir = {}
-                                        cir['cen_x'] = -(dim_in_x + distance_between_holes * 0.5)
-                                        cir['cen_y'] = dim_in_y + screw_hole_y_dim
-                                        cir['cen_z'] = bore_depth
-                                        cir['diameter'] = screw_hole_dia 
-                                        cir['normal_z'] = normal_z
-                                        cir['org_displacement'] = org_displacement
-                                        circles.append(cir)
-
-                                        dim_in_x = door_x_dim - dim_in_x
-
-                                        #Top
-                                        #Add Main hole
-                                        cir = {}
-                                        cir['cen_x'] = -dim_in_x
-                                        cir['cen_y'] = dim_in_y
-                                        cir['cen_z'] = bore_depth
-                                        cir['diameter'] = bore_dia 
-                                        cir['normal_z'] = normal_z
-                                        cir['org_displacement'] = org_displacement
-                                        circles.append(cir)                                        
-
-                                        #Add screw hole left
-                                        cir = {}
-                                        cir['cen_x'] = -(dim_in_x - distance_between_holes * 0.5)
-                                        cir['cen_y'] = dim_in_y + screw_hole_y_dim
-                                        cir['cen_z'] = bore_depth
-                                        cir['diameter'] = screw_hole_dia 
-                                        cir['normal_z'] = normal_z
-                                        cir['org_displacement'] = org_displacement
-                                        circles.append(cir)                                        
-
-                                        #add screw hole right
-                                        cir = {}
-                                        cir['cen_x'] = -(dim_in_x + distance_between_holes * 0.5)
-                                        cir['cen_y'] = dim_in_y + screw_hole_y_dim
-                                        cir['cen_z'] = bore_depth
-                                        cir['diameter'] = screw_hole_dia 
-                                        cir['normal_z'] = normal_z
-                                        cir['org_displacement'] = org_displacement
-                                        circles.append(cir)
-
-                                        #Mid hinge drilling for doors longer than 52"
-                                        if door_x_dim > 52:
-                                            dim_in_x = door_x_dim * 0.5 - mid_hole_offset
-
-                                            #Add Main hole
-                                            cir = {}
-                                            cir['cen_x'] = -dim_in_x
-                                            cir['cen_y'] = dim_in_y
-                                            cir['cen_z'] = bore_depth
-                                            cir['diameter'] = bore_dia 
-                                            cir['normal_z'] = normal_z
-                                            cir['org_displacement'] = org_displacement
-                                            circles.append(cir)                                        
-
-                                            #Add screw hole left
-                                            cir = {}
-                                            cir['cen_x'] = -(dim_in_x - distance_between_holes * 0.5)
-                                            cir['cen_y'] = dim_in_y + screw_hole_y_dim
-                                            cir['cen_z'] = bore_depth
-                                            cir['diameter'] = screw_hole_dia 
-                                            cir['normal_z'] = normal_z
-                                            cir['org_displacement'] = org_displacement
-                                            circles.append(cir)                                        
-
-                                            #add screw hole right
-                                            cir = {}
-                                            cir['cen_x'] = -(dim_in_x + distance_between_holes * 0.5)
-                                            cir['cen_y'] = dim_in_y + screw_hole_y_dim
-                                            cir['cen_z'] = bore_depth
-                                            cir['diameter'] = screw_hole_dia 
-                                            cir['normal_z'] = normal_z
-                                            cir['org_displacement'] = org_displacement
-                                            circles.append(cir)                                            
-
-                                    if token_name == "Hamper Door Hinge Drilling":
-                                        door_x_dim = unit.meter_to_inch(assembly.obj_x.location.x)
-                                        door_y_dim = abs(unit.meter_to_inch(assembly.obj_y.location.y))
-                                        normal_z = -1
-                                        org_displacement = self.distance(utils.get_part_thickness(obj))
-                                        bore_dia = unit.meter_to_inch(unit.millimeter(35))
-                                        dim_in_x = unit.meter_to_inch(unit.millimeter(21))
-                                        dim_in_y = unit.meter_to_inch(unit.millimeter(78))                                   
-                                        bore_depth = unit.meter_to_inch(unit.millimeter(11.5))
-                                        screw_hole_x_dim = unit.meter_to_inch(unit.millimeter(9.5)) 
-                                        screw_hole_dia = unit.meter_to_inch(unit.millimeter(0.5)) 
-                                        distance_between_holes = unit.meter_to_inch(unit.millimeter(45))
-
-                                        #Right
-                                        cir = {}
-                                        cir['cen_x'] = -dim_in_x
-                                        cir['cen_y'] = dim_in_y
-                                        cir['cen_z'] = bore_depth
-                                        cir['diameter'] = bore_dia 
-                                        cir['normal_z'] = normal_z
-                                        cir['org_displacement'] = org_displacement
-                                        circles.append(cir)                                        
-
-                                        cir = {}
-                                        cir['cen_x'] = -(dim_in_x + screw_hole_x_dim)
-                                        cir['cen_y'] = dim_in_y + distance_between_holes * 0.5
-                                        cir['cen_z'] = bore_depth
-                                        cir['diameter'] = screw_hole_dia 
-                                        cir['normal_z'] = normal_z
-                                        cir['org_displacement'] = org_displacement
-                                        circles.append(cir)                                        
-
-                                        cir = {}
-                                        cir['cen_x'] = -(dim_in_x + screw_hole_x_dim)
-                                        cir['cen_y'] = dim_in_y - distance_between_holes * 0.5
-                                        cir['cen_z'] = bore_depth
-                                        cir['diameter'] = screw_hole_dia 
-                                        cir['normal_z'] = normal_z
-                                        cir['org_displacement'] = org_displacement
-                                        circles.append(cir)
-
-                                        dim_in_y = door_y_dim - dim_in_y
-
-                                        #Left
-                                        cir = {}
-                                        cir['cen_x'] = -dim_in_x
-                                        cir['cen_y'] = dim_in_y
-                                        cir['cen_z'] = bore_depth
-                                        cir['diameter'] = bore_dia 
-                                        cir['normal_z'] = normal_z
-                                        cir['org_displacement'] = org_displacement
-                                        circles.append(cir)                                        
-
-                                        cir = {}
-                                        cir['cen_x'] = -(dim_in_x + screw_hole_x_dim)
-                                        cir['cen_y'] = dim_in_y + distance_between_holes * 0.5
-                                        cir['cen_z'] = bore_depth
-                                        cir['diameter'] = screw_hole_dia 
-                                        cir['normal_z'] = normal_z
-                                        cir['org_displacement'] = org_displacement
-                                        circles.append(cir)                                        
-
-                                        cir = {}
-                                        cir['cen_x'] = -(dim_in_x + screw_hole_x_dim)
-                                        cir['cen_y'] = dim_in_y - distance_between_holes * 0.5
-                                        cir['cen_z'] = bore_depth
-                                        cir['diameter'] = screw_hole_dia 
-                                        cir['normal_z'] = normal_z
-                                        cir['org_displacement'] = org_displacement
-                                        circles.append(cir)
-
-                                    if token_name == 'Shelf and Rod Holes':
-                                        print("Found machine token:", token_name)
-
-
-                                    #Middle hanging rods
-                                    if token_name == 'System Holes Mid':
-                                        print("Found machine token:", token_name)
-                                        
-
-                                if token.type_token == 'SLIDE':
-                                    param_dict = token.create_parameter_dictionary()
-
-                                    slide_type = closet_materials.get_drawer_slide_type()
-                                    slide_size = get_slide_size(slide_type, assembly)
-                                    front_hole_dim_m = unit.millimeter(slide_size.front_hole_dim_mm)
-                                    front_hole_dim_inch = unit.meter_to_inch(front_hole_dim_m)
-                                    back_hole_dim_m = unit.millimeter(slide_size.back_hole_dim_mm)
-                                    back_hole_dim_inch = unit.meter_to_inch(back_hole_dim_m)
-                                    
-                                    dim_from_drawer_bottom = 0.5 # 0.5" should this be added to csv files?
-                                    dim_to_first_hole = front_hole_dim_inch
-                                    dim_to_second_hole = back_hole_dim_inch
-                                    bore_depth_and_dia = param_dict['Par7']
-                                    bore_depth, bore_dia = bore_depth_and_dia.split("|")
-                                    bore_depth_f = float(bore_depth)
-                                    bore_dia_meter = unit.millimeter(float(bore_dia))
-                                    bore_dia_inch = unit.meter_to_inch(bore_dia_meter)
-
-                                    #Front Hole
-                                    cir = {}
-                                    cir['cen_x'] = dim_to_first_hole
-                                    cir['cen_y'] = dim_from_drawer_bottom
-                                    cir['cen_z'] = bore_depth_f
-                                    cir['diameter'] = bore_dia_inch 
-                                    cir['normal_z'] = 1
-                                    cir['org_displacement'] = 0
-                                    circles.append(cir)
-
-                                    #Back Hole
-                                    cir = {}
-                                    cir['cen_x'] = dim_to_second_hole
-                                    cir['cen_y'] = dim_from_drawer_bottom
-                                    cir['cen_z'] = bore_depth_f
-                                    cir['diameter'] = bore_dia_inch 
-                                    cir['normal_z'] = 1
-                                    cir['org_displacement'] = 0
-                                    circles.append(cir)
+            drilling = self.get_drilling(assembly)
 
             op_grp = [
                 ("IDOP-{}".format(self.op_count), "IDMOR-{}".format(self.or_count)),
@@ -2214,7 +2830,7 @@ class OPS_Export_XML(Operator):
                 upper_left,#Segment 2
                 lower_left,#Segment 3
                 lower_right,#Segment 4
-                circles
+                drilling
             ]
 
             #Create and operation group for every part
@@ -2407,6 +3023,9 @@ class OPS_Export_XML(Operator):
         customer_name = elm_pinfo.find("customer_name").text
         client_id = elm_pinfo.find("client_id").text
         proj_address = elm_pinfo.find("project_address").text
+        city = elm_pinfo.find("city").text
+        state = elm_pinfo.find("state").text
+        zip_code = elm_pinfo.find("zip_code").text
         cphone_1 = elm_pinfo.find("customer_phone_1").text
         cphone_2 = elm_pinfo.find("customer_phone_2").text
         c_email = elm_pinfo.find("customer_email").text
@@ -2419,6 +3038,9 @@ class OPS_Export_XML(Operator):
                 ('customername', customer_name),
                 ('clientid', client_id),
                 ('projectaddress', proj_address),
+                ('city', city),
+                ('state', state),
+                ('zipcode', zip_code),
                 ('customerphone1', cphone_1),
                 ('customerphone2', cphone_2),
                 ('customeremail', c_email),

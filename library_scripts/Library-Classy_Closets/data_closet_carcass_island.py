@@ -50,6 +50,7 @@ class Closet_Island_Carcass(fd_types.Assembly):
         self.add_prompt(name="Left Against Wall",prompt_type='CHECKBOX',value=False,tab_index=1)
         self.add_prompt(name="Right Against Wall",prompt_type='CHECKBOX',value=False,tab_index=1)
         self.add_prompt(name="Exposed Back",prompt_type='CHECKBOX',value=True,tab_index=1)
+        self.add_prompt(name="No Countertop",prompt_type='CHECKBOX',value=False,tab_index=1)
         
         if self.is_double_sided:
             self.add_prompt(name="Depth 1",prompt_type='DISTANCE',value=props.panel_depth,tab_index=1)
@@ -58,8 +59,9 @@ class Closet_Island_Carcass(fd_types.Assembly):
             Depth_1 = self.get_var('Depth 1')
             Depth_2 = self.get_var('Depth 2')
             Back_Thickness = self.get_var('Back Thickness')
+            Panel_Thickness = self.get_var('Panel Thickness')
             
-            self.y_dim('(Depth_1+Depth_2+Back_Thickness)*-1',[Depth_1,Depth_2,Back_Thickness])
+            self.y_dim('(Depth_1+Depth_2+Panel_Thickness)*-1',[Depth_1,Depth_2,Panel_Thickness])
             
     def add_sides(self):
         props = props_closet.get_scene_props()   
@@ -74,13 +76,14 @@ class Closet_Island_Carcass(fd_types.Assembly):
         Add_Backing = self.get_var('Add Backing')
         Back_Thickness = self.get_var('Back Thickness')
         Toe_Kick_Height = self.get_var('Toe Kick Height')
+        Panel_Thickness = self.get_var('Panel Thickness')
         
         left_side = common_parts.add_panel(self)
         left_side.x_dim('Product_Height',[Product_Height])
         left_side.y_dim('Product_Depth',[Product_Depth])
         left_side.z_dim('-Left_Side_Thickness',[Left_Side_Thickness])
         left_side.x_loc('Left_Side_Wall_Filler',[Left_Side_Wall_Filler])
-        left_side.y_loc('IF(Add_Backing,-Back_Thickness,0)',[Add_Backing,Back_Thickness])
+        left_side.y_loc('IF(Add_Backing,-Panel_Thickness,0)',[Add_Backing,Panel_Thickness])
         left_side.z_loc('Toe_Kick_Height',[Toe_Kick_Height])
         left_side.x_rot(value = 0)
         left_side.y_rot(value = -90)
@@ -91,7 +94,7 @@ class Closet_Island_Carcass(fd_types.Assembly):
         right_side.y_dim('Product_Depth',[Product_Depth])
         right_side.z_dim('Right_Side_Thickness',[Right_Side_Thickness])
         right_side.x_loc('Product_Width-Right_Side_Wall_Filler',[Product_Width,Right_Side_Wall_Filler])
-        right_side.y_loc('IF(Add_Backing,-Back_Thickness,0)',[Add_Backing,Back_Thickness])
+        right_side.y_loc('IF(Add_Backing,-Panel_Thickness,0)',[Add_Backing,Panel_Thickness])
         right_side.z_loc('Toe_Kick_Height',[Toe_Kick_Height])
         right_side.x_rot(value = 0)
         right_side.y_rot(value = -90)
@@ -148,12 +151,8 @@ class Closet_Island_Carcass(fd_types.Assembly):
             shelf.x_loc('Left_Side_Wall_Filler+X_Loc',[Left_Side_Wall_Filler,X_Loc])
         
         if self.is_double_sided:
-            if is_rear:
-                shelf.y_loc('Product_Depth',[Product_Depth])
-                shelf.y_dim("Depth_2",[Depth_2])
-            else:
-                shelf.y_loc(value = 0)
-                shelf.y_dim("-Depth_1",[Depth_1])
+            shelf.y_loc(value = 0)
+            shelf.y_dim("Product_Depth",[Product_Depth])
         else:
             shelf.y_loc(value = 0)
             shelf.y_dim("Product_Depth",[Product_Depth])
@@ -269,6 +268,7 @@ class Closet_Island_Carcass(fd_types.Assembly):
         Product_Width = self.get_var('dim_x','Product_Width')
         Back_Thickness = self.get_var('Back Thickness')
         Toe_Kick_Height = self.get_var('Toe Kick Height')
+        Panel_Thickness = self.get_var('Panel Thickness')
         
         backing = common_parts.add_back(self)
         backing.x_loc(value = 0)
@@ -279,7 +279,7 @@ class Closet_Island_Carcass(fd_types.Assembly):
         backing.z_rot(value = 0)
         backing.x_dim('Product_Width',[Product_Width])
         backing.y_dim("Product_Height",[Product_Height])
-        backing.z_dim('-Back_Thickness',[Back_Thickness])
+        backing.z_dim('-Panel_Thickness',[Panel_Thickness])
         
     def add_double_sided_back(self,i,panel):
         Width = self.get_var('Opening ' + str(i) + ' Width','Width')
@@ -288,6 +288,7 @@ class Closet_Island_Carcass(fd_types.Assembly):
         Back_Thickness = self.get_var('Back Thickness')
         Depth_1 = self.get_var('Depth 1')
         Toe_Kick_Height = self.get_var('Toe Kick Height')
+        Panel_Thickness = self.get_var('Panel Thickness')
         
         if panel:
             X_Loc = panel.get_var('loc_x','X_Loc')
@@ -297,102 +298,205 @@ class Closet_Island_Carcass(fd_types.Assembly):
         backing = common_parts.add_back(self)
         backing.x_loc('X_Loc',[X_Loc])
         backing.y_loc('-Depth_1',[Depth_1])
-        backing.z_loc('Toe_Kick_Height',[Toe_Kick_Height])
+        backing.z_loc('Toe_Kick_Height + Panel_Thickness',[Toe_Kick_Height,Panel_Thickness])
         backing.x_rot(value = 90)
         backing.y_rot(value = 0)
         backing.z_rot(value = 0)
         backing.x_dim('Width',[Width])
-        backing.y_dim("Product_Height",[Product_Height])
-        backing.z_dim('Back_Thickness',[Back_Thickness])
+        backing.y_dim("Product_Height-(Panel_Thickness*2)",[Product_Height,Panel_Thickness])
+        backing.z_dim('Panel_Thickness',[Panel_Thickness])
         
     def add_counter_top(self):
         dim_x = self.get_var('dim_x')
         dim_z = self.get_var('dim_z')
         dim_y = self.get_var('dim_y')
         Deck_Overhang = self.get_var('Deck Overhang')
+        Side_Deck_Overhang = self.get_var("Side Deck Overhang")
         Deck_Thickness = self.get_var('Deck Thickness')
         Countertop_Type = self.get_var('Countertop Type')
-        Edge_Type = self.get_var('Edge Type')
         Left_Against_Wall = self.get_var('Left Against Wall')
         Right_Against_Wall = self.get_var('Right Against Wall')
         Exposed_Back = self.get_var('Exposed Back')
-        Toe_Kick_Height = self.get_var('Toe Kick Height')        
+        Toe_Kick_Height = self.get_var('Toe Kick Height') 
+        No_Countertop = self.get_var('No Countertop')       
         
-        ctop = common_parts.add_plant_on_top(self)
-        ctop.set_name("Counter Deck")
-        ctop.x_loc('IF(Left_Against_Wall,0,-Deck_Overhang)',[Left_Against_Wall,Deck_Overhang])
-        ctop.y_loc('Deck_Overhang',[Deck_Overhang])
-        ctop.z_loc('dim_z+Toe_Kick_Height',[dim_z,Toe_Kick_Height])
-        ctop.x_rot(value = 0)
-        ctop.y_rot(value = 0)
-        ctop.z_rot(value = 0)
-        ctop.x_dim('dim_x+IF(Left_Against_Wall,0,Deck_Overhang)+IF(Right_Against_Wall,0,Deck_Overhang)',
-                   [dim_x,Deck_Overhang,Left_Against_Wall,Right_Against_Wall])
-        ctop.y_dim('dim_y-Deck_Overhang*2',[dim_y,Deck_Overhang])
-        ctop.z_dim('Deck_Thickness',[Deck_Thickness])
-        ctop.prompt("Is Counter Top",value = True)
-        ctop.prompt("Hide","IF(Countertop_Type==0,False,True)",[Countertop_Type])
-        ctop.prompt("Exposed Left","IF(Left_Against_Wall,False,True)",[Left_Against_Wall])
-        ctop.prompt("Exposed Right","IF(Right_Against_Wall,False,True)",[Right_Against_Wall])
-        ctop.prompt("Exposed Back","Exposed_Back",[Exposed_Back])
+        granite_ctop = common_parts.add_countertop(self)
+        granite_ctop.set_name("Granite Countertop")
+        granite_ctop.x_loc('IF(Left_Against_Wall,0,-Side_Deck_Overhang)',[Left_Against_Wall,Side_Deck_Overhang])
+        granite_ctop.y_loc('Deck_Overhang',[Deck_Overhang])
+        granite_ctop.z_loc('dim_z+Toe_Kick_Height',[dim_z,Toe_Kick_Height])
+        granite_ctop.x_rot(value = 0)
+        granite_ctop.y_rot(value = 0)
+        granite_ctop.z_rot(value = 0)
+        granite_ctop.x_dim('dim_x+IF(Left_Against_Wall,0,Side_Deck_Overhang)+IF(Right_Against_Wall,0,Side_Deck_Overhang)',
+                   [dim_x,Side_Deck_Overhang,Left_Against_Wall,Right_Against_Wall])
+        granite_ctop.y_dim('dim_y-Deck_Overhang*2',[dim_y,Deck_Overhang])
+        granite_ctop.z_dim('Deck_Thickness',[Deck_Thickness])
+        granite_ctop.prompt("Hide","IF(No_Countertop,True,IF(Countertop_Type==2,False,True))",[Countertop_Type,No_Countertop])
+        #granite_ctop.prompt("Exposed Left","IF(Left_Against_Wall,False,True)",[Left_Against_Wall])
+        #granite_ctop.prompt("Exposed Right","IF(Right_Against_Wall,False,True)",[Right_Against_Wall])
+        #granite_ctop.prompt("Exposed Back","Exposed_Back",[Exposed_Back])
                 
         hpltop = common_parts.add_hpl_top(self)    
-        hpltop.set_name("HPL Deck")
-        hpltop.x_loc('IF(Left_Against_Wall,0,-Deck_Overhang)',[Left_Against_Wall,Deck_Overhang])
+        hpltop.set_name("HPL Countertop")
+        hpltop.x_loc('IF(Left_Against_Wall,0,-Side_Deck_Overhang)',[Left_Against_Wall,Side_Deck_Overhang])
         hpltop.y_loc('Deck_Overhang',[Deck_Overhang])
         hpltop.z_loc('dim_z+Toe_Kick_Height',[dim_z,Toe_Kick_Height])
         hpltop.x_rot(value = 0)
         hpltop.y_rot(value = 0)
         hpltop.z_rot(value = 0)
-        hpltop.x_dim('dim_x+IF(Left_Against_Wall,0,Deck_Overhang)+IF(Right_Against_Wall,0,Deck_Overhang)',
-                   [dim_x,Deck_Overhang,Left_Against_Wall,Right_Against_Wall])
+        hpltop.x_dim('dim_x+IF(Left_Against_Wall,0,Side_Deck_Overhang)+IF(Right_Against_Wall,0,Side_Deck_Overhang)',
+                   [dim_x,Side_Deck_Overhang,Left_Against_Wall,Right_Against_Wall])
         hpltop.y_dim('dim_y-Deck_Overhang*2',[dim_y,Deck_Overhang])
         hpltop.z_dim('Deck_Thickness',[Deck_Thickness])
-        hpltop.prompt("Hide","IF(Countertop_Type==1,False,True)",[Countertop_Type])
+        hpltop.prompt("Hide","IF(No_Countertop,True,IF(Countertop_Type==1,False,True))",[Countertop_Type,No_Countertop])
         hpltop.prompt("Exposed Left","IF(Left_Against_Wall,False,True)",[Left_Against_Wall])
         hpltop.prompt("Exposed Right","IF(Right_Against_Wall,False,True)",[Right_Against_Wall])
         hpltop.prompt("Exposed Back","Exposed_Back",[Exposed_Back])
 
-        for child in ctop.obj_bp.children:
+        melamine_deck = common_parts.add_plant_on_top(self)    
+        melamine_deck.set_name("Melamine Countertop")
+        melamine_deck.x_loc('IF(Left_Against_Wall,0,-Side_Deck_Overhang)',[Left_Against_Wall,Side_Deck_Overhang])
+        melamine_deck.y_loc('Deck_Overhang',[Deck_Overhang])
+        melamine_deck.z_loc('dim_z+Toe_Kick_Height',[dim_z,Toe_Kick_Height])
+        melamine_deck.x_rot(value = 0)
+        melamine_deck.y_rot(value = 0)
+        melamine_deck.z_rot(value = 0)
+        melamine_deck.x_dim('dim_x+IF(Left_Against_Wall,0,Side_Deck_Overhang)+IF(Right_Against_Wall,0,Side_Deck_Overhang)',[dim_x,Side_Deck_Overhang,Left_Against_Wall,Right_Against_Wall])
+        melamine_deck.y_dim('dim_y-Deck_Overhang*2',[dim_y,Deck_Overhang])
+        melamine_deck.z_dim('Deck_Thickness',[Deck_Thickness])   
+        melamine_deck.prompt("Is Counter Top",value = True) 
+        melamine_deck.prompt("Hide","IF(No_Countertop,True,IF(Countertop_Type==0,False,True))",[Countertop_Type,No_Countertop]) 
+        melamine_deck.prompt("Exposed Left","IF(Left_Against_Wall,False,True)",[Left_Against_Wall])
+        melamine_deck.prompt("Exposed Right","IF(Right_Against_Wall,False,True)",[Right_Against_Wall])
+        melamine_deck.prompt("Exposed Back","Exposed_Back",[Exposed_Back])
+        for child in melamine_deck.obj_bp.children:
             if child.cabinetlib.type_mesh == 'CUTPART':
                 for mat_slot in child.cabinetlib.material_slots:
-                    mat_slot.pointer_name = "Closet_Part_Edges"   
-
-        granite_deck = common_parts.add_island_countertop(self)    
-        granite_deck.set_name("Granite Deck")
-        granite_deck.x_loc('-Deck_Overhang',[Deck_Overhang])
-        granite_deck.y_loc('Deck_Overhang',[Deck_Overhang])
-        granite_deck.z_loc('dim_z+Toe_Kick_Height',[dim_z,Toe_Kick_Height])
-        granite_deck.x_rot(value = 0)
-        granite_deck.y_rot(value = 0)
-        granite_deck.z_rot(value = 0)
-        granite_deck.x_dim('dim_x+Deck_Overhang*2',[dim_x,Deck_Overhang])
-        granite_deck.y_dim('dim_y-Deck_Overhang*2',[dim_y,Deck_Overhang])
-        granite_deck.z_dim('Deck_Thickness',[Deck_Thickness])   
-        granite_deck.prompt("Edge Type","Edge_Type",[Edge_Type]) 
-        granite_deck.prompt("Hide","IF(Countertop_Type==2,False,True)",[Countertop_Type])    
+                    mat_slot.pointer_name = "Closet_Part_Edges"    
         
     def add_base_assembly(self):
-        Product_Depth = self.get_var('dim_y','Product_Depth')
-        Width =  self.get_var('dim_x','Width')
-        Toe_Kick_Height = self.get_var('Toe Kick Height')
-        Toe_Kick_Setback = self.get_var('Toe Kick Setback')
-        Shelf_Thickness = self.get_var('Shelf Thickness')
+#        Product_Depth = self.get_var('dim_y','Product_Depth')
+#        Width =  self.get_var('dim_x','Width')
+#        Toe_Kick_Height = self.get_var('Toe Kick Height')
+#        Toe_Kick_Setback = self.get_var('Toe Kick Setback')
+#        Shelf_Thickness = self.get_var('Shelf Thickness')
+#        Toe_Kick_Thickness = self.get_var('Toe Kick Thickness')
+#        
+#        base_assembly = data_base_assembly.Base_Assembly() 
+#        base_assembly.draw()
+#        base_assembly.obj_bp.parent = self.obj_bp
+#        base_assembly.set_name("Toe Kick")
+#        base_assembly.x_loc(value = 0)
+#        base_assembly.y_loc('-Toe_Kick_Setback',[Toe_Kick_Setback])
+#        base_assembly.z_loc(value = 0)
+#        base_assembly.x_rot(value = 0)
+#        base_assembly.y_rot(value = 0)
+#        base_assembly.z_rot(value = 0)
+#        base_assembly.x_dim('Width',[Width])
+#        base_assembly.y_dim('Product_Depth+(Toe_Kick_Setback*2)',[Product_Depth,Toe_Kick_Setback])
+#        base_assembly.z_dim('Toe_Kick_Height',[Toe_Kick_Height])       
+        self.add_prompt(name="Cleat Width",prompt_type='DISTANCE',value=unit.inch(2.5),tab_index=1)
+        Width = self.get_var('dim_x',"Width")
+        Depth = self.get_var('dim_y',"Depth")
+        Height = self.get_var('Toe Kick Height',"Height")
+        Cleat_Width = self.get_var('Cleat Width')
         Toe_Kick_Thickness = self.get_var('Toe Kick Thickness')
+        Toe_Kick_Setback = self.get_var('Toe Kick Setback')
+        Extend_Left_Amount = self.get_var('Extend Left Amount')
+        Extend_Right_Amount = self.get_var('Extend Right Amount')
+        Extend_Depth_Amount = self.get_var('Extend Depth Amount')
         
-        base_assembly = data_base_assembly.Base_Assembly() 
-        base_assembly.draw()
-        base_assembly.obj_bp.parent = self.obj_bp
-        base_assembly.set_name("Toe Kick")
-        base_assembly.x_loc(value = 0)
-        base_assembly.y_loc('-Toe_Kick_Setback',[Toe_Kick_Setback])
-        base_assembly.z_loc(value = 0)
-        base_assembly.x_rot(value = 0)
-        base_assembly.y_rot(value = 0)
-        base_assembly.z_rot(value = 0)
-        base_assembly.x_dim('Width',[Width])
-        base_assembly.y_dim('Product_Depth+(Toe_Kick_Setback*2)',[Product_Depth,Toe_Kick_Setback])
-        base_assembly.z_dim('Toe_Kick_Height',[Toe_Kick_Height])       
+        toe_kick_front = common_parts.add_toe_kick(self)
+        toe_kick_front.set_name("Toe Kick Front")
+        toe_kick_front.obj_bp.mv.comment_2 = "1034"
+        toe_kick_front.x_dim('Width-(Toe_Kick_Thickness*3)',[Width,Toe_Kick_Thickness])
+        toe_kick_front.y_dim('-Height',[Height])
+        toe_kick_front.z_dim('Toe_Kick_Thickness',[Toe_Kick_Thickness])
+        toe_kick_front.x_loc('(Toe_Kick_Thickness*1.5)',[Toe_Kick_Thickness])
+        toe_kick_front.y_loc('Depth+Toe_Kick_Setback',[Depth,Toe_Kick_Setback])
+        toe_kick_front.z_loc(value = 0)
+        toe_kick_front.x_rot(value = -90)
+        toe_kick_front.y_rot(value = 0)
+        toe_kick_front.z_rot(value = 0)
+        
+        toe_kick = common_parts.add_toe_kick(self)
+        toe_kick.set_name("Toe Kick Back")
+        if(self.is_double_sided):
+            toe_kick.y_loc('-Toe_Kick_Setback',[Toe_Kick_Setback])
+        else:
+            toe_kick.y_loc('Toe_Kick_Thickness',[Toe_Kick_Thickness])
+        
+        toe_kick.obj_bp.mv.comment_2 = "1034"
+        toe_kick.x_dim('Width-(Toe_Kick_Thickness*3)',[Width,Toe_Kick_Thickness])
+        toe_kick.y_dim('-Height',[Height])
+        toe_kick.z_dim('-Toe_Kick_Thickness',[Toe_Kick_Thickness])
+        toe_kick.x_loc('(Toe_Kick_Thickness*1.5)',[Toe_Kick_Thickness])
+        
+        toe_kick.z_loc(value = 0)
+        toe_kick.x_rot(value = -90)
+        toe_kick.y_rot(value = 0)
+        toe_kick.z_rot(value = 0)        
+        
+        left_toe_kick = common_parts.add_toe_kick_end_cap(self)
+        if(self.is_double_sided):
+            left_toe_kick.x_dim('-Depth-(Toe_Kick_Setback*2)',[Depth,Toe_Kick_Setback])
+            left_toe_kick.y_loc('-Toe_Kick_Setback',[Toe_Kick_Setback])
+        else:
+            left_toe_kick.x_dim('-Depth-Toe_Kick_Setback+Toe_Kick_Thickness',[Depth,Toe_Kick_Setback,Toe_Kick_Thickness])
+            left_toe_kick.y_loc('Toe_Kick_Thickness',[Toe_Kick_Thickness])
+
+        left_toe_kick.y_dim('-Height',[Height])
+        left_toe_kick.z_dim('Toe_Kick_Thickness',[Toe_Kick_Thickness])
+        left_toe_kick.x_loc('(Toe_Kick_Thickness/2)',[Toe_Kick_Thickness])
+        left_toe_kick.z_loc(value = 0)
+        left_toe_kick.x_rot(value = -90)
+        left_toe_kick.y_rot(value = 0)
+        left_toe_kick.z_rot(value = -90)        
+        
+        right_toe_kick = common_parts.add_toe_kick_end_cap(self)
+        if(self.is_double_sided):
+            right_toe_kick.x_dim('-Depth-(Toe_Kick_Setback*2)',[Depth,Toe_Kick_Setback])
+            right_toe_kick.y_loc('-Toe_Kick_Setback',[Toe_Kick_Setback])
+        else:
+            right_toe_kick.x_dim('-Depth-Toe_Kick_Setback+Toe_Kick_Thickness',[Depth,Toe_Kick_Setback,Toe_Kick_Thickness])
+            right_toe_kick.y_loc('Toe_Kick_Thickness',[Toe_Kick_Thickness])
+
+        
+        right_toe_kick.y_dim('Height',[Height])
+        right_toe_kick.z_dim('Toe_Kick_Thickness',[Toe_Kick_Thickness])
+        
+        right_toe_kick.x_loc('Width-(Toe_Kick_Thickness/2)',[Width,Toe_Kick_Thickness])
+        right_toe_kick.z_loc(value = 0)
+        right_toe_kick.x_rot(value = 90)
+        right_toe_kick.y_rot(value = 0)
+        right_toe_kick.z_rot(value = -90)
+        
+        toe_kick_stringer = common_parts.add_toe_kick_stringer(self)
+        toe_kick_stringer.x_dim('Width-(Toe_Kick_Thickness*3)',[Width,Toe_Kick_Thickness])
+        toe_kick_stringer.y_dim('Cleat_Width',[Cleat_Width])
+        toe_kick_stringer.z_dim('Toe_Kick_Thickness',[Toe_Kick_Thickness])
+        toe_kick_stringer.x_loc('(Toe_Kick_Thickness*1.5)',[Toe_Kick_Thickness])
+        toe_kick_stringer.y_loc('Depth+Toe_Kick_Thickness+Toe_Kick_Setback',[Depth,Toe_Kick_Thickness,Toe_Kick_Setback])
+        toe_kick_stringer.z_loc('Height-Toe_Kick_Thickness',[Height,Toe_Kick_Thickness])
+        toe_kick_stringer.x_rot(value = 0)
+        toe_kick_stringer.y_rot(value = 0)
+        toe_kick_stringer.z_rot(value = 0)
+        
+        toe_kick_stringer = common_parts.add_toe_kick_stringer(self)
+        if(self.is_double_sided):
+            toe_kick_stringer.y_loc('-Toe_Kick_Setback-Toe_Kick_Thickness',[Toe_Kick_Setback,Toe_Kick_Thickness])
+        else:
+            toe_kick_stringer.y_loc(value = 0)
+
+        toe_kick_stringer.x_dim('Width-(Toe_Kick_Thickness*3)',[Width,Toe_Kick_Thickness])
+        toe_kick_stringer.y_dim('-Cleat_Width',[Cleat_Width])
+        toe_kick_stringer.z_dim('Toe_Kick_Thickness',[Toe_Kick_Thickness])
+        toe_kick_stringer.x_loc('(Toe_Kick_Thickness*1.5)',[Toe_Kick_Thickness])
+        toe_kick_stringer.z_loc(value = 0)
+        toe_kick_stringer.x_rot(value = 0)
+        toe_kick_stringer.y_rot(value = 0)
+        toe_kick_stringer.z_rot(value = 0)   
         
     def draw(self):
         defaults = props_closet.get_scene_props().closet_defaults
@@ -403,7 +507,7 @@ class Closet_Island_Carcass(fd_types.Assembly):
         product_props.is_island = True
         
         if defaults.export_subassemblies:
-            self.obj_bp.mv.export_product_subassemblies = True        
+            self.obj_bp.mv.export_product_subassemblies = True      
         
         self.add_tab(name='Opening Widths',tab_type='CALCULATOR',calc_type="XDIM") #0
         self.add_tab(name='Carcass Options',tab_type='VISIBLE') #1
@@ -434,8 +538,8 @@ class Closet_Island_Carcass(fd_types.Assembly):
         if self.is_double_sided:
 #             self.add_toe_kick(1, panel, is_rear=True)
             self.add_double_sided_back(1, panel)
-            self.add_shelf(1,panel,is_top=True,is_rear=True)
-            self.add_shelf(1,panel,is_top=False,is_rear=True)                
+            #self.add_shelf(1,panel,is_top=True,is_rear=True)
+            #self.add_shelf(1,panel,is_top=False,is_rear=True)                
         
         for i in range(2,self.opening_qty+1):
             panel = self.add_panel(i,panel)
@@ -446,8 +550,6 @@ class Closet_Island_Carcass(fd_types.Assembly):
             if self.is_double_sided:
 #                 self.add_toe_kick(i, panel, is_rear=True)
                 self.add_double_sided_back(i, panel)
-                self.add_shelf(i,panel,is_top=True,is_rear=True)
-                self.add_shelf(i,panel,is_top=False,is_rear=True)    
                 self.add_closet_opening(i,panel,is_rear=True)
                 
 
@@ -485,6 +587,7 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
         depth_1 = self.product.get_prompt("Depth 1")
         if not depth_1:
             self.product.obj_y.location.y = -self.depth
+        props_closet.update_render_materials(self, context)
         #Hack I Dont know why i need to run calculators twice just for left right side removal
 #         utils.run_calculators(self.product.obj_bp)
         return True
@@ -619,8 +722,10 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
         col = box.column(align=True)
         row = col.row()
         row.label("Against Wall:")   
-        left_against_wall.draw_prompt(row,text="Left",split_text=False)
-        right_against_wall.draw_prompt(row,text="Right",split_text=False)
+        row.prop(left_against_wall,left_against_wall.prompt_type,text="Left")
+        row.prop(right_against_wall,right_against_wall.prompt_type,text="Right")
+        #left_against_wall.draw_prompt(row,text="Left",split_text=False)
+        #right_against_wall.draw_prompt(row,text="Right",split_text=False)
         
         col = box.column(align=True)
         col.label("Base Options:")        
@@ -636,32 +741,22 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
 
         Countertop_Type = self.product.get_prompt("Countertop Type")
         Countertop_Thickness = self.product.get_prompt("Countertop Thickness")
-        Edge_Type = self.product.get_prompt("Edge Type")
         HPL_Material_Name = self.product.get_prompt("HPL Material Name")
         HPL_Material_Number = self.product.get_prompt("HPL Material Number")
         Deck_Overhang = self.product.get_prompt("Deck Overhang")
+        Side_Deck_Overhang = self.product.get_prompt("Side Deck Overhang")
+
+        No_Countertop = self.product.get_prompt("No Countertop")
 
         if Deck_Overhang:
             row = col.row()
-            Deck_Overhang.draw_prompt(row,text="")
-                   
-        if Countertop_Type:
+            Deck_Overhang.draw_prompt(row,text="Opening Overhang")
+            Side_Deck_Overhang.draw_prompt(row,text="Side Overhang")
+        row = col.row()
+        #No_Countertop.draw_prompt(row)
+        row.prop(No_Countertop,No_Countertop.prompt_type,text="No Countertop")
+        if Countertop_Type and No_Countertop.value() == False:
             Countertop_Type.draw_prompt(col)
-            
-            if Countertop_Type.value() == 'Melamine' and Countertop_Thickness:
-                Countertop_Thickness.draw_prompt(col)
-                
-            if Countertop_Type.value() == 'HPL':
-#                 if HPL_Material_Name:
-#                     HPL_Material_Name.draw_prompt(col)
-#                 if HPL_Material_Number:           
-#                     HPL_Material_Number.draw_prompt(col)
-                pass 
-            
-            if Countertop_Type.value() == 'Granite':
-#                 if Edge_Type:
-#                     Edge_Type.draw_prompt(col)
-                pass
 
     def draw_product_placment(self,layout):
         box = layout.box()
@@ -678,7 +773,7 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
         layout = self.layout
         if self.product.obj_bp:
             if self.product.obj_bp.name in context.scene.objects:
-
+                left_against_wall = self.product.get_prompt("Left Against Wall")
                 box = layout.box()
                 box.label(self.product.obj_bp.mv.name_object,icon='LATTICE_DATA')
                 
@@ -686,13 +781,14 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
                 self.draw_product_size(split)
                 self.draw_common_prompts(split)
                 row = box.row()
-                row.prop(self,'tabs',expand=True)
-                if self.tabs == 'OPENINGS':
-                    self.draw_splitter_widths(box)
-                elif self.tabs == 'CONSTRUCTION':
-                    self.draw_construction_options(box)
-                else:
-                    pass
-                self.draw_product_placment(box)        
+                if(left_against_wall):
+                    row.prop(self,'tabs',expand=True)
+                    if self.tabs == 'OPENINGS':
+                        self.draw_splitter_widths(box)
+                    elif self.tabs == 'CONSTRUCTION':
+                        self.draw_construction_options(box)
+                    else:
+                        pass
+                    self.draw_product_placment(box)        
                 
 bpy.utils.register_class(PROMPTS_Opening_Starter)

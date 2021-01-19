@@ -2,7 +2,7 @@
 bl_info = {
     "name": "SNaP",
     "author": "Ryan Montes",
-    "version": (1, 2, 1),
+    "version": (1, 2, 2),
     "blender": (2, 7, 8),
     "location": "Tools Shelf",
     "description": "SNaP",
@@ -13,6 +13,7 @@ bl_info = {
 
 
 import bpy
+import xml.etree.ElementTree as ET
 import sqlite3
 from sqlite3 import Error
 import os
@@ -33,6 +34,7 @@ from . import room_builder
 from . import snap_ops
 from . import fd_projects
 from . import lib_manager
+from . import fd_2dviews
 
 # - FOR CUSTOM PROGRESS BAR
 # from tkinter import *
@@ -372,6 +374,52 @@ def refresh_filebrowser(scene=None):
 bpy.app.handlers.load_post.append(refresh_filebrowser)
 
 
+@persistent
+def load_projects(scene=None):
+    """ Loads all projects.
+    """
+    if 'fd_projects' in bpy.context.user_preferences.addons.keys():
+        wm = bpy.context.window_manager.fd_project
+        proj_dir = bpy.context.user_preferences.addons['fd_projects'].preferences.project_dir
+
+        if os.path.exists(proj_dir):
+            for dir_entry in os.scandir(proj_dir):
+                if dir_entry.is_dir():
+                    for ndir_entry in os.scandir(dir_entry.path):
+                        if ndir_entry.is_file():
+                            exts = []
+                            exts = ndir_entry.name.split(".")
+                            #Filter out files with multiple extensions
+                            if len(exts) == 2:
+                                ext = exts[-1]
+                                if ext == "ccp":
+                                    tree = ET.parse(ndir_entry.path)
+                                    root = tree.getroot()
+
+                                    for elm in root.findall("ProjectInfo"):
+                                        items = list(elm)
+
+                                        for item in items:
+                                            if item.tag == 'name':
+                                                proj_name = item.text
+                                    
+                                    proj = wm.projects.add()
+                                    proj.init(proj_name)
+
+                                    for elm in root.findall("Rooms"):
+                                        for sub_elm in elm:
+                                            if(sub_elm.get("category")):
+                                                proj.add_room_from_file(sub_elm.get("name"),sub_elm.get("category"), sub_elm.get("path"))
+                                            else:
+                                                proj.add_room_from_file(sub_elm.get("name"),"No Category Selected", sub_elm.get("path"))
+
+bpy.app.handlers.load_post.append(load_projects)
+
+
+# Register the OpenGL Call back for dims
+bpy.types.SpaceView3D.draw_handler_add(fd_2dviews.opengl_dim.draw_opengl, (None, None), 'WINDOW', 'POST_PIXEL')
+
+
 classes = (
 	OBJECT_PT_UpdaterPanel,
 )
@@ -388,6 +436,7 @@ def register():
     room_builder.register()
     snap_ops.register()
     fd_projects.register()
+    fd_2dviews.register()
     lib_manager.register()
 
     for cls in classes:
@@ -405,6 +454,7 @@ def unregister():
     room_builder.unregister()
     snap_ops.unregister()
     fd_projects.unregister()
+    fd_2dviews.unregister()
     lib_manager.unregister()
 
     for cls in reversed(classes):

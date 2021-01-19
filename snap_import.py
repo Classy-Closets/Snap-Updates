@@ -23,7 +23,9 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
     rebuild_db = bpy.props.BoolProperty(name="Rebuild Database", default=False)    
 
     props = None
-    debug_mode = False 
+    debug_mode = False
+    missing_render_mats = []
+
 
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
@@ -64,7 +66,6 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
 
     def create_edge_color_collection(self, edge_type):
         props = bpy.context.scene.db_materials
-
         rows = snap_db.query_db(
             "SELECT\
                 ItemColorCode,\
@@ -103,9 +104,8 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
                     color.description = description
                     color.check_render_material()
 
-                else:
-                    if self.debug_mode:
-                        print("Debug:{} - No render material file available, skipping EDGE color: {}".format(self.bl_idname, display_name))                
+                elif display_name not in self.missing_render_mats:
+                    self.missing_render_mats.append(display_name)
 
     def create_edge_type_collection(self):
         edges = self.props.edges
@@ -207,11 +207,7 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
                         color.location_code = int(location_code)
                         color.oversize_max_len = int(os_colors[display_name])
                         color.description = description
-                        color.check_render_material()
-
-                else:
-                    if self.debug_mode:
-                        print("Debug:{} - No render material file available, skipping MATERIAL color: {}".format(self.bl_idname, display_name))                          
+                        color.check_render_material()                   
 
     def create_mat_color_collection(self, mat_type):
         props = bpy.context.scene.db_materials
@@ -235,8 +231,7 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
                 CCItems\
             WHERE\
                 ProductType IN ('PM','VN') AND\
-                ItemTypeCode IN ('{type_code}') AND\
-                Thickness = 0.75\
+                ItemTypeCode IN ('{type_code}')\
             ORDER BY\
                 DisplayName ASC\
                     ;\
@@ -265,9 +260,8 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
                     color.description = description
                     color.check_render_material()
 
-                else:
-                    if self.debug_mode:
-                        print("Debug:{} - No render material file available, skipping MATERIAL color: {}".format(self.bl_idname, display_name))
+                elif display_name not in self.missing_render_mats:
+                    self.missing_render_mats.append(display_name)
 
     def create_mat_type_collection(self):
         materials = self.props.materials
@@ -422,10 +416,9 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
                     color.name = display_name.strip()
                     color.sku = sku
                     color.description = description
-                else:
-                    if self.debug_mode:
-                        print("Debug:{} - No render material file available, skipping STAIN color: {}".format(self.bl_idname, display_name))              
 
+                elif display_name not in self.missing_render_mats:
+                    self.missing_render_mats.append(display_name)
 
     def create_glaze_color_collection(self):
         props = bpy.context.scene.db_materials
@@ -852,6 +845,13 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
             self.create_tables()
 
         self.create_collections()
+
+        if self.debug_mode and len(self.missing_render_mats) > 0:
+            print(
+                "\nThe following closet material colors are missing render materials!:\n",
+                sorted(self.missing_render_mats),
+                "\n"
+                )
 
         return {'FINISHED'}
 

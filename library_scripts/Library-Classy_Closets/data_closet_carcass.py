@@ -248,23 +248,23 @@ class Closet_Carcass(fd_types.Assembly):
         Rear_Angle_Depth_All = self.get_var('Rear Angle Depth', 'Rear_Angle_Depth_All')          
         
         left_filler = common_parts.add_filler(self)
-        left_filler.x_dim('IF(Extend_Left_Side,Height_Left_Side,Height_1)',[Height_1,Height_Left_Side,Extend_Left_Side])
+        left_filler.x_dim('IF(Extend_Left_Side,Height_1+Height_Left_Side,Height_1)',[Height_1,Height_Left_Side,Extend_Left_Side])
         left_filler.y_dim('-Left_Side_Wall_Filler',[Left_Side_Wall_Filler])
         left_filler.z_dim('Left_Side_Thickness',[Left_Side_Thickness])
         left_filler.x_loc('Left_Side_Wall_Filler',[Left_Side_Wall_Filler])
         left_filler.y_loc("-Depth_1+Left_End_Deduction", [Depth_1, Left_End_Deduction])
-        left_filler.z_loc('IF(Extend_Left_Side,(Loc_Left_Side-Height_Left_Side),IF(Floor_1,Toe_Kick_Height,Product_Height-Height_1))',[Loc_Left_Side,Floor_1,Height_Left_Side,Product_Height,Height_1,Toe_Kick_Height,Extend_Left_Side])
+        left_filler.z_loc('IF(Floor_1,Toe_Kick_Height,Product_Height-Height_1-IF(Extend_Left_Side,Height_Left_Side,0))',[Loc_Left_Side,Floor_1,Height_Left_Side,Product_Height,Height_1,Toe_Kick_Height,Extend_Left_Side])
         left_filler.x_rot(value = 0)
         left_filler.y_rot(value = -90)
         left_filler.z_rot(value = -90)
         left_filler.prompt('Hide','IF(OR(Left_Side_Wall_Filler==0,Left_End_Condition==3),True,False)',[Left_Side_Wall_Filler, Left_End_Condition])
         left_side = common_parts.add_panel(self)
-        left_side.x_dim('IF(Extend_Left_Side,Height_Left_Side,Height_1)',[Height_1,Height_Left_Side,Extend_Left_Side])
+        left_side.x_dim('IF(Extend_Left_Side,Height_1+Height_Left_Side,Height_1)',[Height_1,Height_Left_Side,Extend_Left_Side])
         left_side.y_dim('-Depth_1+Left_End_Deduction',[Depth_1,Left_End_Deduction])
         left_side.z_dim('-Left_Side_Thickness',[Left_Side_Thickness])
         left_side.x_loc('Left_Side_Wall_Filler',[Left_Side_Wall_Filler])
         left_side.y_loc(value = 0)
-        left_side.z_loc('IF(Extend_Left_Side,(Loc_Left_Side-Height_Left_Side),IF(Floor_1,Toe_Kick_Height,Product_Height-Height_1))',[Loc_Left_Side,Floor_1,Height_Left_Side,Product_Height,Height_1,Toe_Kick_Height,Extend_Left_Side])
+        left_side.z_loc('IF(Extend_Left_Side,(Product_Height-Height_1-Height_Left_Side),IF(Floor_1,Toe_Kick_Height,Product_Height-Height_1))',[Loc_Left_Side,Floor_1,Height_Left_Side,Product_Height,Height_1,Toe_Kick_Height,Extend_Left_Side])
         left_side.x_rot(value = 0)
         left_side.y_rot(value = -90)
         left_side.z_rot(value = 0)
@@ -289,23 +289,23 @@ class Closet_Carcass(fd_types.Assembly):
         Add_Backing = self.get_var('Opening ' + str(self.opening_qty) + ' Add Backing', 'Add_Backing')
 
         right_filler = common_parts.add_filler(self)
-        right_filler.x_dim('IF(Extend_Right_Side,Height_Right_Side,Last_Height)',[Last_Height,Height_Right_Side,Extend_Right_Side])
+        right_filler.x_dim('IF(Extend_Right_Side,Last_Height+Height_Right_Side,Last_Height)',[Last_Height,Height_Right_Side,Extend_Right_Side])
         right_filler.y_dim('Right_Side_Wall_Filler',[Right_Side_Wall_Filler])
         right_filler.z_dim('Right_Side_Thickness',[Right_Side_Thickness])
         right_filler.x_loc('Product_Width-Right_Side_Wall_Filler',[Product_Width,Right_Side_Wall_Filler])
         right_filler.y_loc("-Last_Depth+Right_End_Deduction", [Last_Depth, Right_End_Deduction])
-        right_filler.z_loc('IF(Extend_Right_Side,(Loc_Right_Side-Height_Right_Side),IF(Last_Floor,Toe_Kick_Height,Product_Height-Last_Height))',[Loc_Right_Side,Height_Right_Side,Last_Floor,Product_Height,Toe_Kick_Height,Last_Height,Extend_Right_Side])
+        right_filler.z_loc('IF(Last_Floor,Toe_Kick_Height,Product_Height-Last_Height-IF(Extend_Right_Side,Height_Right_Side,0))',[Loc_Right_Side,Height_Right_Side,Last_Floor,Product_Height,Toe_Kick_Height,Last_Height,Extend_Right_Side])
         right_filler.x_rot(value = 0)
         right_filler.y_rot(value = -90)
         right_filler.z_rot(value = -90)
         right_filler.prompt('Hide','IF(OR(Right_Side_Wall_Filler==0,Right_End_Condition==3),True,False)',[Right_Side_Wall_Filler, Right_End_Condition])
         right_side = common_parts.add_panel(self)
-        right_side.x_dim('IF(Extend_Right_Side,Height_Right_Side,Last_Height)',[Last_Height,Height_Right_Side,Extend_Right_Side,Last_Floor])
+        right_side.x_dim('IF(Extend_Right_Side,Last_Height+Height_Right_Side,Last_Height)',[Last_Height,Height_Right_Side,Extend_Right_Side,Last_Floor])
         right_side.y_dim('-Last_Depth+Right_End_Deduction',[Last_Depth,Right_End_Deduction])
         right_side.z_dim('Right_Side_Thickness',[Right_Side_Thickness])
         right_side.x_loc('Product_Width-Right_Side_Wall_Filler',[Product_Width,Right_Side_Wall_Filler])
         right_side.y_loc(value = 0)
-        right_side.z_loc('IF(Extend_Right_Side,(Loc_Right_Side-Height_Right_Side),IF(Last_Floor,Toe_Kick_Height,Product_Height-Last_Height))',[Loc_Right_Side,Height_Right_Side,Last_Floor,Product_Height,Toe_Kick_Height,Last_Height,Extend_Right_Side])
+        right_side.z_loc('IF(Extend_Right_Side,(Product_Height-Last_Height-Height_Right_Side),IF(Last_Floor,Toe_Kick_Height,Product_Height-Last_Height))',[Loc_Right_Side,Height_Right_Side,Last_Floor,Product_Height,Toe_Kick_Height,Last_Height,Extend_Right_Side])
         right_side.x_rot(value = 0)
         right_side.y_rot(value = -90)
         right_side.z_rot(value = 0)
@@ -476,6 +476,7 @@ class Closet_Carcass(fd_types.Assembly):
         Right_End_Condition = self.get_var('Right End Condition')        
         Shelf_Gap = self.get_var('Shelf Gap')  
         Remove_Top_Shelf = self.get_var('Remove Top Shelf ' + str(i),'Remove_Top_Shelf')  
+        Vertical_Offset = self.get_var("Top KD " + str(i) + " Vertical Offset",'Vertical_Offset')
         
         shelf = common_parts.add_shelf(self)
         shelf.obj_bp.mv.opening_name = str(i)
@@ -497,7 +498,7 @@ class Closet_Carcass(fd_types.Assembly):
 
         if is_top:
             shelf.y_loc(value=0)
-            shelf.z_loc('IF(Floor,Height+Toe_Kick_Height,Product_Height)',[Floor,Height,Product_Height,Toe_Kick_Height])
+            shelf.z_loc('IF(Floor,Height+Toe_Kick_Height,Product_Height)-Vertical_Offset',[Floor,Height,Product_Height,Toe_Kick_Height,Vertical_Offset])
             shelf.z_dim('-Shelf_Thickness',[Shelf_Thickness])
             shelf.y_dim("-Depth+Rear_Angle_Depth+Front_Angle_Depth+IF(Is_Locked_Shelf,Locked_Shelf_Setback,Adj_Shelf_Setback)",
                         [Depth,Rear_Angle_Depth,Front_Angle_Depth,Is_Locked_Shelf,Locked_Shelf_Setback,Adj_Shelf_Setback])
@@ -587,7 +588,8 @@ class Closet_Carcass(fd_types.Assembly):
         Remove_Top_Shelf = self.get_var('Remove Top Shelf ' + str(i),'Remove_Top_Shelf')
         CBT = self.get_var('Opening ' + str(i) + ' Center Backing Thickness', 'CBT')
         TBT = self.get_var('Opening ' + str(i) + ' Top Backing Thickness', 'TBT')
-        Cleat_Height = self.get_var("Cleat Height")       
+        Cleat_Height = self.get_var("Cleat Height")
+        TKDVO = self.get_var("Top KD " + str(i) + " Vertical Offset", 'TKDVO')      
 
         Dog_Ear_Each = self.get_var('Dog Ear Each')
         Rear_Angle_Height_All = self.get_var('Rear Angle Height', 'Rear_Angle_Height_All')
@@ -595,7 +597,7 @@ class Closet_Carcass(fd_types.Assembly):
         Rear_Angle_Height_Right = self.get_var('Rear Angle ' + str(i+1) + ' Height', 'Rear_Angle_Height_Right')
 
         for child in self.obj_bp.children:
-            if child.lm_closets.is_back_bp:
+            if child.lm_closets.is_back_bp and not child.lm_closets.is_hutch_back_bp:
                 back_assembly = fd_types.Assembly(child)
                 TOP = back_assembly.get_var("Top Section Backing", 'TOP')
                 CTR = back_assembly.get_var("Center Section Backing", 'CTR')
@@ -614,8 +616,8 @@ class Closet_Carcass(fd_types.Assembly):
         self.add_cover_cleat_opening_name(cleat, str(i))
 
         cleat.y_loc(value = 0)
-        cleat.z_loc('IF(Floor,Height+Toe_Kick_Height,Hanging_Height)-IF(Dog_Ear_Each,IF(Rear_Angle_Height_Left>Rear_Angle_Height_Right,Rear_Angle_Height_Left,Rear_Angle_Height_Right),Rear_Angle_Height_All)-IF(Remove_Top_Shelf,Shelf_Thickness,0)',
-                    [Remove_Top_Shelf,Shelf_Thickness,Floor,Height,Toe_Kick_Height,Hanging_Height,Dog_Ear_Each,Rear_Angle_Height_All,Rear_Angle_Height_Left,Rear_Angle_Height_Right])
+        cleat.z_loc('IF(Floor,Height+Toe_Kick_Height,Hanging_Height)-IF(Dog_Ear_Each,IF(Rear_Angle_Height_Left>Rear_Angle_Height_Right,Rear_Angle_Height_Left,Rear_Angle_Height_Right),Rear_Angle_Height_All)-IF(Remove_Top_Shelf,Shelf_Thickness,0)-TKDVO',
+                    [Remove_Top_Shelf,Shelf_Thickness,Floor,Height,Toe_Kick_Height,Hanging_Height,Dog_Ear_Each,Rear_Angle_Height_All,Rear_Angle_Height_Left,Rear_Angle_Height_Right,TKDVO])
         cleat.x_rot(value = -90)
         cleat.y_rot(value = 0)
         cleat.z_rot(value = 0)
@@ -654,7 +656,7 @@ class Closet_Carcass(fd_types.Assembly):
         BBT = self.get_var('Opening ' + str(i) + ' Bottom Backing Thickness', 'BBT')                
 
         for child in self.obj_bp.children:
-            if child.lm_closets.is_back_bp:
+            if child.lm_closets.is_back_bp and not child.lm_closets.is_hutch_back_bp:
                 back_assembly = fd_types.Assembly(child)
 
                 TOP = back_assembly.get_var("Top Section Backing", 'TOP')
@@ -836,6 +838,7 @@ class Closet_Carcass(fd_types.Assembly):
         BCR = self.get_var("Blind Corner Right",'BCR')
         BCLD = self.get_var("Blind Corner Left Depth",'BCLD')
         BCRD = self.get_var("Blind Corner Right Depth",'BCRD')
+        TKDVO = self.get_var("Top KD " + str(i) + " Vertical Offset", 'TKDVO') 
         
         opening = common_parts.add_section_opening(self)
         opening.obj_bp.mv.opening_name = str(i)
@@ -873,7 +876,7 @@ class Closet_Carcass(fd_types.Assembly):
         opening.x_dim('Width',[Width])
 
         opening.y_dim("fabs(Depth)",[Depth])
-        opening.z_dim('Height-Opening_Height_Difference',[Height,Opening_Height_Difference])              
+        opening.z_dim('Height-Opening_Height_Difference-TKDVO',[Height,Opening_Height_Difference,TKDVO])              
         opening.y_dim("fabs(Depth)",[Depth])
         
     def add_inside_dimension(self,i,panel):
@@ -953,6 +956,7 @@ class Closet_Carcass(fd_types.Assembly):
         ST = self.get_var('Shelf Thickness', 'ST')
         T_Shelf = self.get_var('Remove Top Shelf ' + str(i), 'T_Shelf')
         B_Shelf = self.get_var('Remove Bottom Hanging Shelf ' + str(i), 'B_Shelf')
+        TKDVO = self.get_var("Top KD " + str(i) + " Vertical Offset", 'TKDVO') 
       
         backing = common_parts.add_back(self)
         backing.obj_bp.mv.opening_name = str(i)
@@ -1123,8 +1127,8 @@ class Closet_Carcass(fd_types.Assembly):
         backing.z_rot(value=0)
 
         backing.x_dim(
-            'IF(B_Sections==1,BX1,IF(B_Sections==2,IF(TIB>0,BX2T,IF(BIB>0,BX2B,0)),IF(B_Sections==3,BX3,0)))',
-            [B_Sections,BX1,BX2T,BX2B,BX3,TIB,BIB,Height,CBT,CH,BIA]
+            'IF(B_Sections==1,BX1-TKDVO,IF(B_Sections==2,IF(TIB>0,BX2T,IF(BIB>0,BX2B,0)),IF(B_Sections==3,BX3,0)))',
+            [B_Sections,BX1,BX2T,BX2B,BX3,TIB,BIB,Height,CBT,CH,BIA,TKDVO]
         )
 
         backing.y_dim("Width",[Width])
@@ -1156,8 +1160,8 @@ class Closet_Carcass(fd_types.Assembly):
         top_backing.z_rot(value=0)
 
         top_backing.x_dim(
-            'IF(B_Sections==2,IF(TIB>0,TIB-IF(TBT==0,CH*2+BIA,ST)-IF(T_Shelf,ST,0),IF(BIB>0,Height-BIB-IF(TBT==0,CH*2-BIA*2,0)-IF(T_Shelf,ST,0),0)),IF(B_Sections==3,TIB-IF(TBT==0,CH*2-BIA*2,0)-ST-IF(T_Shelf,ST,0),0))',
-            [B_Sections,BC3,Height,CH,ST,TIB,BIB,BIA,T_Shelf,TBT,BX2T,BX2B]
+            'IF(B_Sections==2,IF(TIB>0,TIB-IF(TBT==0,CH*2+BIA,ST)-IF(T_Shelf,ST,0),IF(BIB>0,Height-BIB-IF(TBT==0,CH*2-BIA*2,0)-IF(T_Shelf,ST,0),0)),IF(B_Sections==3,TIB-IF(TBT==0,CH*2-BIA*2,0)-ST-IF(T_Shelf,ST,0),0))-TKDVO',
+            [B_Sections,BC3,Height,CH,ST,TIB,BIB,BIA,T_Shelf,TBT,BX2T,BX2B,TKDVO]
         )
         top_backing.y_dim("Width",[Width])
         top_backing.z_dim('IF(TBT==0,INCH(-0.25),INCH(-0.75))',[TBT])
@@ -1217,7 +1221,34 @@ class Closet_Carcass(fd_types.Assembly):
             [B_Sections,BBT,TOP,BTM,IS_SB]
         )
         bottom_sec_top_cleat.z_loc('IF(B_Sections==2,IF(TIB>0,OB+Height-TIB,IF(BIB>0,OB+BIB-ST,0)),IF(B_Sections==3,OB+BIB-ST,0))', [Height, OB, TIB, BIB, ST, B_Sections])
-        bottom_sec_top_cleat.prompt('Use Cleat Cover', 'IF(BIB>0,False,True)', [BIB])        
+        bottom_sec_top_cleat.prompt('Use Cleat Cover', 'IF(BIB>0,False,True)', [BIB])    
+
+    def add_hutch_backing(self):
+            Add_Hutch_Backing = self.get_var("Add Hutch Backing")
+            Has_Capping_Bottom = self.get_var("Has Capping Bottom")
+            Extend_Left_Side = self.get_var("Extend Left Side")
+            Extend_Right_Side = self.get_var("Extend Right Side")
+            Height_Left_Side = self.get_var("Height Left Side")
+            Height_Right_Side = self.get_var("Height Right Side")
+            Width = self.get_var('dim_x','Width')
+            Product_Height = self.get_var('dim_z','Product_Height')
+            Height_1 = self.get_var('Opening 1 Height','Height_1')
+            Last_Height = self.get_var('Opening ' + str(self.opening_qty) + ' Height',"Last_Height")
+            Panel_Thickness = self.get_var("Panel Thickness")
+
+            hutch_backing = common_parts.add_back(self)
+            hutch_backing.obj_bp.lm_closets.is_hutch_back_bp = True
+            hutch_backing.obj_bp.mv.name_object = "Hutch Backing"
+            hutch_backing.x_loc("Panel_Thickness",[Panel_Thickness])
+            hutch_backing.y_loc(value = 0)
+            hutch_backing.z_loc("Product_Height-IF(Height_1>=Last_Height,Height_1,Last_Height)-IF(Has_Capping_Bottom,Panel_Thickness,0)",[Product_Height,Height_1,Last_Height,Has_Capping_Bottom,Panel_Thickness])
+            hutch_backing.x_rot(value=-90)
+            hutch_backing.y_rot(value=0)
+            hutch_backing.z_rot(value=0)
+            hutch_backing.x_dim("Width-(Panel_Thickness*2)",[Width,Panel_Thickness])
+            hutch_backing.y_dim("IF(Height_Left_Side>=Height_Right_Side,Height_Left_Side,Height_Right_Side)-IF(Has_Capping_Bottom,Panel_Thickness,0)",[Height_Left_Side,Height_Right_Side,Has_Capping_Bottom,Panel_Thickness])
+            hutch_backing.z_dim("-Panel_Thickness",[Panel_Thickness])
+            hutch_backing.prompt('Hide',"IF(OR(Extend_Left_Side,Extend_Right_Side),IF(Add_Hutch_Backing,False,True),True)",[Extend_Left_Side,Extend_Right_Side,Add_Hutch_Backing])
 
     def add_system_holes(self,i,panel):
         Product_Height = self.get_var('dim_z',"Product_Height")
@@ -1546,6 +1577,8 @@ class Closet_Carcass(fd_types.Assembly):
 
         left_blind_panel.prompt("Hide", "IF(Blind_Corner_Left, False, True)",[Blind_Corner_Left])
         left_blind_panel.prompt("Is Left Blind Corner Panel", value=True)
+        left_blind_panel.prompt("CatNum",value=1004)
+        left_blind_panel.obj_bp.mv.name_object = "Blind Corner Panel"
         left_blind_panel.obj_bp.lm_closets.is_panel_bp = False
         left_blind_panel.obj_bp.lm_closets.is_blind_corner_panel_bp = True
         self.add_blind_panel_holes(left_blind_panel)
@@ -1566,6 +1599,8 @@ class Closet_Carcass(fd_types.Assembly):
 
         right_blind_panel.prompt("Hide", "IF(Blind_Corner_Right, False, True)",[Blind_Corner_Right])
         right_blind_panel.prompt("Is Right Blind Corner Panel", value=True)
+        right_blind_panel.prompt("CatNum",value=1004)
+        right_blind_panel.obj_bp.mv.name_object = "Blind Corner Panel"
         right_blind_panel.obj_bp.lm_closets.is_panel_bp = False
         right_blind_panel.obj_bp.lm_closets.is_blind_corner_panel_bp = True
         self.add_blind_panel_holes(right_blind_panel)
@@ -1603,6 +1638,7 @@ class Closet_Carcass(fd_types.Assembly):
         # self.add_cleat(1,panel)
         self.add_backing(1,panel)
         self.add_closet_opening(1,panel)
+        self.add_hutch_backing()
         if defaults.show_panel_drilling:
             self.add_system_holes(1, panel)
         if defaults.add_top_cleat:
@@ -1684,15 +1720,15 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
         update=update_closet_height
         )
     
-    Height_Left_Side = bpy.props.EnumProperty(
-        name="Height Left Side",
-        items=get_panel_heights
-        )
+    #Height_Left_Side = bpy.props.EnumProperty(
+    #    name="Height Left Side",
+    #    items=get_panel_heights
+    #    )
     
-    Height_Right_Side = bpy.props.EnumProperty(
-        name="Height Right Side",
-        items=get_panel_heights
-        )
+    #Height_Right_Side = bpy.props.EnumProperty(
+    #    name="Height Right Side",
+    #    items=get_panel_heights
+    #    )
     
     Opening_1_Height = bpy.props.EnumProperty(
         name="Opening 1 Height",
@@ -1774,13 +1810,13 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
 
         #Temp fix for older library data
         #TODO: Find a more efficient solution for handling older library data versions
-        if extend_left_side and height_left_side:
-            height_left_side.set_value(unit.millimeter(float(self.Height_Left_Side)))
+        #if extend_left_side and height_left_side:
+        #    height_left_side.set_value(unit.millimeter(float(self.Height_Left_Side)))
 
         #Temp fix for older library data
         #TODO: Find a more efficient solution for handling older library data versions
-        if extend_right_side and height_right_side:
-            height_right_side.set_value(unit.millimeter(float(self.Height_Right_Side)))
+        #if extend_right_side and height_right_side:
+        #    height_right_side.set_value(unit.millimeter(float(self.Height_Right_Side)))
 
         if props.closet_defaults.use_32mm_system:
             for i in range(1,10):
@@ -1798,14 +1834,15 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
         if right_end_condition:
             right_end_condition.set_value(self.Right_End_Condition)
         
-        if(more_than_one_opening):
-            blind_corner_left.set_value(blind_corner_left.value())
-            blind_corner_right.set_value(blind_corner_right.value())
-        else:
-            if(blind_corner_left.value()):
-                blind_corner_right.set_value(False)
-            elif(blind_corner_right.value()):
-                blind_corner_left.set_value(False)
+        if blind_corner_left and blind_corner_right:
+            if(more_than_one_opening):
+                blind_corner_left.set_value(blind_corner_left.value())
+                blind_corner_right.set_value(blind_corner_right.value())
+            else:
+                if(blind_corner_left.value()):
+                    blind_corner_right.set_value(False)
+                elif(blind_corner_right.value()):
+                    blind_corner_left.set_value(False)
         
         self.update_opening_inserts()
         self.update_placement(context)
@@ -1817,13 +1854,14 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
 
     def update_opening_inserts(self):
         insert_bp = []
+        capping_bottoms = 0
         for child in self.product.obj_bp.children:
             obj_props = child.lm_closets
-            if obj_props.is_drawer_stack_bp or obj_props.is_hamper_insert_bp or obj_props.is_door_insert_bp:
+            if obj_props.is_drawer_stack_bp or obj_props.is_hamper_insert_bp or obj_props.is_door_insert_bp or obj_props.is_closet_bottom_bp:
                 insert_bp.append(child)
             for nchild in child.children:
                 obj_props = nchild.lm_closets
-                if obj_props.is_drawer_stack_bp or obj_props.is_hamper_insert_bp or obj_props.is_door_insert_bp:
+                if obj_props.is_drawer_stack_bp or obj_props.is_hamper_insert_bp or obj_props.is_door_insert_bp or obj_props.is_closet_bottom_bp:
                     insert_bp.append(nchild)                    
 
         for obj_bp in insert_bp:
@@ -1831,11 +1869,13 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
             obj_props = obj_bp.lm_closets
             Cleat_Loc = insert.get_prompt("Cleat Location")
             Shelf_Backing_Setback = insert.get_prompt("Shelf Backing Setback")
+            Remove_Bottom_Shelf = insert.get_prompt("Remove Bottom Shelf")
+            Remove_Top_Shelf = insert.get_prompt("Remove Top Shelf")
             opening = insert.obj_bp.mv.opening_name
 
             if insert and opening:
                 for child in self.product.obj_bp.children:
-                    if child.lm_closets.is_back_bp:
+                    if child.lm_closets.is_back_bp and not child.lm_closets.is_hutch_back_bp:
                         if child.mv.opening_name == opening:
                             #Upadate for backing configurations
                             back_assembly = fd_types.Assembly(child)
@@ -1847,7 +1887,7 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
                             TBT = self.product.get_prompt('Opening ' + str(opening) + ' Top Backing Thickness')
                             CBT = self.product.get_prompt('Opening ' + str(opening) + ' Center Backing Thickness')
                             BBT = self.product.get_prompt('Opening ' + str(opening) + ' Bottom Backing Thickness')
-                            prompts = [B_Sec,TOP,CTR,BTM,SB,TBT,CBT,BBT]
+                            prompts = [B_Sec,TOP,CTR,BTM,SB,TBT,CBT,BBT,Cleat_Loc]
 
                             #For backwards compatability/older library data
                             if all(prompts):
@@ -1855,7 +1895,7 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
                                 if B_Sec.value() == 1:                                    
                                     if CTR.value() and CBT.value() == '3/4"':
                                         Cleat_Loc.set_value("None")
-                                    else:
+                                    elif(CTR.value() and CBT.value() == '1/4"'):
                                         Cleat_Loc.set_value("Above")
                                     
                                 if B_Sec.value() == 2:
@@ -1871,55 +1911,113 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
                                         elif TOP.value() and TBT.value() == '3/4"':
                                             Cleat_Loc.set_value("None")
                                             Shelf_Backing_Setback.set_value(unit.inch(0))
-                                        else:
+                                        elif(TOP.value() and TBT.value() == '1/4"'):
                                             Shelf_Backing_Setback.set_value(unit.inch(0))
                                             Cleat_Loc.set_value("Above")
-
-                                    if obj_props.is_drawer_stack_bp:
-                                        if single_back:
-                                            if CBT.value() == '1/4"':
-                                                Cleat_Loc.set_value("Above")
-                                            else:
-                                                Cleat_Loc.set_value("None")
-
-                                        elif BTM.value():
-                                            if BBT.value() == '1/4"':
-                                                Cleat_Loc.set_value("Above")
-                                            else:
-                                                Cleat_Loc.set_value("None")
-
-                                    if obj_props.is_door_insert_bp:
-                                        if single_back:
-                                            if CBT.value() == '1/4"':
-                                                Shelf_Backing_Setback.set_value(unit.inch(0.25))
-                                            else:
-                                                Shelf_Backing_Setback.set_value(unit.inch(0.75))
                                         else:
                                             Shelf_Backing_Setback.set_value(unit.inch(0))
 
-                                if B_Sec.value() == 3:
-                                    full_back = SB.value() and TOP.value() and CTR.value() and BTM.value()
-                                    top_ctr_back = SB.value() and TOP.value() and CTR.value()
-                                    btm_ctr_back = SB.value() and BTM.value() and CTR.value()
+                                        if obj_props.is_hamper_insert_bp:
+                                            if single_back:
+                                                Cleat_Loc.set_value("None")
+                                                if CBT.value() == '1/4"':
+                                                    Shelf_Backing_Setback.set_value(unit.inch(0.25))
+                                                else:
+                                                    Shelf_Backing_Setback.set_value(unit.inch(0.75))
+                                            elif TOP.value() and TBT.value() == '3/4"':
+                                                Cleat_Loc.set_value("None")
+                                                Shelf_Backing_Setback.set_value(unit.inch(0))
+                                            else:
+                                                Shelf_Backing_Setback.set_value(unit.inch(0))
+                                                Cleat_Loc.set_value("Above")
 
-                                    if obj_props.is_hamper_insert_bp:
-                                        if full_back or btm_ctr_back:
-                                            Cleat_Loc.set_value("None")
-                                            if CBT.value() == '1/4"':
-                                                Shelf_Backing_Setback.set_value(unit.inch(0.25))
-                                            if CBT.value() == '3/4"':
-                                                Shelf_Backing_Setback.set_value(unit.inch(0.75))
-                                        elif top_ctr_back and CBT.value() == '3/4"':
-                                            Cleat_Loc.set_value("None")
-                                        elif CTR.value() and CBT.value() == '3/4"':
-                                            Cleat_Loc.set_value("None")
-                                        else:
-                                            Cleat_Loc.set_value("Above")
-                                            Shelf_Backing_Setback.set_value(unit.inch(0))
+                                        if obj_props.is_drawer_stack_bp:
+                                            if single_back:
+                                                if CBT.value() == '1/4"':
+                                                    Cleat_Loc.set_value("Above")
+                                                else:
+                                                    Cleat_Loc.set_value("None")
 
-                                    # if obj_props.is_drawer_stack_bp:
-                                    #     pass
+                                            elif BTM.value():
+                                                if BBT.value() == '1/4"':
+                                                    Cleat_Loc.set_value("Above")
+                                                else:
+                                                    Cleat_Loc.set_value("None")
 
+                                        if obj_props.is_door_insert_bp:
+                                            if single_back:
+                                                if CBT.value() == '1/4"':
+                                                    Shelf_Backing_Setback.set_value(unit.inch(0.25))
+                                                else:
+                                                    Shelf_Backing_Setback.set_value(unit.inch(0.75))
+                                            else:
+                                                Shelf_Backing_Setback.set_value(unit.inch(0))
+
+                                    if B_Sec.value() == 3:
+                                        full_back = SB.value() and TOP.value() and CTR.value() and BTM.value()
+                                        top_ctr_back = SB.value() and TOP.value() and CTR.value()
+                                        btm_ctr_back = SB.value() and BTM.value() and CTR.value()
+
+                                        if obj_props.is_hamper_insert_bp:
+                                            if full_back or btm_ctr_back:
+                                                Cleat_Loc.set_value("None")
+                                                if CBT.value() == '1/4"':
+                                                    Shelf_Backing_Setback.set_value(unit.inch(0.25))
+                                                if CBT.value() == '3/4"':
+                                                    Shelf_Backing_Setback.set_value(unit.inch(0.75))
+                                            elif top_ctr_back and CBT.value() == '3/4"':
+                                                Cleat_Loc.set_value("None")
+                                            elif CTR.value() and CBT.value() == '3/4"':
+                                                Cleat_Loc.set_value("None")
+                                            else:
+                                                Cleat_Loc.set_value("Above")
+                                                Shelf_Backing_Setback.set_value(unit.inch(0))
+
+                                        # if obj_props.is_drawer_stack_bp:
+                                        #     pass
+
+                                        if obj_props.is_door_insert_bp:
+                                            if full_back or top_ctr_back:
+                                                if CBT.value() == '3/4"':
+                                                    Shelf_Backing_Setback.set_value(unit.inch(0.75))
+                                                elif CBT.value() == '1/4"':
+                                                    Shelf_Backing_Setback.set_value(unit.inch(0.25))
+                                            else:
+                                                Shelf_Backing_Setback.set_value(unit.inch(0))
+
+                    if child.lm_closets.is_shelf_bp:
+                        if child.mv.opening_name == opening:
+                            RBS = self.product.get_prompt('Remove Bottom Hanging Shelf ' + str(opening))
+                            RTS = self.product.get_prompt('Remove Top Shelf ' + str(opening))
+                            floor = self.product.get_prompt("Opening " + str(opening) + " Floor Mounted")
+                            prompts = [RBS,RTS,floor]
+
+                            if all(prompts):
+                                if obj_props.is_hamper_insert_bp:
+                                   #For Hampers, Remove_Bottom_Shelf == True means that there is no bottom shelf
+                                    if(RBS.value() or floor.value()):
+                                        Remove_Bottom_Shelf.set_value(True)
+                                    else:
+                                        Remove_Bottom_Shelf.set_value(False)
+
+                                if obj_props.is_drawer_stack_bp:
+                                    #For Drawers, Remove_Bottom_Shelf == False means that there is no bottom shelf
+                                    Lift_Drawers_From_Bottom = insert.get_prompt("Lift Drawers From Bottom")
+                                    if((RBS.value() or floor.value()) and Lift_Drawers_From_Bottom.value() == False):
+                                        Remove_Bottom_Shelf.set_value(False)
+                                        insert.get_prompt("Pard Has Bottom KD").set_value(True)
+                                    elif(Lift_Drawers_From_Bottom.value() == False):
+                                        insert.get_prompt("Pard Has Bottom KD").set_value(False)        
+                                    else:
+                                        insert.get_prompt("Pard Has Bottom KD").set_value(False)                        
+
+                                if obj_props.is_splitter_bp:
+                                    #For Splitter, Remove_Bottom_Shelf == True means that there is no bottom shelf
+                                    if(RBS.value() or floor.value()==False):
+                                        Remove_Bottom_Shelf.set_value(True)
+
+
+                                
                                     if obj_props.is_door_insert_bp:
                                         if full_back or top_ctr_back:
                                             if CBT.value() == '3/4"':
@@ -1928,6 +2026,37 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
                                                 Shelf_Backing_Setback.set_value(unit.inch(0.25))
                                         else:
                                             Shelf_Backing_Setback.set_value(unit.inch(0))
+
+                    if child.lm_closets.is_closet_bottom_bp:
+                        capping_bottom_assembly = fd_types.Assembly(child)
+                        capping_bottoms += 1
+                        extend_left_side = self.product.get_prompt("Extend Left Side")
+                        extend_right_side = self.product.get_prompt("Extend Right Side")
+                        height_left_side = self.product.get_prompt("Height Left Side")
+                        height_right_side = self.product.get_prompt("Height Right Side")
+                        left_partition_extended = capping_bottom_assembly.get_prompt("Left Partition Extended")
+                        right_partition_extended = capping_bottom_assembly.get_prompt("Right Partition Extended")
+                        left_partition_extension_height = capping_bottom_assembly.get_prompt("Left Partition Extension Height")
+                        right_partition_extension_height = capping_bottom_assembly.get_prompt("Right Partition Extension Height")
+                        against_left_wall = capping_bottom_assembly.get_prompt('Against Left Wall')
+                        against_right_wall = capping_bottom_assembly.get_prompt('Against Right Wall')
+                        prompts = [extend_left_side,extend_right_side,height_left_side,height_right_side,left_partition_extended,right_partition_extended,left_partition_extension_height,right_partition_extension_height,against_left_wall,against_right_wall]
+                        if all(prompts):
+                            left_partition_extended.set_value(extend_left_side.value())
+                            right_partition_extended.set_value(extend_right_side.value())
+                            left_partition_extension_height.set_value(height_left_side.value())
+                            right_partition_extension_height.set_value(height_right_side.value())
+                            if(extend_left_side.value() and height_left_side.value() > 0):
+                                against_left_wall.set_value(False)
+                            if(extend_right_side.value() and height_right_side.value() > 0):
+                                against_right_wall.set_value(False)
+
+        has_capping_bottom = self.product.get_prompt("Has Capping Bottom")
+        if(has_capping_bottom):
+            if(capping_bottoms > 0):
+                has_capping_bottom.set_value(True)
+            else:
+                has_capping_bottom.set_value(False)
 
     def set_product_defaults(self):
         self.product.obj_bp.location.x = self.selected_location + self.left_offset
@@ -2010,32 +2139,32 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
 
             #----------Initial setting of self.Height_Left_Side
             #Get Height Left Side value from selected product and convert to rounded int for setting Height_Left_Side
-            height_left_side = self.product.get_prompt("Height Left Side")
+            #height_left_side = self.product.get_prompt("Height Left Side")
 
             #IF "Height Left Side" exists
             #Temp fix for older library data
             #TODO: Find a more efficient solution for handling older library data versions            
-            if height_left_side:
-                prompt_val = height_left_side.value()
-                height_left_side_mil = unit.meter_to_millimeter(prompt_val)
-                int_height_left_side = int(round(height_left_side_mil))
+            #if height_left_side:
+            #    prompt_val = height_left_side.value()
+            #    height_left_side_mil = unit.meter_to_millimeter(prompt_val)
+            #    int_height_left_side = int(round(height_left_side_mil))
 
                 #Set Prompt Page initial value (self.Height_Left_Side)
-                self.Height_Left_Side = str(int_height_left_side)
+            #    self.Height_Left_Side = str(int_height_left_side)
 
             #Get Height Right Side value from selected product and convert to rounded int for setting Height_Right_Side
-            height_right_side = self.product.get_prompt("Height Right Side")
+            #height_right_side = self.product.get_prompt("Height Right Side")
 
             #IF "Height Right Side" exists
             #Temp fix for older library data
             #TODO: Find a more efficient solution for handling older library data versions   
-            if height_right_side:
-                prompt_val = height_right_side.value()
-                height_right_side_mil = unit.meter_to_millimeter(prompt_val)
-                int_height_right_side = int(round(height_right_side_mil))
+            #if height_right_side:
+            #    prompt_val = height_right_side.value()
+            #    height_right_side_mil = unit.meter_to_millimeter(prompt_val)
+            #    int_height_right_side = int(round(height_right_side_mil))
 
                 #Set Prompt Page initial value (self.Height_Right_Side)
-                self.Height_Right_Side = str(int_height_right_side)            
+            #    self.Height_Right_Side = str(int_height_right_side)            
 
         self.current_location = self.product.obj_bp.location.x
         self.selected_location = self.product.obj_bp.location.x
@@ -2398,19 +2527,20 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
         blind_corner_left_depth = self.product.get_prompt("Blind Corner Left Depth")
         blind_corner_right_depth = self.product.get_prompt("Blind Corner Right Depth")
         opening_2_height = self.product.get_prompt("Opening 2 Height")
-                
-        row = layout.row()
-        row.label("Blind Corner Options:")
 
-        row = layout.row()
-        row.prop(blind_corner_left, "CheckBoxValue", text="Left")
-        if(blind_corner_left and blind_corner_left.value()):
-            row.prop(blind_corner_left_depth, "DistanceValue", text="Depth: ")
+        if blind_corner_left and blind_corner_right:    
+            row = layout.row()
+            row.label("Blind Corner Options:")
 
-        row = layout.row()
-        row.prop(blind_corner_right, "CheckBoxValue", text="Right")
-        if(blind_corner_right and blind_corner_right.value()):
-            row.prop(blind_corner_right_depth, "DistanceValue", text="Depth: ")
+            row = layout.row()
+            row.prop(blind_corner_left, "CheckBoxValue", text="Left")
+            if(blind_corner_left and blind_corner_left.value()):
+                row.prop(blind_corner_left_depth, "DistanceValue", text="Depth: ")
+
+            row = layout.row()
+            row.prop(blind_corner_right, "CheckBoxValue", text="Right")
+            if(blind_corner_right and blind_corner_right.value()):
+                row.prop(blind_corner_right_depth, "DistanceValue", text="Depth: ")
 
     def draw_construction_options(self,layout):
         prompts = []
@@ -2434,11 +2564,14 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
         crown_molding_depth = self.product.get_prompt("Front Angle Height")
         extend_left_side = self.product.get_prompt("Extend Left Side")
         extend_right_side = self.product.get_prompt("Extend Right Side")
+        height_left_side = self.product.get_prompt("Height Left Side")
+        height_right_side = self.product.get_prompt("Height Right Side")
         loc_left_side = self.product.get_prompt("Loc Left Side")
         loc_right_side = self.product.get_prompt("Loc Right Side")
         add_hanging_rail = self.product.get_prompt("Add Hanging Rail")
         left_end_deduction = self.product.get_prompt("Left End Deduction")
         right_end_deduction = self.product.get_prompt("Right End Deduction")
+        add_hutch_backing = self.product.get_prompt("Add Hutch Backing")
         # remove_top_shelf = self.product.get_prompt("Remove Top Shelf")
         
         # SIDE OPTIONS:
@@ -2470,14 +2603,16 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
             extend_right_side.draw_prompt(row,split_text=False)
             if extend_left_side.CheckBoxValue:
                 row = col.row()
-                row.prop(self,'Height_Left_Side',text="Left Panel Height")
-                row.prop(loc_left_side,'DistanceValue',text="Left Panel Hang Height")
+                row.prop(height_left_side,'DistanceValue',text="Left Partition Extension")
+                #row.prop(loc_left_side,'DistanceValue',text="Left Partition Hang Height")
    
             if extend_right_side.CheckBoxValue:
                 row = col.row()
-                row.prop(self,'Height_Right_Side',text="Right Panel Height")
-                row.prop(loc_right_side, 'DistanceValue',text="Right Panel Hang Height")
-        
+                row.prop(height_right_side,'DistanceValue',text="Right Partition Extension")
+                #row.prop(loc_right_side, 'DistanceValue',text="Right Partition Hang Height")
+            if extend_left_side.CheckBoxValue or extend_right_side.CheckBoxValue:
+                row = col.row()
+                row.prop(add_hutch_backing,'CheckBoxValue',text="Add Hutch Backing")
         self.draw_dogear_options(box)
         
         # CARCASS OPTIONS:
@@ -2695,12 +2830,13 @@ class OPERATOR_Closet_Standard_Draw_Plan(bpy.types.Operator):
         panel_mesh.rotation_euler = self.product.obj_bp.rotation_euler
         panel_mesh.mv.type = 'CAGE'
         
-        dim = fd_types.Dimension()
-        dim.parent(panel_mesh)
-        dim.start_x(value = 0)
-        dim.start_y(value = size[1]-unit.inch(3))
-        dim.start_z(value = unit.inch(-100))
-        dim.set_label(text)
+        # dim = fd_types.Dimension()
+        # dim.parent(panel_mesh)
+        # dim.start_x(value = 0+unit.inch(2))
+        # dim.start_y(value = size[1]-unit.inch(3))
+        # dim.start_z(value = unit.inch(-100))
+        # dim.set_label(text)
+
         
     def draw_closet_top(self,obj):
         props = props_closet.get_object_props(obj)

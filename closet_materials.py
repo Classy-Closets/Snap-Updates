@@ -1,5 +1,6 @@
 import bpy
 import snap_db
+from snap_db import utils as snap_utils
 import operator
 import csv
 from . import property_groups
@@ -251,7 +252,6 @@ class PROPERTIES_Closet_Materials(bpy.types.PropertyGroup):
         part_thickness = 0
 
         if assembly:
-            #print("Getting mat sku for:",assembly.obj_bp.mv.name_object)
             obj_props = assembly.obj_bp.lm_closets
 
             drawer_box_parts = [
@@ -290,19 +290,35 @@ class PROPERTIES_Closet_Materials(bpy.types.PropertyGroup):
                     sku = 'PM-0000004' #WHITE  PAPER 1/2 G2
                 return sku
 
+            if(obj_props.is_door_bp):
+                if(assembly.get_prompt("Door Style")):
+                    door_style = assembly.get_prompt("Door Style").value()
+                    if(door_style != "Slab Door"):
+                        current_stain_color = self.get_stain_color().name
+                        sku = snap_db.query_db(
+                            "SELECT\
+                                SKU\
+                            FROM\
+                                CCItems\
+                            WHERE\
+                                ProductType IN ('S') AND\
+                                DisplayName == '{current_stain_color}'\
+                            ;\
+                            ".format(current_stain_color=str(current_stain_color))
+                        )
+                        if len(sku) == 0:
+                            print("No SKU found for - Current Stain Color: {}".format(current_stain_color))
+                            return "Unknown"
+                        elif len(sku) == 1:
+                            return sku[0][0]
+                        else:
+                            print("Multiple SKUs found for - Current Stain Color: {}".format(current_stain_color))
+                            print(sku)
+                            return "Unknown"
+
+
         if obj:
-            '''Backing should no longer be attached to a static spec group thickness
-            however, material pointers are still needed so keeping cutpart 'Back' for now
-            
-            TODO: Allow for cutpart pointer thickness to be optional, in this case get_part_thickness
-            will return actual part thickness
-            '''
-            if obj_props.is_back_bp:
-                for child in assembly.obj_bp.children:
-                    if child.mv.type == 'VPDIMZ':
-                        part_thickness = math.fabs(child.location.z)
-            else:
-                part_thickness = unit.meter_to_inch(utils.get_part_thickness(obj))
+            part_thickness = unit.meter_to_inch(snap_utils.get_part_thickness(obj))
 
         if part_thickness == 0.25:
             if any(backing_parts):
@@ -313,7 +329,7 @@ class PROPERTIES_Closet_Materials(bpy.types.PropertyGroup):
                     'Duraply Almond'
                 ]
 
-                if color_name in shared_sku_colors:
+                if color_name in shared_sku_colors and obj_props.use_unique_material == False:
                     sku = 'PM-0000041'
                     return sku
 
@@ -323,7 +339,7 @@ class PROPERTIES_Closet_Materials(bpy.types.PropertyGroup):
                 FROM\
                     CCItems\
                 WHERE\
-                    ProductType IN ('PM', 'WD') AND\
+                    ProductType IN ('PM', 'WD', 'VN') AND\
                     Thickness == '{thickness}' AND\
                     ItemColorCode == '{color_code}'\
                 ;\

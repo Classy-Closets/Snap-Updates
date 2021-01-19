@@ -27,6 +27,8 @@ class Drawer_Stack(fd_types.Assembly):
     mirror_y = False
     
     is_pull_out_tray = False
+
+    number_of_drawers = 3 #1-9
     
     upper_interior = None
     upper_exterior = None
@@ -72,19 +74,22 @@ class Drawer_Stack(fd_types.Assembly):
         FHBD = self.get_var("Four Hole Box Difference", "FHBD")
         THBD = self.get_var("Three Hole Box Difference", "THBD")
         SDFOD = self.get_var("Single Door Full Overlay Difference", "SDFOD")
-        
+        AHOBD = self.get_var("Above Hamper Or Base Doors",'AHOBD')
+        DBH = self.get_var("Double Box Height", "DBH")
+        LDBH = self.get_var("Locked Double Box Height", "LDBH")
+        Six_Hole = self.get_var("Six Hole")
+        Seven_Hole = self.get_var("Seven Hole")
 
-        
         prev_drawer_empty = None
         
-        for i in range(1,9):
+        for i in range(1,self.number_of_drawers):
             DF_Height = self.get_var("Drawer " + str(i) + " Height","DF_Height")
             Lock_Drawer = self.get_var("Lock " + str(i) + " Drawer","Lock_Drawer")
             FR_Type = self.get_var("File Rail Type " + str(i), "FR_Type")
             FR_Direction = self.get_var("File Rail Direction " + str(i), "FR_Direction")
             Use_FR = self.get_var("Use File Rail " + str(i), "Use_FR")
-            
-            
+            UDD = self.get_var("Use Double Drawer " + str(i), 'UDD')
+
             front_empty = self.add_empty()
             if prev_drawer_empty:
                 prev_drawer_z_loc = prev_drawer_empty.get_var('loc_z','prev_drawer_z_loc')
@@ -105,7 +110,6 @@ class Drawer_Stack(fd_types.Assembly):
             front.x_dim('DF_Height',[DF_Height])
             front.y_dim('IF(Full_Overlay,(dim_x+(Shelf_Thickness*2)-SDFOD),dim_x+Left_Overlay+Right_Overlay)',[dim_x,Left_Overlay,Right_Overlay,Full_Overlay,Shelf_Thickness,SDFOD])
             front.z_dim('Front_Thickness',[Front_Thickness])
-            front.prompt('Hide','IF(Drawer_Quantity>' + str(i-1) + ',False,True)',[Drawer_Quantity])
             front.prompt('No Pulls','No_Pulls',[No_Pulls])
             front.prompt('Use Double Pulls','Use_Double_Pulls',[Use_Double_Pulls])
             front.prompt('Center Pulls on Drawers','Center_Pulls_on_Drawers',[Center_Pulls_on_Drawers])
@@ -148,7 +152,7 @@ class Drawer_Stack(fd_types.Assembly):
             l_pull.z_dim('Front_Thickness',[Front_Thickness])
             l_pull.prompt("Pull X Location",'IF(DF_Height<Max_Height_For_Centered_Pulls,DF_Height/2,Large_Drawer_Pull_Height)',[Max_Height_For_Centered_Pulls,DF_Height,Large_Drawer_Pull_Height])
             l_pull.prompt("Pull Z Location",'IF(Use_Double_Pulls,(dim_x/4),(dim_x/2))+Right_Overlay',[Use_Double_Pulls,dim_x,Right_Overlay])
-            l_pull.prompt('Hide','IF(No_Pulls,True,IF(Drawer_Quantity>' + str(i-1) + ',False,True))',[Drawer_Quantity,No_Pulls])
+            l_pull.prompt('Hide','IF(No_Pulls,True,False)',[No_Pulls])
             
             r_pull = common_parts.add_drawer_pull(self)
             r_pull.set_name("Drawer Pull")
@@ -161,27 +165,46 @@ class Drawer_Stack(fd_types.Assembly):
             r_pull.x_dim('dim_x+Left_Overlay+Right_Overlay',[dim_x,Left_Overlay,Right_Overlay])
             r_pull.y_dim('DF_Height',[DF_Height])
             r_pull.z_dim('Front_Thickness',[Front_Thickness])
-            r_pull.prompt("Pull X Location",'IF(Center_Pulls_on_Drawers,DF_Height/2,Drawer_Pull_From_Top)',[Center_Pulls_on_Drawers,DF_Height,Drawer_Pull_From_Top])
+            r_pull.prompt("Pull X Location",'IF(DF_Height<Max_Height_For_Centered_Pulls,DF_Height/2,Large_Drawer_Pull_Height)',[Large_Drawer_Pull_Height,Max_Height_For_Centered_Pulls,Center_Pulls_on_Drawers,DF_Height,Drawer_Pull_From_Top])
             r_pull.prompt("Pull Z Location",'dim_x-(dim_x/4)+Right_Overlay',[dim_x,Right_Overlay])
-            r_pull.prompt('Hide','IF(No_Pulls,True,IF(Drawer_Quantity>' + str(i-1) + ',IF(Use_Double_Pulls,False,True),True))',[No_Pulls,Drawer_Quantity,Use_Double_Pulls])
+            r_pull.prompt('Hide','IF(No_Pulls,True,IF(Use_Double_Pulls,False,True))',[No_Pulls,Use_Double_Pulls])
             
             drawer = common_parts.add_drawer(self)
             drawer.set_name("Drawer Box")
             drawer.x_loc('Drawer_Box_Slide_Gap',[Drawer_Box_Slide_Gap])
             drawer.y_loc('-Door_to_Cabinet_Gap-(dim_y*Open)',[Door_to_Cabinet_Gap,dim_y,Open,Front_Thickness])
-            drawer.z_loc('df_z_loc+Drawer_Box_Bottom_Gap+IF(Drawer_Quantity==' + str(i) + ',Bottom_Overlay,0)',[df_z_loc,Drawer_Box_Bottom_Gap,Drawer_Quantity,Bottom_Overlay])
+            #drawer.z_loc('df_z_loc+Drawer_Box_Bottom_Gap+IF(' + Drawer_Quantity== str(i) + ',Bottom_Overlay,0)',[df_z_loc,Drawer_Box_Bottom_Gap,Bottom_Overlay])
+            drawer.z_loc('df_z_loc+Drawer_Box_Bottom_Gap',[df_z_loc,Drawer_Box_Bottom_Gap])
             drawer.x_rot(value = 0)
             drawer.y_rot(value = 0)
             drawer.z_rot(value = 0)
             drawer.x_dim('dim_x-(Drawer_Box_Slide_Gap*2)',[dim_x,Drawer_Box_Slide_Gap])
             drawer.y_dim('IF(dim_y <= Extra_Deep_Drawer_Box, dim_y-Standard_Drawer_Rear_Gap, dim_y-Deep_Drawer_Rear_Gap)',[dim_y, Extra_Deep_Drawer_Box, Standard_Drawer_Rear_Gap, Deep_Drawer_Rear_Gap])
 
-            drawer.z_dim("IF(DF_Height<SDF,DF_Height-THBD,IF(OR(Lock_Drawer==2,Lock_Drawer==3),DF_Height-Drawer_Box_Top_Gap-Drawer_Box_Bottom_Gap,IF(DF_Height==SDF,DF_Height-FHBD,DF_Height-Drawer_Box_Top_Gap-Drawer_Box_Bottom_Gap)))", [DF_Height,SDF,Drawer_Box_Top_Gap,Drawer_Box_Bottom_Gap,FHBD,THBD,Lock_Drawer])
+            drawer.z_dim("IF(DF_Height<SDF,DF_Height-THBD,IF(OR(Lock_Drawer==2,Lock_Drawer==3),IF(UDD,LDBH,DF_Height-Drawer_Box_Top_Gap-Drawer_Box_Bottom_Gap),IF(DF_Height==SDF,DF_Height-FHBD,IF(UDD,DBH,DF_Height-Drawer_Box_Top_Gap-Drawer_Box_Bottom_Gap))))", [DF_Height,SDF,Drawer_Box_Top_Gap,Drawer_Box_Bottom_Gap,FHBD,THBD,Lock_Drawer,LDBH,DBH,UDD])
             
-            drawer.prompt('Hide','IF(Drawer_Quantity>' + str(i-1) + ',False,True)',[Drawer_Quantity])
             drawer.prompt('Use File Rail','Use_FR',[Use_FR])
             drawer.prompt('File Rail Type','FR_Type',[FR_Type])
             drawer.prompt('File Rail Direction','FR_Direction',[FR_Direction])
+
+            double_drawer = common_parts.add_drawer(self)
+            double_drawer.set_name("Drawer Box")
+            double_drawer.x_loc('Drawer_Box_Slide_Gap',[Drawer_Box_Slide_Gap])
+            double_drawer.y_loc('-Door_to_Cabinet_Gap-(dim_y*(Open/2))',[Door_to_Cabinet_Gap,dim_y,Open,Front_Thickness])
+            double_drawer.z_loc('df_z_loc+Drawer_Box_Bottom_Gap+Shelf_Thickness+IF(OR(Lock_Drawer==2,Lock_Drawer==3),LDBH,DBH)',[df_z_loc,Drawer_Box_Bottom_Gap,Lock_Drawer,DBH,LDBH,Shelf_Thickness])
+            double_drawer.x_rot(value = 0)
+            double_drawer.y_rot(value = 0)
+            double_drawer.z_rot(value = 0)
+            double_drawer.x_dim('dim_x-(Drawer_Box_Slide_Gap*2)',[dim_x,Drawer_Box_Slide_Gap])
+            double_drawer.y_dim('IF(dim_y <= Extra_Deep_Drawer_Box, dim_y-Standard_Drawer_Rear_Gap, dim_y-Deep_Drawer_Rear_Gap)',[dim_y, Extra_Deep_Drawer_Box, Standard_Drawer_Rear_Gap, Deep_Drawer_Rear_Gap])
+
+            double_drawer.z_dim("DBH",[DBH])
+
+            double_drawer.prompt('Hide', "IF(AND(DF_Height >= Six_Hole,DF_Height <= Seven_Hole,dim_y >= "+ str(unit.inch(15.99)) +"),IF(UDD,False,True),True)",[UDD,DF_Height,Six_Hole,Seven_Hole,dim_y])
+            
+            double_drawer.prompt('Use File Rail','Use_FR',[Use_FR])
+            double_drawer.prompt('File Rail Type','FR_Type',[FR_Type])
+            double_drawer.prompt('File Rail Direction','FR_Direction',[FR_Direction])
             
             prev_drawer_empty = front_empty
             
@@ -190,11 +213,11 @@ class Drawer_Stack(fd_types.Assembly):
              
             drawer_lock = common_parts.add_lock(self)
             drawer_lock.x_loc('IF(Lock_Drawer==2,-Division_Thickness,IF(Lock_Drawer==3,dim_x+Division_Thickness,dim_x/2))',[Lock_Drawer,dim_x,Division_Thickness])
-            drawer_lock.y_loc('IF(Lock_Drawer==1,-Front_Thickness-Door_to_Cabinet_Gap,+INCH(.75))',[Lock_Drawer,Front_Thickness,Door_to_Cabinet_Gap])
-            drawer_lock.z_loc('drawer_z_loc+drawer_z_dim-INCH(.5)',[drawer_z_loc,drawer_z_dim])    
+            drawer_lock.y_loc('IF(Lock_Drawer==1,-Front_Thickness-Door_to_Cabinet_Gap-(dim_y*Open),+INCH(.75))',[Lock_Drawer,Front_Thickness,Door_to_Cabinet_Gap,Open,dim_y])
+            drawer_lock.z_loc('drawer_z_loc+IF(UDD,DF_Height-Drawer_Box_Top_Gap-Drawer_Box_Bottom_Gap,drawer_z_dim)-INCH(.5)',[drawer_z_loc,drawer_z_dim,UDD,DF_Height,Drawer_Box_Top_Gap,Drawer_Box_Bottom_Gap])    
             drawer_lock.y_rot(value = 0)
             drawer_lock.z_rot('IF(Lock_Drawer==2,radians(-90),IF(Lock_Drawer==3,radians(90),0))',[Lock_Drawer])
-            drawer_lock.prompt('Hide', 'IF(Lock_Drawer>0,IF(Drawer_Quantity>' + str(i-1) + ',False,True),True)',[Lock_Drawer,Drawer_Quantity])
+            drawer_lock.prompt('Hide', 'IF(Lock_Drawer>0,False,True)',[Lock_Drawer])
 
 
             KD_Shelf = common_parts.add_shelf(self)
@@ -217,31 +240,28 @@ class Drawer_Stack(fd_types.Assembly):
             if(i==1):
                 KD_Shelf.y_dim('dim_y', [dim_y])
                 KD_Shelf.y_loc('dim_y', [dim_y])
-                KD_Shelf.prompt('Hide', 'IF(Remove_Top_Shelf,True,IF(Lock_Drawer>0,IF(Drawer_Quantity>' + str(i-1) + ',False,True),True))',[Remove_Top_Shelf,Lock_Drawer,Drawer_Quantity])
+                KD_Shelf.prompt('Hide', 'IF(Remove_Top_Shelf,True,IF(Lock_Drawer>0,False,True))',[Remove_Top_Shelf,Lock_Drawer])
             if(i==2):
-                KD_Shelf.prompt('Hide', 'IF(Drawer_Quantity == 2, IF(Drawer_Quantity>' + str(i-1) + ',False,True),IF(Drawer_Quantity == 3, IF(Drawer_Quantity>' + str(i-1) + ',False,True),IF(Lock_Drawer>0,IF(Drawer_Quantity>' + str(i-1) + ',False,True),True)))', [Drawer_Quantity, Lock_Drawer])
+                KD_Shelf.prompt('Hide', 'IF(AHOBD,True,IF( Drawer_Quantity-1 == 2,False,IF( Drawer_Quantity-1 == 3,False,IF(Lock_Drawer>0,False,True))))', [Drawer_Quantity, Lock_Drawer,AHOBD])
                 
             if(i==3):
-                KD_Shelf.prompt('Hide', 'IF(Drawer_Quantity == 4, IF(Drawer_Quantity>' + str(i-1) + ',False,True),IF(Drawer_Quantity == 5, IF(Drawer_Quantity>' + str(i-1) + ',False,True),IF(Drawer_Quantity == 7, IF(Drawer_Quantity>' + str(i-1) + ',False,True), IF(Lock_Drawer>0,IF(Drawer_Quantity>' + str(i-1) + ',False,True),True))))', [Drawer_Quantity, Lock_Drawer])
+                KD_Shelf.prompt('Hide', 'IF(Drawer_Quantity-1 == 4,False,IF(Drawer_Quantity-1 == 5,False,IF(Drawer_Quantity-1 == 7,False,IF(Lock_Drawer>0,False,True))))', [Drawer_Quantity, Lock_Drawer])
                 
             if(i==4):
-                KD_Shelf.prompt('Hide', 'IF(Drawer_Quantity == 6, IF(Drawer_Quantity>' + str(i-1) + ',False,True),IF(Drawer_Quantity == 8, IF(Drawer_Quantity>' + str(i-1) + ',False,True),IF(Lock_Drawer>0,IF(Drawer_Quantity>' + str(i-1) + ',False,True),True)))', [Drawer_Quantity, Lock_Drawer])
+                KD_Shelf.prompt('Hide', 'IF(Drawer_Quantity-1 == 6,False,IF(Drawer_Quantity-1 == 8,False,IF(Lock_Drawer>0,False,True)))', [Drawer_Quantity, Lock_Drawer])
                 
             if(i==5):
-                KD_Shelf.prompt('Hide', 'IF(Drawer_Quantity == 7, IF(Drawer_Quantity>' + str(i-1) + ',False,True),IF(Lock_Drawer>0,IF(Drawer_Quantity>' + str(i-1) + ',False,True),True))',[Lock_Drawer,Drawer_Quantity])
+                KD_Shelf.prompt('Hide', 'IF(Drawer_Quantity-1 == 7,False,IF(Lock_Drawer>0,False,True))',[Lock_Drawer,Drawer_Quantity])
                 
             if(i==6):
-                KD_Shelf.prompt('Hide', 'IF(Drawer_Quantity == 8, IF(Drawer_Quantity>' + str(i-1) + ',False,True),IF(Lock_Drawer>0,IF(Drawer_Quantity>' + str(i-1) + ',False,True),True))',[Lock_Drawer,Drawer_Quantity])
+                KD_Shelf.prompt('Hide', 'IF(Drawer_Quantity-1 == 8,False,IF(Lock_Drawer>0,False,True))',[Lock_Drawer,Drawer_Quantity])
                 
             if(i==7):
-                KD_Shelf.prompt('Hide', 'IF(Lock_Drawer>0,IF(Drawer_Quantity>' + str(i-1) + ',False,True),True)',[Lock_Drawer,Drawer_Quantity])
+                KD_Shelf.prompt('Hide', 'IF(Lock_Drawer>0,False,True)',[Lock_Drawer])
                 
             if(i==8):
-                KD_Shelf.prompt('Hide', 'IF(Lock_Drawer>0,IF(Drawer_Quantity>' + str(i-1) + ',False,True),True)',[Lock_Drawer,Drawer_Quantity])
-                           
+                KD_Shelf.prompt('Hide', 'IF(Lock_Drawer>0,False,True)',[Lock_Drawer])
 
-
-            
     def draw(self):
         self.create_assembly()
         self.obj_bp.mv.export_as_subassembly = True
@@ -261,10 +281,10 @@ class Drawer_Stack(fd_types.Assembly):
         self.add_prompt(name="Open",prompt_type='PERCENTAGE',value=0,tab_index=0)
         self.add_prompt(name="Lift Drawers From Bottom",prompt_type='CHECKBOX',value=False,tab_index=0)
         self.add_prompt(name="Bottom Drawer Space",prompt_type='DISTANCE',value=0,tab_index=0)     
-        self.add_prompt(name="Remove Bottom Shelf",prompt_type='CHECKBOX',value=False,tab_index=0)
+        self.add_prompt(name="Remove Bottom Shelf",prompt_type='CHECKBOX',value=True,tab_index=0)
         self.add_prompt(name="Remove Top Shelf",prompt_type='CHECKBOX',value=True,tab_index=0)
         self.add_prompt(name="Shelf Thickness",prompt_type='DISTANCE',value=unit.inch(0.75),tab_index=1)
-        self.add_prompt(name="Drawer Quantity",prompt_type='QUANTITY',value=3,tab_index=0)
+        self.add_prompt(name="Drawer Quantity",prompt_type='QUANTITY',value=self.number_of_drawers,tab_index=0)
         self.add_prompt(name="Drawer Stack Height",prompt_type='DISTANCE',value=0,tab_index=0)
         self.add_prompt(name="Drawer Stack Backing Gap",prompt_type='DISTANCE',value=0,tab_index=0)
         self.add_prompt(name="Use Mirror",prompt_type='CHECKBOX',value=False,tab_index=0)
@@ -282,13 +302,24 @@ class Drawer_Stack(fd_types.Assembly):
         self.add_prompt(name="Large Drawer Face",prompt_type='DISTANCE',value=unit.millimeter(315.95),tab_index=1)
         self.add_prompt(name="Four Hole Box Difference",prompt_type='DISTANCE',value=unit.inch(2.88),tab_index=1)
         self.add_prompt(name="Three Hole Box Difference",prompt_type='DISTANCE',value=unit.inch(1.62),tab_index=1)
+        self.add_prompt(name="Pard Has Bottom KD",prompt_type='CHECKBOX',value=False,tab_index=1)
 
-        for i in range(1,9):
+        self.add_prompt(name="Above Hamper Or Base Doors",prompt_type='CHECKBOX',value=False,tab_index=0)
+
+        self.add_prompt(name="Six Hole",prompt_type='DISTANCE',value=unit.inch(7.4),tab_index=1)
+        self.add_prompt(name="Seven Hole",prompt_type='DISTANCE',value=unit.inch(8.66),tab_index=1)
+        self.add_prompt(name="Double Box Height",prompt_type='DISTANCE',value=unit.inch(2),tab_index=1)
+        self.add_prompt(name="Locked Double Box Height",prompt_type='DISTANCE',value=unit.inch(2.68),tab_index=1)
+
+        self.add_prompt(name="Above Hamper Or Base Doors",prompt_type='CHECKBOX',value=False,tab_index=0)
+
+        for i in range(1,self.number_of_drawers):
             self.add_prompt(name="Lock " + str(i) + " Drawer",prompt_type='COMBOBOX',items=["None","Top","Left","Right"],value=0,tab_index=0,columns=4)        
             self.add_prompt(name="Drawer " + str(i) + " Height",prompt_type='DISTANCE',value=unit.millimeter(91.95),tab_index=0)
             self.add_prompt(name="File Rail Type " + str(i),prompt_type='COMBOBOX',value=0,items=['Letter', 'Legal'],tab_index=1)
             self.add_prompt(name="File Rail Direction " + str(i),prompt_type='COMBOBOX',value=0,items=['Front to Back','Lateral'],tab_index=1)
             self.add_prompt(name="Use File Rail " + str(i),prompt_type='CHECKBOX',value=False,tab_index=1)
+            self.add_prompt(name="Use Double Drawer " + str(i),prompt_type='CHECKBOX',value=False,tab_index=1)
         
         dim_x = self.get_var("dim_x")
         dim_y = self.get_var("dim_y")
@@ -449,7 +480,8 @@ class PROMPTS_Drawer_Prompts(bpy.types.Operator):
                                           ('5',"5",'5'),
                                           ('6',"6",'6'),
                                           ('7',"7",'7'),
-                                          ('8',"8",'8')],
+                                          ('8',"8",'8'),
+                                          ('9',"9",'9')],
                                    default = '3')
     
     drawer_1_height = bpy.props.EnumProperty(name="Drawer 1 Height",
@@ -582,14 +614,16 @@ class PROMPTS_Drawer_Prompts(bpy.types.Operator):
             self.drawer_qty_prompt.QuantityValue = int(self.drawer_quantity)
             small_drawer_face = self.assembly.get_prompt("Small Drawer Face")
             large_drawer_face = self.assembly.get_prompt("Large Drawer Face")
+            six_hole = self.assembly.get_prompt("Six Hole")
+            seven_hole = self.assembly.get_prompt("Seven Hole")
                 
-            for i in range(1,9):
+            for i in range(1,self.drawer_qty_prompt.value()):
                 drawer_height = self.assembly.get_prompt("Drawer " + str(i) + " Height")
                 lock_drawer = self.assembly.get_prompt("Lock " + str(i) + " Drawer")
                 slide_type = self.assembly.get_prompt("Drawer " + str(i) + " Slide Type") #DONT REMOVE USED in exec
                 file_rail_type = self.assembly.get_prompt("File Rail Type " + str(i))
                 file_rail_direction = self.assembly.get_prompt("File Rail Direction " + str(i))
-
+                use_double_drawer = self.assembly.get_prompt("Use Double Drawer " + str(i))
                 bottom_offset = self.assembly.get_prompt("Bottom Drawer Space")
                 if props.closet_defaults.use_32mm_system: 
                     if drawer_height:
@@ -606,14 +640,24 @@ class PROMPTS_Drawer_Prompts(bpy.types.Operator):
                     exec("file_rail_type.set_value(self.file_rail_type_" + str(i) + ")")
                 if file_rail_direction:
                     exec("file_rail_direction.set_value(self.file_rail_direction_" + str(i) + ")")
-                
-                #if(drawer_height != large_drawer_face.value()):
-                    #file_rail_type.set_value('None')
-                    #exec("self.file_rail_type_" + str(i) + " = file_rail_type.value()")
-
                 if(drawer_height.value() < small_drawer_face.value()):
                     lock_drawer.set_value("None")
-                              
+                if(drawer_height.value() < six_hole.value() or drawer_height.value() > seven_hole.value() or self.assembly.obj_y.location.y < unit.inch(15.99)):
+                    use_double_drawer.set_value(False)                    
+
+            pard_has_bottom_KD = self.assembly.get_prompt("Pard Has Bottom KD")
+            remove_bottom_shelf = self.assembly.get_prompt("Remove Bottom Shelf")
+            lift_drawers_from_bottom = self.assembly.get_prompt("Lift Drawers From Bottom")
+            parent_assembly = fd_types.Assembly(self.assembly.obj_bp.parent)
+            RBS = parent_assembly.get_prompt('Remove Bottom Hanging Shelf ' + self.assembly.obj_bp.mv.opening_name)
+            if(lift_drawers_from_bottom.value()):
+                pard_has_bottom_KD.set_value(False)
+            elif(RBS):
+                if(RBS.value()):
+                    pard_has_bottom_KD.set_value(True)
+            if(pard_has_bottom_KD.value()):
+                remove_bottom_shelf.set_value(False)
+
         self.assign_mirror_material(self.assembly.obj_bp)
         utils.run_calculators(self.assembly.obj_bp)
         bpy.ops.cabinetlib.update_scene_from_pointers()
@@ -622,6 +666,7 @@ class PROMPTS_Drawer_Prompts(bpy.types.Operator):
         # THIS NEEDS TO BE RUN TWICE TO AVOID RECAL ERRORS
         utils.run_calculators(utils.get_parent_assembly_bp(self.assembly.obj_bp))
         utils.run_calculators(utils.get_parent_assembly_bp(self.assembly.obj_bp))
+        props_closet.update_render_materials(self, context)
         return True
 
     def get_front_heights(self):
@@ -642,12 +687,11 @@ class PROMPTS_Drawer_Prompts(bpy.types.Operator):
         if self.drawer_qty_prompt:
             self.drawer_quantity = str(self.drawer_qty_prompt.QuantityValue)
                     
-            for i in range(1,9):
+            for i in range(1,self.drawer_qty_prompt.value()):
                 drawer_height = self.assembly.get_prompt("Drawer " + str(i) + " Height")
                 lock_drawer = self.assembly.get_prompt("Lock " + str(i) + " Drawer") #DONT REMOVE USED in exec
                 file_rail_type = self.assembly.get_prompt("File Rail Type " + str(i)) #DONT REMOVE USED in exec
                 file_rail_direction = self.assembly.get_prompt("File Rail Direction " + str(i)) #DONT REMOVE USED in exec
-                
                 exec("self.lock_" + str(i) + "_drawer = lock_drawer.value()")
                 exec("self.file_rail_type_" + str(i) + " = file_rail_type.value()")
                 exec("self.file_rail_direction_" + str(i) + " = file_rail_direction.value()")
@@ -690,134 +734,140 @@ class PROMPTS_Drawer_Prompts(bpy.types.Operator):
         drawer_quantity = self.assembly.get_prompt("Drawer Quantity")
         small_drawer_face = self.assembly.get_prompt("Small Drawer Face")
         large_drawer_face = self.assembly.get_prompt("Large Drawer Face")
+        six_hole = self.assembly.get_prompt("Six Hole")
+        seven_hole = self.assembly.get_prompt("Seven Hole")
         
         if drawer_quantity:
-            row = col.row()
-            row.label("Qty:")
-            row.prop(self,"drawer_quantity",expand=True)   
-            col.separator()     
-            for i in range(1,9):
+            for i in range(1,drawer_quantity.value()):
+                
                 drawer_height = self.assembly.get_prompt("Drawer " + str(i) + " Height")
                 lock_drawer = self.assembly.get_prompt("Lock " + str(i) + " Drawer")
 
                 file_rail_type = self.assembly.get_prompt("File Rail Type " + str(i))
                 file_rail_direction = self.assembly.get_prompt("File Rail Direction " + str(i))
                 use_file_rail = self.assembly.get_prompt("Use File Rail " + str(i))
+                use_double_drawer = self.assembly.get_prompt("Use Double Drawer " + str(i))
                 extra_deep_drawer_box = self.assembly.get_prompt("Extra Deep Drawer Box")
-                if(self.assembly.obj_y.location.y<=extra_deep_drawer_box.value()):
-                    drawer_box_rear_gap = self.assembly.get_prompt("Standard Drawer Rear Gap")
-                else:
-                    drawer_box_rear_gap = self.assembly.get_prompt("Deep Drawer Rear Gap")
-
-                width = self.assembly.obj_x.location.x - unit.inch(2)
-                depth = self.assembly.obj_y.location.y - drawer_box_rear_gap.value()
-                letter = unit.inch(12.5)
-                legal = unit.inch(15.5)
-
-                if drawer_height and drawer_quantity.value() >= i:
-                    box = col.box()
-                    row = box.row()
-
-                    col_1 = row.column()
-                    if props.closet_defaults.use_32mm_system:  
-                        col_1.label("Drawer " + str(i) + " Height:")
-                        col_1.prop(self,'drawer_' + str(i) + '_height',text="")
+                if(drawer_height and lock_drawer and file_rail_type and file_rail_direction and use_file_rail and extra_deep_drawer_box):
+                    if(self.assembly.obj_y.location.y<=extra_deep_drawer_box.value()):
+                        drawer_box_rear_gap = self.assembly.get_prompt("Standard Drawer Rear Gap")
                     else:
-                        drawer_height.draw_prompt(col_1)
+                        drawer_box_rear_gap = self.assembly.get_prompt("Deep Drawer Rear Gap")
 
-                    
-                    if(drawer_height.value() >= small_drawer_face.value()):
-                        col_2 = row.column()
-                        col_2.label("Lock:")
-                        col_2.prop(self,'lock_' + str(i) + '_drawer',text="")
-                    else:
-                        lock_drawer.set_value('None')
+                    width = self.assembly.obj_x.location.x - unit.inch(2)
+                    depth = self.assembly.obj_y.location.y - drawer_box_rear_gap.value()
+                    letter = unit.inch(12.5)
+                    legal = unit.inch(15.5)
 
-                    
-                    if(drawer_height.value()>=large_drawer_face.value() and (width >= letter or depth >= letter)):
-                        col_3 = row.column(align=True)
-                        #row.label("File Rail:")
-                        col_3.prop(use_file_rail,"CheckBoxValue",text="File Rail")
-                    
-                        if(use_file_rail.value()):
-                            if(width<letter):
-                                if(depth<legal):
+                    if drawer_height and drawer_quantity.value() >= i:
+                        box = col.box()
+                        row = box.row()
 
-                                    col_3.label("Letter")
-                                    exec("file_rail_type_" +str(i)+"= 'Letter'")
-                                    file_rail_type.set_value('Letter')
+                        col_1 = row.column()
+                        if props.closet_defaults.use_32mm_system:  
+                            col_1.label("Drawer " + str(i) + " Height:")
+                            col_1.prop(self,'drawer_' + str(i) + '_height',text="")
+                        else:
+                            drawer_height.draw_prompt(col_1)
 
-                                    col_3.label("Lateral")
-                                    exec("file_rail_direction_" +str(i)+"= 'Lateral'")
-                                    file_rail_direction.set_value('Lateral')
+                        
+                        if(drawer_height.value() >= small_drawer_face.value()):
+                            col_2 = row.column()
+                            col_2.label("Lock:")
+                            col_2.prop(self,'lock_' + str(i) + '_drawer',text="")
+                        else:
+                            lock_drawer.set_value('None')
 
-                                else:
+                        if(drawer_height and six_hole and seven_hole):
+                            if(drawer_height.value() >= six_hole.value() and drawer_height.value() <= seven_hole.value() and self.assembly.obj_y.location.y >= unit.inch(15.99)):
+                                col_3 = row.column(align=True)
+                                col_3.label("Double Jewelry Drawer")
+                                col_3.prop(use_double_drawer,"CheckBoxValue",text="")
 
-                                    col_3.prop(self,'file_rail_type_' + str(i),text="")
+                        if(drawer_height.value()>=large_drawer_face.value() and (width >= letter or depth >= letter)):
+                            col_3 = row.column(align=True)
+                            #row.label("File Rail:")
+                            col_3.prop(use_file_rail,"CheckBoxValue",text="File Rail")
+                        
+                            if(use_file_rail.value()):
+                                if(width<letter):
+                                    if(depth<legal):
 
+                                        col_3.label("Letter")
+                                        exec("file_rail_type_" +str(i)+"= 'Letter'")
+                                        file_rail_type.set_value('Letter')
+
+                                        col_3.label("Lateral")
+                                        exec("file_rail_direction_" +str(i)+"= 'Lateral'")
+                                        file_rail_direction.set_value('Lateral')
+
+                                    else:
+
+                                        col_3.prop(self,'file_rail_type_' + str(i),text="")
+
+                                        
+                                        col_3.label("Lateral")
+                                        exec("file_rail_direction_" +str(i)+"= 'Lateral'")
+                                        file_rail_direction.set_value('Lateral')
                                     
-                                    col_3.label("Lateral")
-                                    exec("file_rail_direction_" +str(i)+"= 'Lateral'")
-                                    file_rail_direction.set_value('Lateral')
+                                elif(width<legal):
+                                    if(depth<letter):
+
+                                        col_3.label("Letter")
+                                        exec("file_rail_type_" +str(i)+"= 'Letter'")
+                                        file_rail_type.set_value('Letter')
+
+                                        col_3.label("Front to Back")
+                                        exec("file_rail_direction_" +str(i)+"= 'Front to Back'")
+                                        file_rail_direction.set_value('Front to Back')
+
+                                    elif(depth<legal):
+
+                                        col_3.label("Letter")
+                                        exec("file_rail_type_" +str(i)+"= 'Letter'")
+                                        file_rail_type.set_value('Letter')
+
+                                        col_3.prop(self,'file_rail_direction_' + str(i),text="")
+
+                                    else:
+                                        
+                                        if(file_rail_direction.value() == 'Front to Back'):
+                                            col_3.label("Letter")
+                                            exec("file_rail_type_" +str(i)+"= 'Letter'")
+                                            file_rail_type.set_value('Letter')
+
+                                            col_3.prop(self,'file_rail_direction_' + str(i),text="")
+                                        else:
+                                            col_3.prop(self,'file_rail_type_' + str(i),text="")
+
+                                            col_3.prop(self,'file_rail_direction_' + str(i),text="")
                                 
-                            elif(width<legal):
-                                if(depth<letter):
-
-                                    col_3.label("Letter")
-                                    exec("file_rail_type_" +str(i)+"= 'Letter'")
-                                    file_rail_type.set_value('Letter')
-
-                                    col_3.label("Front to Back")
-                                    exec("file_rail_direction_" +str(i)+"= 'Front to Back'")
-                                    file_rail_direction.set_value('Front to Back')
-
-                                elif(depth<legal):
-
-                                    col_3.label("Letter")
-                                    exec("file_rail_type_" +str(i)+"= 'Letter'")
-                                    file_rail_type.set_value('Letter')
-
-                                    col_3.prop(self,'file_rail_direction_' + str(i),text="")
-
                                 else:
-                                    
-                                    if(file_rail_direction.value() == 'Front to Back'):
-                                        col_3.label("Letter")
-                                        exec("file_rail_type_" +str(i)+"= 'Letter'")
-                                        file_rail_type.set_value('Letter')
+                                    if(depth<letter):
 
-                                        col_3.prop(self,'file_rail_direction_' + str(i),text="")
+                                        col_3.prop(self,'file_rail_type_' + str(i),text="")
+
+                                        col_3.label("Front to Back")
+                                        exec("file_rail_direction_" +str(i)+"= 'Front to Back'")
+                                        file_rail_direction.set_value('Front to Back')
+                                    elif(depth<legal):
+                                        if(file_rail_direction.value() == 'Lateral'):
+                                            col_3.label("Letter")
+                                            exec("file_rail_type_" +str(i)+"= 'Letter'")
+                                            file_rail_type.set_value('Letter')
+
+                                            col_3.prop(self,'file_rail_direction_' + str(i),text="")
+                                        else:
+                                            col_3.prop(self,'file_rail_type_' + str(i),text="")
+
+                                            col_3.prop(self,'file_rail_direction_' + str(i),text="")
                                     else:
                                         col_3.prop(self,'file_rail_type_' + str(i),text="")
 
                                         col_3.prop(self,'file_rail_direction_' + str(i),text="")
-                            
-                            else:
-                                if(depth<letter):
 
-                                    col_3.prop(self,'file_rail_type_' + str(i),text="")
-
-                                    col_3.label("Front to Back")
-                                    exec("file_rail_direction_" +str(i)+"= 'Front to Back'")
-                                    file_rail_direction.set_value('Front to Back')
-                                elif(depth<legal):
-                                    if(file_rail_direction.value() == 'Lateral'):
-                                        col_3.label("Letter")
-                                        exec("file_rail_type_" +str(i)+"= 'Letter'")
-                                        file_rail_type.set_value('Letter')
-
-                                        col_3.prop(self,'file_rail_direction_' + str(i),text="")
-                                    else:
-                                        col_3.prop(self,'file_rail_type_' + str(i),text="")
-
-                                        col_3.prop(self,'file_rail_direction_' + str(i),text="")
-                                else:
-                                    col_3.prop(self,'file_rail_type_' + str(i),text="")
-
-                                    col_3.prop(self,'file_rail_direction_' + str(i),text="")
-
-                    else:
-                        use_file_rail.set_value(False)
+                        else:
+                            use_file_rail.set_value(False)
 
 
     def is_glass_front(self):
@@ -1067,6 +1117,8 @@ class OPS_Drawer_Drop(bpy.types.Operator):
                     self.place_insert(selected_opening)
                     self.set_backing_bottom_gap(self.insert.obj_bp, selected_opening)
                     self.set_drawer_cleat_hide(self.insert.obj_bp, selected_opening)
+                    self.set_bottom_KD(self.insert.obj_bp,selected_opening)
+                    self.set_above_hamper_or_base_door(self.insert.obj_bp)
                     context.scene.objects.active = self.insert.obj_bp
                     # THIS NEEDS TO BE RUN TWICE TO AVOID RECAL ERRORS
                     utils.run_calculators(self.insert.obj_bp)
@@ -1108,6 +1160,40 @@ class OPS_Drawer_Drop(bpy.types.Operator):
 
                     if bottom_insert_gap:
                         back_assembly.prompt('Bottom Insert Gap', 'Drawer_Stack_Backing_Gap', [Drawer_Stack_Backing_Gap])
+    
+    def set_above_hamper_or_base_door(self, insert_bp):
+        drawer_assembly = fd_types.Assembly(insert_bp)
+        above_hamper_or_base_door = drawer_assembly.get_prompt("Above Hamper Or Base Doors")
+        parent_bp = utils.get_parent_assembly_bp(insert_bp)
+
+        if(above_hamper_or_base_door):
+            if(parent_bp.lm_closets.is_door_bp):
+                door_assembly = fd_types.Assembly(parent_bp)
+                door_type = door_assembly.get_prompt("Door Type")
+                if(door_type):
+                    if(door_type.value() == 'Base'):
+                        above_hamper_or_base_door.set_value(True)
+            elif(parent_bp.lm_closets.is_hamper_bp):
+                above_hamper_or_base_door.set_value(True)
+            else:
+                for child in parent_bp.children:
+                    if(child.lm_closets.is_door_insert_bp):
+                        door_assembly = fd_types.Assembly(child)
+                        door_type = door_assembly.get_prompt("Door Type")
+                        if(door_type):
+                            if(door_type.value() == 'Base'):
+                                above_hamper_or_base_door.set_value(True)
+                    elif(child.lm_closets.is_hamper_insert_bp):
+                        above_hamper_or_base_door.set_value(True)
+
+    def set_bottom_KD(self, insert_bp, selected_opening):
+        opening_name = selected_opening.obj_bp.mv.opening_name
+        carcass_bp = utils.get_parent_assembly_bp(insert_bp)
+        drawer_assembly = fd_types.Assembly(insert_bp)   
+        carcass_assembly = fd_types.Assembly(carcass_bp)
+        if(carcass_assembly.get_prompt("Opening " + str(opening_name) + " Floor Mounted") and carcass_assembly.get_prompt('Remove Bottom Hanging Shelf ' + str(opening_name))):
+            if(carcass_assembly.get_prompt("Opening " + str(opening_name) + " Floor Mounted").value() or carcass_assembly.get_prompt('Remove Bottom Hanging Shelf ' + str(opening_name)).value()):
+                drawer_assembly.get_prompt("Pard Has Bottom KD").set_value(True)
 
     def modal(self, context, event):
         context.area.tag_redraw()

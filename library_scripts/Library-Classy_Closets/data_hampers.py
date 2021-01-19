@@ -38,7 +38,8 @@ class Hamper(fd_types.Assembly):
         self.add_tab(name='Hamper Options',tab_type='VISIBLE')
         self.add_prompt(name="Tilt Out Hamper",prompt_type='CHECKBOX',value=True,tab_index=0)
         self.add_prompt(name="Hamper Type",prompt_type='COMBOBOX',items=['Wire','Canvas'],value=0,tab_index=0)
-        self.add_prompt(name="Remove Locking Shelf",prompt_type='CHECKBOX',value=False,tab_index=0)
+        self.add_prompt(name="Remove Bottom Shelf",prompt_type='CHECKBOX',value=False,tab_index=0)
+        self.add_prompt(name="Remove Top Shelf",prompt_type='CHECKBOX',value=False,tab_index=0)
         self.add_prompt(name="Hamper Height",prompt_type='DISTANCE',value=unit.millimeter(589.280),tab_index=0)
         self.add_prompt(name="Hamper Backing Gap",prompt_type='DISTANCE',value=0,tab_index=0)
         self.add_prompt(name="Cleat Location", prompt_type='COMBOBOX', items=["Above", "Below", "None"], value=0, tab_index=0, columns=3)
@@ -62,7 +63,8 @@ class Hamper(fd_types.Assembly):
         Inset_Front = self.get_var("Inset Front")
         Tilt_Out_Hamper = self.get_var("Tilt Out Hamper")
         Shelf_Thickness = self.get_var("Shelf Thickness")
-        Remove_Locking_Shelf = self.get_var("Remove Locking Shelf")
+        Remove_Bottom_Shelf = self.get_var("Remove Bottom Shelf")
+        Remove_Top_Shelf = self.get_var("Remove Top Shelf")
         Hamper_Height = self.get_var("Hamper Height")
         Hamper_Type = self.get_var("Hamper Type")
         Cleat_Location = self.get_var("Cleat Location")
@@ -180,7 +182,7 @@ class Hamper(fd_types.Assembly):
         top_shelf.x_dim('Width',[Width])
         top_shelf.y_dim('-Depth+Shelf_Backing_Setback',[Depth,Shelf_Backing_Setback])
         top_shelf.z_dim('-Shelf_Thickness',[Shelf_Thickness])
-        top_shelf.prompt('Hide','IF(Remove_Locking_Shelf,True,False)',[Remove_Locking_Shelf])
+        top_shelf.prompt('Hide','IF(Remove_Top_Shelf,True,False)',[Remove_Top_Shelf])
         top_shelf.prompt('Is Locked Shelf',value = True)
         
         bottom_shelf = common_parts.add_shelf(self)
@@ -193,7 +195,7 @@ class Hamper(fd_types.Assembly):
         bottom_shelf.x_dim('Width',[Width])
         bottom_shelf.y_dim('-Depth+Shelf_Backing_Setback',[Depth,Shelf_Backing_Setback])
         bottom_shelf.z_dim('-Shelf_Thickness',[Shelf_Thickness])
-        bottom_shelf.prompt('Hide','IF(Remove_Locking_Shelf,True,False)',[Remove_Locking_Shelf])
+        bottom_shelf.prompt('Hide','IF(Remove_Bottom_Shelf,True,False)',[Remove_Bottom_Shelf])
         bottom_shelf.prompt('Is Locked Shelf',value = True)
         
         opening = common_parts.add_opening(self)
@@ -490,6 +492,7 @@ class OPS_Hamper_Drop(bpy.types.Operator):
                 if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
                     self.place_insert(selected_opening)
                     self.set_backing_bottom_gap(self.insert.obj_bp, selected_opening)
+                    self.set_bottom_KD(self.insert.obj_bp, selected_opening)
                     context.scene.objects.active = self.insert.obj_bp
                     # THIS NEEDS TO BE RUN TWICE TO AVOID RECAL ERRORS
                     utils.run_calculators(self.insert.obj_bp)
@@ -518,6 +521,16 @@ class OPS_Hamper_Drop(bpy.types.Operator):
 
                     if bottom_insert_backing:
                         back_assembly.prompt('Bottom Insert Backing', 'Hamper_Backing_Gap', [Hamper_Backing_Gap])
+    
+    def set_bottom_KD(self, insert_bp, selected_opening):
+        opening_name = selected_opening.obj_bp.mv.opening_name
+        carcass_bp = utils.get_parent_assembly_bp(insert_bp)
+        drawer_assembly = fd_types.Assembly(insert_bp)   
+        carcass_assembly = fd_types.Assembly(carcass_bp)
+        if(carcass_assembly.get_prompt("Opening " + str(opening_name) + " Floor Mounted") and carcass_assembly.get_prompt('Remove Bottom Hanging Shelf ' + str(opening_name))):
+            if(carcass_assembly.get_prompt("Opening " + str(opening_name) + " Floor Mounted").value() or carcass_assembly.get_prompt('Remove Bottom Hanging Shelf ' + str(opening_name)).value()):
+                drawer_assembly.get_prompt("Remove Bottom Shelf").set_value(True)
+
 
     def modal(self, context, event):
         context.area.tag_redraw()

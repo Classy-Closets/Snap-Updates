@@ -191,7 +191,23 @@ class Scene_Props(PropertyGroup):
     crown_molding = EnumProperty(name="Crown Molding", items=enum_crown_molding)
     
     add_base_molding = BoolProperty(name="Add Base Molding",default = False)
-    add_crown_molding = BoolProperty(name="Add Crown Molding",default = False)    
+    add_crown_molding = BoolProperty(name="Add Crown Molding",default = False)  
+
+    room_category = EnumProperty(name="Room Category",
+                                description="Select the Category of the Room",
+                                items=[("Please Select","REQUIRED Please Select a Category","Please Select a Category"),
+                                       ("41110","Closet","Closet"),
+                                       ("41120","Entertainment Center","Entertainment Center"),
+                                       ("41130","Garage","Garage"),
+                                       ("41140","Home Office","Home Office"),
+                                       ("41150","Laundry","Laundry"),
+                                       ("41160","Mud Room","Mud Room"),
+                                       ("41170","Pantry","Pantry"),
+                                       ("41210","Kitchen","Kitchen"),
+                                       ("41220","Bathroom","Bathroom"),
+                                       ("41230","Reface","Reface"),
+                                       ("41240","Remodel","Remodel"),
+                                       ("41250","Stone","Stone")])  
     
 class Object_Props(PropertyGroup):
     
@@ -266,6 +282,11 @@ class PANEL_Room_Builder(Panel):
                 col.operator('fd_roombuilder.build_room',text="Build Room",icon='SNAP_PEEL_OBJECT')
 
         if len(props.walls) > 0:
+            # box = main_box.box()
+            # row = box.row(align=True)
+            #row.prop(props, "room_category",text="Room Category")
+            #row.prop_enum(self.props, 'room_category',text="Room Category")
+
             box = main_box.box()
             row = box.row(align=True)
             row.label("Room Objects:",icon='SNAP_FACE')
@@ -1040,7 +1061,7 @@ class OPERATOR_Build_Room(Operator):
                                    default=unit.inch(83),
                                    unit='LENGTH',
                                    precision=4)
-    
+
     obstacle = None
     left_side_wall = None
     back_wall = None
@@ -1418,13 +1439,14 @@ class OPERATOR_Build_Room(Operator):
         return wm.invoke_props_dialog(self, width=400)
 
     def execute(self, context):
-        if 'fd_projects' in bpy.context.user_preferences.addons.keys():
-            if self.add_to_project:
-                bpy.ops.project.add_room(room_name=self.room_name)
+        self.clicked_ok = True
 
-        return {'FINISHED'}
+        # Do not create room if room category not selected
+        if self.props.room_category == 'Please Select':
+            self.clear_room_objects()
+            message = "Room not created: Category not Selected"
+            return bpy.ops.snap.message_box('INVOKE_DEFAULT', message=message)
 
-    def __del__(self):
         #FIX MESH SIZE FOR EDITING AFTER ROOM CREATION
         for mesh in self.wall_mesh_objs:
             bpy.ops.fd_assembly.connect_meshes_to_hooks_in_assembly(object_name = mesh.name)
@@ -1440,7 +1462,41 @@ class OPERATOR_Build_Room(Operator):
         if self.props.add_crown_molding:
             self.add_molding_to_room(molding_type="crown")
         
-        bpy.ops.fd_roombuilder.collect_walls()     
+        bpy.ops.fd_roombuilder.collect_walls()         
+        
+        if 'fd_projects' in bpy.context.user_preferences.addons.keys():
+            if self.add_to_project:
+                bpy.ops.project.add_room(room_name=self.room_name, room_category=self.props.room_category)
+
+        return {'FINISHED'}
+
+    def clear_room_objects(self):
+        del_objs = []
+
+        if self.left_side_wall:
+            utils.delete_object_and_children(self.left_side_wall.obj_bp)
+        if self.back_wall:
+            utils.delete_object_and_children(self.back_wall.obj_bp)
+        if self.entry_wall:
+            utils.delete_object_and_children(self.entry_wall.obj_bp)
+        if self.right_side_wall:
+            utils.delete_object_and_children(self.right_side_wall.obj_bp)
+        if self.door:
+            utils.delete_object_and_children(self.door.obj_bp)
+        if self.base_molding_pro:
+            del_objs.append(self.base_molding_pro)
+        if self.crown_molding_pro:
+            del_objs.append(self.crown_molding_pro)
+        for obj in self.wall_mesh_objs:
+            del_objs.append(obj)
+        if self.floor:
+            del_objs.append(self.floor)
+
+        utils.delete_obj_list(del_objs)
+
+    def __del__(self):
+        if not self.clicked_ok:
+            self.clear_room_objects()          
 
     def draw(self,context):
         layout = self.layout
@@ -1453,52 +1509,57 @@ class OPERATOR_Build_Room(Operator):
 
             if self.add_to_project:
                 box.prop(self, "room_name", text="Room Name")
-        
-        if self.props.room_type == 'SQUARE':
-        
-            row = box.row()
-            row.label("Room Length:")
-            row.prop(self,"back_wall_length",text="")
+                
+        row = box.row()
+        #row.prop_enum(self.props, 'room_category','Please Select',text="Room Category")
+        row.prop(self.props, "room_category",text="Room Category")
+
+        if(self.props.room_category != "Please Select"):
+            if self.props.room_type == 'SQUARE':
             
-            row = box.row()
-            row.label("Room Depth:")
-            row.prop(self,"side_wall_length",text="")
+                row = box.row()
+                row.label("Room Length:")
+                row.prop(self,"back_wall_length",text="")
+                
+                row = box.row()
+                row.label("Room Depth:")
+                row.prop(self,"side_wall_length",text="")
+                
+                row = box.row()
+                row.label('Return Walls:')
+                row.prop(self,"left_return_length",text="Left")
+                row.prop(self,"right_return_length",text='Right')
+                
+                row = box.row()
+                row.label("Opening Height:")
+                row.prop(self,"opening_height",text="")
+                
+            if self.props.room_type == 'SINGLE':
+                row = box.row()
+                row.label("Wall Length:")
+                row.prop(self,"back_wall_length",text="")
             
-            row = box.row()
-            row.label('Return Walls:')
-            row.prop(self,"left_return_length",text="Left")
-            row.prop(self,"right_return_length",text='Right')
+            if self.props.room_type == 'LSHAPE':
+                row = box.row()
+                row.label("Back Wall Length:")
+                row.prop(self,"back_wall_length",text="")
+                
+                row = box.row()
+                row.label("Left Wall Length:")
+                row.prop(self,"left_return_length",text="")
             
-            row = box.row()
-            row.label("Opening Height:")
-            row.prop(self,"opening_height",text="")
+            if self.props.room_type == 'USHAPE':
+                row = box.row()
+                row.label("Back Wall Length:")
+                row.prop(self,"back_wall_length",text="")
+                
+                row = box.row()
+                row.label("Left Wall Length:")
+                row.prop(self,"left_return_length",text="")
             
-        if self.props.room_type == 'SINGLE':
-            row = box.row()
-            row.label("Wall Length:")
-            row.prop(self,"back_wall_length",text="")
-        
-        if self.props.room_type == 'LSHAPE':
-            row = box.row()
-            row.label("Back Wall Length:")
-            row.prop(self,"back_wall_length",text="")
-            
-            row = box.row()
-            row.label("Left Wall Length:")
-            row.prop(self,"left_return_length",text="")
-        
-        if self.props.room_type == 'USHAPE':
-            row = box.row()
-            row.label("Back Wall Length:")
-            row.prop(self,"back_wall_length",text="")
-            
-            row = box.row()
-            row.label("Left Wall Length:")
-            row.prop(self,"left_return_length",text="")
-        
-            row = box.row()
-            row.label("Right Wall Length:")
-            row.prop(self,"right_return_length",text="")
+                row = box.row()
+                row.label("Right Wall Length:")
+                row.prop(self,"right_return_length",text="")
         
 class OPERATOR_Collect_Walls(Operator):
     bl_idname = "fd_roombuilder.collect_walls"
@@ -1524,6 +1585,8 @@ class OPERATOR_Collect_Walls(Operator):
     def draw(self, context):
         layout = self.layout
         box = layout.box()
+        row = box.row()
+        props = context.scene.fd_roombuilder
 
         if 'fd_projects' in bpy.context.user_preferences.addons.keys():
             wm = context.window_manager.fd_project
@@ -1531,7 +1594,9 @@ class OPERATOR_Collect_Walls(Operator):
             box.prop(self, "add_to_project", text="Add to Active Project: {}".format(project.name))
 
             if self.add_to_project:
-                box.prop(self, "room_name", text="Room Name")
+                row.prop(self, "room_name", text="Room Name")
+                row = box.row()
+                row.prop(props, "room_category",text="Room Category")
 
     def assign_floor_material(self,context,obj):
         props = context.scene.fd_roombuilder
@@ -1598,7 +1663,7 @@ class OPERATOR_Collect_Walls(Operator):
 
         if 'fd_projects' in bpy.context.user_preferences.addons.keys():
             if self.add_to_project:
-                bpy.ops.project.add_room(room_name=self.room_name)          
+                bpy.ops.project.add_room(room_name=self.room_name, room_category = props.room_category)          
 
         return {'FINISHED'}
         
