@@ -1590,10 +1590,17 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
         # X-axis later
         for opening, value in tags_dict.items():
             # Depending on wall angle, our "X-axis" is diferent.
-            if wall_angle in [0, 180]:
+            if wall_angle == 0:
                 opng_x_pos = self.get_object_global_location(opening)[0]
-            elif wall_angle in [90, -90]:
-                opng_x_pos = self.get_object_global_location(opening)[1]
+                continue
+            if wall_angle > 0:
+                opng_x_pos = self.get_object_global_location(
+                    opening)[0] * math.sin(wall_angle)
+                continue
+            if wall_angle < 0:
+                opng_x_pos = self.get_object_global_location(
+                    opening)[1] * math.cos(wall_angle)
+                continue
             positions_dict[opening] = opng_x_pos
         # Now compare each opening with all others to find matching groups
         for opening, x_pos in positions_dict.items():

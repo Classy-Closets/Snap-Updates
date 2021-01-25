@@ -14,6 +14,7 @@ from . import utils as snap_utils
 from mv import utils, fd_types, unit
 import os
 import shutil
+from pathlib import Path
 
 
 class OPS_change_category(Operator):
@@ -96,6 +97,28 @@ class OPS_load_snap_defaults(Operator):
         shutil.copyfile(src_fd_types, dst_fd_types)
         shutil.copyfile(src_fd_material, dst_fd_material)
 
+    def check_pull_thumb_categories(self):
+        '''
+            Remove old pull thumbnails if still existing after update.
+        '''
+        del_paths = []
+        pull_dir = Path(
+            os.path.dirname(__file__)).joinpath("library_scripts/Library-Classy_Closets/Door Pulls/")
+        pull_categories = [
+            "Black", "Bronze", "Chrome", "Matte Chrome", "Matte Nickel", "Nickel", "Staineless"]
+
+        pull_path = pull_dir.joinpath("Matte Black/134.06.301.png")
+
+        if pull_path.exists():
+            pull_path.unlink()
+
+        for cat in pull_categories:
+            del_paths.append(pull_dir.joinpath(cat))
+
+        for path in del_paths:
+            if path.exists() and path.is_dir():
+                shutil.rmtree(str(path))
+
     def add_custom_font(self, src_path):
         src_font_file = os.path.join(src_path, "calibri.ttf")
         dst_font_file = os.path.join(os.path.dirname(bpy.app.binary_path), "Fonts", "calibri.ttf")
@@ -115,6 +138,7 @@ class OPS_load_snap_defaults(Operator):
         shutil.copyfile(src_startup_file, dst_startup_file)
         self.add_fd_modules(config_path)
         self.add_custom_font(config_path)
+        self.check_pull_thumb_categories()
         self.init_db()
         return {'FINISHED'}
 
