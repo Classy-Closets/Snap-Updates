@@ -523,7 +523,8 @@ class PROMPTS_Door_Prompts(bpy.types.Operator):
     def check(self, context):
         props = props_closet.get_scene_props()
 
-        self.shelf_quantity_prompt.QuantityValue = int(self.shelf_quantity)
+        if self.shelf_quantity_prompt:
+            self.shelf_quantity_prompt.QuantityValue = int(self.shelf_quantity)
 
         insert_height = self.assembly.get_prompt("Insert Height")
         carcass_height = self.assembly.obj_z.location.z
@@ -612,16 +613,10 @@ class PROMPTS_Door_Prompts(bpy.types.Operator):
         ]
         closet_obj = None
         closet_assembly = None
-        if(self.assembly.obj_bp.parent.lm_closets.is_closet):
-            closet_obj = self.assembly.obj_bp.parent
+
+        closet_obj = utils.get_parent_assembly_bp(self.assembly.obj_bp)
+        if closet_obj.lm_closets.is_closet:
             closet_assembly = fd_types.Assembly(closet_obj)
-        elif(self.assembly.obj_bp.parent.parent.lm_closets.is_closet):
-            closet_obj = self.assembly.obj_bp.parent.parent
-            closet_assembly = fd_types.Assembly(closet_obj)
-        elif(self.assembly.obj_bp.parent.parent.parent):
-            if(self.assembly.obj_bp.parent.parent.parent.lm_closets.is_closet):
-                closet_obj = self.assembly.obj_bp.parent.parent.parent
-                closet_assembly = fd_types.Assembly(closet_obj)
 
         if all(kd_prompts):
             if(closet_assembly):
@@ -970,7 +965,9 @@ class PROMPTS_Door_Prompts(bpy.types.Operator):
 
                 box = layout.box()
                 row = box.row()
-                row.prop(self,'tabs',expand=True)
+                if add_shelves:
+                    row.prop(self,'tabs',expand=True)
+
                 if self.tabs == 'DOOR':
                     box.label("Opening Options:")
                     add_striker.draw_prompt(box)
@@ -1319,31 +1316,32 @@ class OPS_Doors_Drop(bpy.types.Operator):
                             if(closet_assembly.get_prompt("Blind Corner Left Depth") and closet_assembly.get_prompt("Blind Corner Right Depth")):
                                 left_depth = closet_assembly.get_prompt("Blind Corner Left Depth").value()
                                 right_depth = closet_assembly.get_prompt("Blind Corner Right Depth").value()
-                            for i in range(1,10):
-                                if(closet_assembly.get_prompt("Opening " + str(i) + " Height") == None):
-                                    opening_quantity = (i - 1)
-                                    break
-                            if(opening_quantity == 1):
-                                if(closet_assembly.get_prompt("Blind Corner Left").value()):
-                                    self.insert.get_prompt("Has Blind Left Corner").set_value(True)
-                                    opening_width = opening_width - left_depth + unit.inch(0.75)
-                                if(closet_assembly.get_prompt("Blind Corner Right").value()):
-                                    self.insert.get_prompt("Has Blind Right Corner").set_value(True)
-                                    opening_width = opening_width - right_depth + unit.inch(0.75)
-                            elif(self.insert.obj_bp.mv.opening_name == '1'):
-                                if(closet_assembly.get_prompt("Blind Corner Left").value()):
-                                    self.insert.get_prompt("Has Blind Left Corner").set_value(True)
-                                    opening_width = opening_width - left_depth + unit.inch(0.75)
-                            elif(self.insert.obj_bp.mv.opening_name == str(opening_quantity)):
-                                if(closet_assembly.get_prompt("Blind Corner Right").value()):
-                                    self.insert.get_prompt("Has Blind Right Corner").set_value(True)
-                                    opening_width = opening_width - right_depth + unit.inch(0.75)
-                            else:
-                                self.insert.get_prompt("Has Blind Left Corner").set_value(False)
-                                self.insert.get_prompt("Has Blind Right Corner").set_value(False)
+                                for i in range(1,10):
+                                    if(closet_assembly.get_prompt("Opening " + str(i) + " Height") == None):
+                                        opening_quantity = (i - 1)
+                                        break
+                                if(opening_quantity == 1):
+                                    if(closet_assembly.get_prompt("Blind Corner Left").value()):
+                                        self.insert.get_prompt("Has Blind Left Corner").set_value(True)
+                                        opening_width = opening_width - left_depth + unit.inch(0.75)
+                                    if(closet_assembly.get_prompt("Blind Corner Right").value()):
+                                        self.insert.get_prompt("Has Blind Right Corner").set_value(True)
+                                        opening_width = opening_width - right_depth + unit.inch(0.75)
+                                elif(self.insert.obj_bp.mv.opening_name == '1'):
+                                    if(closet_assembly.get_prompt("Blind Corner Left").value()):
+                                        self.insert.get_prompt("Has Blind Left Corner").set_value(True)
+                                        opening_width = opening_width - left_depth + unit.inch(0.75)
+                                elif(self.insert.obj_bp.mv.opening_name == str(opening_quantity)):
+                                    if(closet_assembly.get_prompt("Blind Corner Right").value()):
+                                        self.insert.get_prompt("Has Blind Right Corner").set_value(True)
+                                        opening_width = opening_width - right_depth + unit.inch(0.75)
+                                else:
+                                    self.insert.get_prompt("Has Blind Left Corner").set_value(False)
+                                    self.insert.get_prompt("Has Blind Right Corner").set_value(False)
 
-                            self.insert.get_prompt("Left Blind Corner Depth").set_value(left_depth)
-                            self.insert.get_prompt("Right Blind Corner Depth").set_value(right_depth)
+                                self.insert.get_prompt("Left Blind Corner Depth").set_value(left_depth)
+                                self.insert.get_prompt("Right Blind Corner Depth").set_value(right_depth)
+
                         if(opening_width >= unit.inch(21)): 
                                 force_double_door = self.insert.get_prompt("Force Double Doors")
                                 if(force_double_door):

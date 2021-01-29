@@ -1545,12 +1545,13 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
                 #      higher than the middle of respective opening, the hang
                 #      is behind the door
                 if hang_presumption and door_type == "Tall":
-                    # print("Door/Hang will change Shelf count")
                     shelf_count -= 1
-                if bot_kd.value():
-                    shelf_count += 1
-                if shf_pmt.value():
-                    shelf_count += shf_qty.value()
+                if bot_kd:
+                    if bot_kd.value():
+                        shelf_count += 1
+                if shf_pmt:
+                    if shf_pmt.value():
+                        shelf_count += shf_qty.value()
                 if qty == 1:
                     tag = ('1 Door', gloc_inches)
                 else:
