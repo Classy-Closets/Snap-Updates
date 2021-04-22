@@ -201,6 +201,7 @@ class DROP_OPERATOR_Place_Bottom_Capping(bpy.types.Operator):
     selected_panel_2 = None
     objects = []
     panels = []
+    openings = []
     #max_shelf_length = 96.0
     sel_product_bp = None
     header_text = "Place Capping Bottom- Select Partitions (Left to Right)   (Esc, Right Click) = Cancel Command  :  (Left Click) = Select Panel"
@@ -269,6 +270,16 @@ class DROP_OPERATOR_Place_Bottom_Capping(bpy.types.Operator):
             if child.lm_closets.is_panel_bp:
                 if p1_x_loc <= child.location.x <= p2_x_loc:
                     self.panels.append(fd_types.Assembly(child))
+
+    def get_included_openings(self,panel_1,panel_2):
+        self.openings.clear()
+        p1_x_loc = panel_1.obj_bp.location.x
+        p2_x_loc = panel_2.obj_bp.location.x
+        for child in self.sel_product_bp.children:
+            if child.mv.name == "Opening":
+                if p1_x_loc <= child.location.x < p2_x_loc:
+                    self.openings.append(child.mv.opening_name)
+
 
     def insert_drop(self,context,event):
         selected_point, selected_obj = utils.get_selection_point(context,event,objects=self.objects)
@@ -341,13 +352,13 @@ class DROP_OPERATOR_Place_Bottom_Capping(bpy.types.Operator):
                             self.bottom_capping.obj_bp.location.x = self.selected_panel_1.obj_bp.location.x
                         else:
                             self.bottom_capping.obj_bp.location.x = self.selected_panel_1.obj_bp.location.x - unit.inch(0.75)
-                        self.bottom_capping.obj_bp.location.z = p1_z_loc + p1_z_dim
+                        self.bottom_capping.obj_bp.location.z = p1_z_loc+p1_z_dim
                         self.bottom_capping.obj_y.location.y = -self.selected_panel_1.obj_y.location.y
                         
                         self.bottom_capping.obj_bp.mv.opening_name = str(1)
 
-                        extend_left_side = parent_assembly.get_prompt("Extend Left Side")
-                        extend_right_side = parent_assembly.get_prompt("Extend Right Side")
+                        extend_left_side = parent_assembly.get_prompt("Extend Left End Pard Down")
+                        extend_right_side = parent_assembly.get_prompt("Extend Right End Pard Down")
                         height_left_side = parent_assembly.get_prompt("Height Left Side")
                         height_right_side = parent_assembly.get_prompt("Height Right Side")
                         has_capping_bottom = parent_assembly.get_prompt("Has Capping Bottom")
@@ -426,6 +437,12 @@ class DROP_OPERATOR_Place_Bottom_Capping(bpy.types.Operator):
                         self.bottom_capping.prompt('Max Panel Front Chamfer',max_panel_fc_formula,max_panel_fc_vars)
                         self.bottom_capping.y_loc("-Max_Rear_Chamfer",[Max_Rear_Chamfer])
                         self.bottom_capping.y_dim("MPD-Max_Rear_Chamfer-Max_Panel_Front_Chamfer",[MPD,Max_Rear_Chamfer,Max_Panel_Front_Chamfer])
+
+                        self.get_included_openings(self.selected_panel_1,self.selected_panel_2)
+                        for opening in self.openings:
+                            bottom_kd = product.get_prompt("Remove Bottom Hanging Shelf " + opening)
+                            if bottom_kd:
+                                bottom_kd.set_value(True)
                         
                         return {'FINISHED'}
             

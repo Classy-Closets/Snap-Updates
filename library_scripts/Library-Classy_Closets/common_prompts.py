@@ -1,3 +1,4 @@
+  
 from mv import unit
 from . import mv_closet_defaults as props_closet
 
@@ -8,8 +9,14 @@ def add_closet_carcass_prompts(assembly):
     assembly.add_prompt(name="Left End Condition",prompt_type='COMBOBOX',items=['EP','WP','CP','OFF'],value=1,tab_index=1,columns=4)
     assembly.add_prompt(name="Right End Condition",prompt_type='COMBOBOX',items=['EP','WP','CP','OFF'],value=1,tab_index=1,columns=4)
     assembly.add_prompt(name="Shelf Gap",prompt_type='DISTANCE',value=0,tab_index=1)
+    assembly.add_prompt(name="Add Left Filler",prompt_type='CHECKBOX',value=False,tab_index=1)
+    assembly.add_prompt(name="Add Right Filler",prompt_type='CHECKBOX',value=False,tab_index=1)
     assembly.add_prompt(name="Left Side Wall Filler",prompt_type='DISTANCE',value=0.0,tab_index=1)
     assembly.add_prompt(name="Right Side Wall Filler",prompt_type='DISTANCE',value=0.0,tab_index=1)
+    assembly.add_prompt(name="Add Capping Left Filler",prompt_type='CHECKBOX',value=False,tab_index=1)
+    assembly.add_prompt(name="Add Capping Right Filler",prompt_type='CHECKBOX',value=False,tab_index=1)
+    assembly.add_prompt(name="Left Filler Setback Amount",prompt_type='DISTANCE',value=0.0,tab_index=1)
+    assembly.add_prompt(name="Right Filler Setback Amount",prompt_type='DISTANCE',value=0.0,tab_index=1)
     assembly.add_prompt(name="Left End Deduction",prompt_type='DISTANCE',value=0.0,tab_index=1)
     assembly.add_prompt(name="Right End Deduction",prompt_type='DISTANCE',value=0.0,tab_index=1)
     assembly.add_prompt(name="Toe Kick Height",prompt_type='DISTANCE',value=defaults.toe_kick_height,tab_index=1)
@@ -27,13 +34,18 @@ def add_closet_carcass_prompts(assembly):
     assembly.add_prompt(name="Add Hanging Rail",prompt_type='CHECKBOX',value=defaults.add_hanging_rail,tab_index=1)
     assembly.add_prompt(name="Hanging Rail Distance From Top",prompt_type='DISTANCE',value=defaults.hanging_rail_distance_from_top,tab_index=1)
     assembly.add_prompt(name="Remove Top Shelf",prompt_type='CHECKBOX',value=defaults.remove_top_shelf,tab_index=1)
-    assembly.add_prompt(name="Extend Left Side",prompt_type='CHECKBOX',value=False,tab_index=1)
-    assembly.add_prompt(name="Extend Right Side",prompt_type='CHECKBOX',value=False,tab_index=1)
+    assembly.add_prompt(name="Extend Left End Pard Forward",prompt_type='CHECKBOX',value=False,tab_index=1)
+    assembly.add_prompt(name="Extend Right End Pard Forward",prompt_type='CHECKBOX',value=False,tab_index=1)
+    assembly.add_prompt(name="Extend Left End Pard Down",prompt_type='CHECKBOX',value=False,tab_index=1)
+    assembly.add_prompt(name="Extend Right End Pard Down",prompt_type='CHECKBOX',value=False,tab_index=1)
     assembly.add_prompt(name="Height Left Side",prompt_type='DISTANCE',value=0,tab_index=1)
     assembly.add_prompt(name="Height Right Side",prompt_type='DISTANCE',value=0,tab_index=1)
     assembly.add_prompt(name="Loc Left Side",prompt_type='DISTANCE',value=defaults.hanging_height,tab_index=1)
     assembly.add_prompt(name="Loc Right Side",prompt_type='DISTANCE',value=defaults.hanging_height,tab_index=1)
     assembly.add_prompt(name="Height To Add Mid Cleat",prompt_type='DISTANCE',value=defaults.height_to_add_mid_cleat,tab_index=1)
+    assembly.add_prompt(name="Capping Options",prompt_type='CHECKBOX',value=False,tab_index=1)
+    assembly.add_prompt(name="Edge Bottom of Left Filler",prompt_type='CHECKBOX',value=False,tab_index=1)
+    assembly.add_prompt(name="Edge Bottom of Right Filler",prompt_type='CHECKBOX',value=False,tab_index=1)
     assembly.add_prompt(name="Dog Ear Each",prompt_type='CHECKBOX',value=defaults.dog_ear_each,tab_index=1)
     assembly.add_prompt(name="Front Angle Height",prompt_type='DISTANCE',value=unit.inch(0),tab_index=1) 
     assembly.add_prompt(name="Front Angle Depth",prompt_type='DISTANCE',value=unit.inch(0),tab_index=1)  
@@ -308,4 +320,3 @@ def add_thickness_prompts(assembly):
     assembly.prompt('Division Thickness','THICKNESS(sgi,"Panel")',[sgi])
     assembly.prompt('Toe Kick Thickness','THICKNESS(sgi,"Toe_Kick")',[sgi])
     assembly.prompt('Cleat Thickness','THICKNESS(sgi,"Cleat")',[sgi])
-    

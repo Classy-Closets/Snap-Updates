@@ -469,11 +469,21 @@ class OPERATOR_Place_Countertop(bpy.types.Operator):
                 self.assembly.obj_y.location.y = max(depths)
 
             if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
+                carcass_bp = utils.get_parent_assembly_bp(self.assembly.obj_bp)
+                for child in carcass_bp.children:
+                    if child.lm_closets.is_drawer_stack_bp or child.lm_closets.is_hamper_insert_bp:
+                        drawer_assembly=fd_types.Assembly(child)
+                        cleat_location=drawer_assembly.get_prompt("Cleat Location")
+                        if cleat_location:
+                            cleat_location.set_value("Below")
+
+                        
                 utils.set_wireframe(self.assembly.obj_bp,False)
                 bpy.context.window.cursor_set('DEFAULT')
                 bpy.ops.object.select_all(action='DESELECT')
                 context.scene.objects.active = self.assembly.obj_bp
                 self.assembly.obj_bp.select = True
+                props_closet.update_render_materials(self,context) 
                 return {'FINISHED'}
         
         return {'RUNNING_MODAL'}

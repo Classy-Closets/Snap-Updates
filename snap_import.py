@@ -68,14 +68,13 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
         props = bpy.context.scene.db_materials
         rows = snap_db.query_db(
             "SELECT\
-                ItemColorCode,\
+                ColorCode,\
                 DisplayName,\
-                Description,\
-                LocationCode\
+                Description\
             FROM\
                 CCItems\
             WHERE\
-                ProductType = 'EB' AND ItemTypeCode IN ('{type_code}')\
+                ProductType = 'EB' AND TypeCode IN ('{type_code}')\
             ORDER BY\
                 DisplayName ASC\
             ;\
@@ -86,21 +85,18 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
             color = edge_type.colors.add()
             color.name = "None"
             color.color_code = 0
-            color.location_code = 0
             color.description = "None"                 
 
         for row in rows:
             type_code = int(row[0])
             display_name = row[1]
             description = row[2]
-            location_code = row[3]
 
             if display_name not in edge_type.colors:
                 if self.render_material_exists(display_name):
                     color = edge_type.colors.add()
                     color.name = display_name
                     color.color_code = int(type_code)
-                    color.location_code = int(location_code)
                     color.description = description
                     color.check_render_material()
 
@@ -170,10 +166,9 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
 
         rows = snap_db.query_db(
             "SELECT\
-                ItemColorCode,\
+                ColorCode,\
                 DisplayName,\
-                Description,\
-                LocationCode\
+                Description\
             FROM\
                 CCItems\
             WHERE\
@@ -189,14 +184,12 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
             color = mat_type.colors.add()
             color.name = "None"
             color.color_code = 0
-            color.location_code = 0            
             color.description = "None"            
 
         for row in rows:
             type_code = int(row[0])
             display_name = row[1]
             description = row[2]
-            location_code = row[3]
 
             if display_name not in mat_type.colors:
                 if self.render_material_exists(display_name):
@@ -204,7 +197,6 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
                         color = mat_type.colors.add()
                         color.name = display_name
                         color.color_code = int(type_code)
-                        color.location_code = int(location_code)
                         color.oversize_max_len = int(os_colors[display_name])
                         color.description = description
                         color.check_render_material()                   
@@ -223,15 +215,14 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
 
         rows = snap_db.query_db(
             "SELECT\
-                ItemColorCode,\
+                ColorCode,\
                 DisplayName,\
-                Description,\
-                LocationCode\
+                Description\
             FROM\
                 CCItems\
             WHERE\
                 ProductType IN ('PM','VN') AND\
-                ItemTypeCode IN ('{type_code}')\
+                TypeCode IN ('{type_code}')\
             ORDER BY\
                 DisplayName ASC\
                     ;\
@@ -242,21 +233,18 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
             color = mat_type.colors.add()
             color.name = "None"
             color.color_code = 0
-            color.location_code = 0            
             color.description = "None"            
 
         for row in rows:
             type_code = int(row[0])
             display_name = row[1]
             description = row[2]
-            location_code = row[3]
 
             if display_name not in mat_type.colors:
                 if self.render_material_exists(display_name):
                     color = mat_type.colors.add()
                     color.name = display_name
                     color.color_code = int(type_code)
-                    color.location_code = int(location_code)
                     color.description = description
                     color.check_render_material()
 
@@ -626,7 +614,7 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
 
         cur.execute("CREATE TABLE {}\
                     (\
-                    ItemTypeCode,\
+                    TypeCode,\
                     Name,\
                     Description\
                     );".format(snap_db.EDGE_TYPE_TABLE_NAME))
@@ -634,7 +622,7 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
         #Populate edge types table
         for row in edge_types:
             cur.execute("INSERT INTO {table} (\
-                            ItemTypeCode,\
+                            TypeCode,\
                             Name,\
                             Description\
                             )\
@@ -670,7 +658,7 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
 
         cur.execute("CREATE TABLE {}\
                     (\
-                    ItemTypeCode,\
+                    TypeCode,\
                     Name,\
                     Description,\
                     DimFromDrawerBottom,\
@@ -683,7 +671,7 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
         #Populate slide types table
         for row in slide_types:
             cur.execute("INSERT INTO {table} (\
-                            ItemTypeCode,\
+                            TypeCode,\
                             Name,\
                             Description,\
                             DimFromDrawerBottom,\
@@ -740,7 +728,7 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
 
         cur.execute("CREATE TABLE {}\
                     (\
-                    ItemTypeCode,\
+                    TypeCode,\
                     Name,\
                     Description\
                     );".format(snap_db.MAT_TYPE_TABLE_NAME))
@@ -748,14 +736,14 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
         #READ MAT TYPES FROM DB
         rows = snap_db.query_db(
             "SELECT\
-                ItemTypeCode\
+                TypeCode\
             FROM\
                 CCItems\
             WHERE\
                 ProductType in ('PM', 'WD', 'VN') AND\
                 Thickness = 0.75\
             GROUP BY\
-                ItemTypeCode\
+                TypeCode\
             ;"
         )
 
@@ -786,7 +774,7 @@ class OPERATOR_DB_Import_Csv(bpy.types.Operator):
         
         for row in mat_types:
             cur.execute("INSERT INTO {table} (\
-                            ItemTypeCode,\
+                            TypeCode,\
                             Name,\
                             Description\
                             )\

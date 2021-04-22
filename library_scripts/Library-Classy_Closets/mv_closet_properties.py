@@ -4,9 +4,19 @@ from . import mv_closet_defaults as props_closet
 
 def draw_shelf_interface(layout,shelf):
     is_lock_shelf = shelf.get_prompt("Is Locked Shelf")
-    if is_lock_shelf:
-        box = layout.box()
-        is_lock_shelf.draw_prompt(box)
+    is_forced_locked_shelf = shelf.get_prompt("Is Forced Locked Shelf")
+    if is_forced_locked_shelf:
+        if not is_forced_locked_shelf.value():
+            if is_lock_shelf:
+                box = layout.box()
+                is_lock_shelf.draw_prompt(box)
+        else:
+            box = layout.box()
+            box.label("Is Forced Locked Shelf")
+    else:
+        if is_lock_shelf:
+            box = layout.box()
+            is_lock_shelf.draw_prompt(box)
 
 def draw_backing_mats(layout, back):
     props = back.obj_bp.lm_closets

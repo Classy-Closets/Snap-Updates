@@ -18,38 +18,6 @@ def update_render_materials(self, context):
         pass
 
 
-def enum_location_code(self,context):
-    if context is None:
-        return []
-
-    if len(enum_items_location_code) > 0:
-        return enum_items_location_code
-    
-    else:
-        conn = snap_db.connect_db()
-        cursor = conn.cursor()
-
-        cursor.execute(
-            "SELECT DISTINCT\
-                LocationCode\
-            FROM\
-                CCItems\
-            ORDER BY\
-                LocationCode ASC\
-            ;"
-        )
-
-        rows = cursor.fetchall()
-
-        for row in rows:
-            str_code = str(row[0])
-            enum_items_location_code.append((str_code, str_code, str_code))
-        
-        conn.close()
-
-        return enum_items_location_code
-
-
 def enum_kd_fitting(self,context):
     if context is None:
         return []
@@ -186,7 +154,7 @@ class PROPERTIES_Closet_Materials(bpy.types.PropertyGroup):
                 Name\
             FROM\
                 CCItems\
-            WHERE ProductType = 'EB' AND ItemTypeCode = '{type_code}' AND ItemColorCode = '{color_code}';\
+            WHERE ProductType = 'EB' AND TypeCode = '{type_code}' AND ColorCode = '{color_code}';\
             ".format(type_code=type_code, color_code=color_code)
         )
 
@@ -220,7 +188,7 @@ class PROPERTIES_Closet_Materials(bpy.types.PropertyGroup):
                 SKU\
             FROM\
                 CCItems\
-            WHERE ProductType = 'EB' AND ItemTypeCode = '{type_code}' AND ItemColorCode = '{color_code}';\
+            WHERE ProductType = 'EB' AND TypeCode = '{type_code}' AND ColorCode = '{color_code}';\
             ".format(type_code=type_code, color_code=color_code)
         )
 
@@ -265,7 +233,19 @@ class PROPERTIES_Closet_Materials(bpy.types.PropertyGroup):
                 obj_props.is_back_bp,
                 obj_props.is_top_back_bp,
                 obj_props.is_bottom_back_bp
-            ]            
+            ]
+
+            door_drawer_parts = [
+                obj_props.is_door_bp,
+                obj_props.is_drawer_front_bp,
+                obj_props.is_hamper_front_bp
+            ]
+
+            if any(door_drawer_parts):
+                mat_type = self.door_drawer_materials.get_mat_type()
+                type_code = mat_type.type_code
+                color_code = self.door_drawer_materials.get_mat_color().color_code   
+                color_name = self.door_drawer_materials.get_mat_color().name      
 
             if any(backing_parts):
                 if obj_props.use_unique_material:
@@ -321,7 +301,7 @@ class PROPERTIES_Closet_Materials(bpy.types.PropertyGroup):
             part_thickness = unit.meter_to_inch(snap_utils.get_part_thickness(obj))
 
         if part_thickness == 0.25:
-            if any(backing_parts):
+            if any(backing_parts) or obj_props.is_toe_kick_skin_bp:
                 shared_sku_colors = [
                     'Oxford White',
                     'Cabinet Almond',
@@ -341,7 +321,7 @@ class PROPERTIES_Closet_Materials(bpy.types.PropertyGroup):
                 WHERE\
                     ProductType IN ('PM', 'WD', 'VN') AND\
                     Thickness == '{thickness}' AND\
-                    ItemColorCode == '{color_code}'\
+                    ColorCode == '{color_code}'\
                 ;\
                 ".format(thickness=str(part_thickness), color_code=color_code)
             )
@@ -365,7 +345,7 @@ class PROPERTIES_Closet_Materials(bpy.types.PropertyGroup):
                 WHERE\
                     ProductType IN ('PM', 'WD') AND\
                     Thickness == '{thickness}' AND\
-                    ItemColorCode == '{color_code}'\
+                    ColorCode == '{color_code}'\
                 ;\
                 ".format(thickness=str(part_thickness), color_code=color_code)
             )
@@ -386,7 +366,7 @@ class PROPERTIES_Closet_Materials(bpy.types.PropertyGroup):
                     SKU\
                 FROM\
                     CCItems\
-                WHERE ProductType in ('PM', 'WD') AND ItemTypeCode = '{type_code}' AND ItemColorCode = '{color_code}';\
+                WHERE ProductType in ('PM', 'WD') AND TypeCode = '{type_code}' AND ColorCode = '{color_code}';\
                 ".format(type_code=type_code, color_code=color_code)
             )
 

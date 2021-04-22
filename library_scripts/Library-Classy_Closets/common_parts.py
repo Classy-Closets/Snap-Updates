@@ -1,3 +1,4 @@
+  
 import bpy
 from os import path
 from . import mv_closet_defaults as props_closet
@@ -105,6 +106,7 @@ def add_shelf(assembly):
     shelf.add_prompt(name="Shelf Pin Qty",prompt_type='QUANTITY',value=0,tab_index=0)
     shelf.add_prompt(name="Cam Qty",prompt_type='QUANTITY',value=0,tab_index=0)
     shelf.add_prompt(name="Is Locked Shelf",prompt_type='CHECKBOX',value=False,tab_index=0)
+    shelf.add_prompt(name="Is Forced Locked Shelf",prompt_type='CHECKBOX',value=False,tab_index=0)
     shelf.add_prompt(name="Adj Shelf Clip Gap",prompt_type='DISTANCE',value=defaults.adj_shelf_clip_gap,tab_index=0)
     shelf.add_prompt(name="Adj Shelf Setback",prompt_type='DISTANCE',value=defaults.adj_shelf_setback,tab_index=0)
     shelf.add_prompt(name="Locked Shelf Setback",prompt_type='DISTANCE',value=defaults.locked_shelf_setback,tab_index=0)
@@ -152,6 +154,8 @@ def add_l_shelf(assembly):
     shelf = assembly.add_assembly(CORNER_NOTCH_PART)
     props = props_closet.get_object_props(shelf.obj_bp)
     props.is_l_shelf_bp = True
+    shelf.add_prompt(name="Is Locked Shelf",prompt_type='CHECKBOX',value=False,tab_index=0)
+    shelf.add_prompt(name="Is Forced Locked Shelf",prompt_type='CHECKBOX',value=False,tab_index=0)
     shelf.obj_bp.mv.comment_2 = "1525"
     shelf.set_name("L Shelf")
     shelf.cutpart("Shelf")
@@ -246,6 +250,8 @@ def add_angle_shelf(assembly):
     shelf.obj_bp.mv.comment_2 = "1520"
     props = props_closet.get_object_props(shelf.obj_bp)
     props.is_angle_shelf_bp = True
+    shelf.add_prompt(name="Is Locked Shelf",prompt_type='CHECKBOX',value=False,tab_index=0)
+    shelf.add_prompt(name="Is Forced Locked Shelf",prompt_type='CHECKBOX',value=False,tab_index=0)
     shelf.set_name("Angle Shelf")
     shelf.cutpart("Shelf")
     shelf.edgebanding('Edge',l1 = True)  
@@ -542,14 +548,31 @@ def add_applied_top(assembly):
     top.edgebanding("Edge",l2 = True)    
     return top
 
-def add_filler(assembly):
-    filler = assembly.add_assembly(PART_WITH_FRONT_EDGEBANDING)
-    filler.obj_bp.mv.comment_2 = "1036"
+def add_filler (assembly):
+    # filler = assembly.add_assembly(Edge_Bottom_of_Filler)
+    filler = assembly.add_assembly(PART_WITH_ALL_EDGES)
+    filler.obj_bp.mv.comment_2 = "1036" 
     props = props_closet.get_object_props(filler.obj_bp)
     props.is_filler_bp = True
-    filler.set_name("Filler")
-    filler.cutpart("Panel")
+    filler.set_name("Panel")
+    filler.add_prompt(name="Exposed Left",prompt_type='CHECKBOX',value=False,tab_index=0)
+    filler.add_prompt(name="Exposed Right",prompt_type='CHECKBOX',value=False,tab_index=0)    
+    filler.add_prompt(name="Exposed Back",prompt_type='CHECKBOX',value=False,tab_index=0)  
+    filler.x_rot(value = 0)
+    filler.y_rot(value = 0)
+    filler.z_rot(value = 0)        
+    filler.cutpart("Shelf")
+    filler.edgebanding('Edge',l1 = True,l2 = True,w1 = True,w2 = True)
+    filler.set_material_pointers("Closet_Part_Edges","Edgebanding")
+    filler.set_material_pointers("Core","LeftEdge")
+    filler.set_material_pointers("Core","RightEdge")
+    filler.set_material_pointers("Core","BackEdge")
+    for child in filler.obj_bp.children:     # filler.obj_bp.children:
+        if child.cabinetlib.type_mesh == 'CUTPART':
+            child.mv.use_multiple_edgeband_pointers = True    
     return filler
+
+
 
 def add_toe_kick(assembly):
     kick = assembly.add_assembly(PART_WITH_NO_EDGEBANDING)
@@ -584,6 +607,15 @@ def add_toe_kick_radius(assembly):
     props.is_toe_kick_bp = True
     kick.set_name("Toe Kick")
     kick.cutpart("Toe_Kick")
+    return kick
+
+def add_toe_kick_skin(assembly):
+    kick = assembly.add_assembly(PART_WITH_NO_EDGEBANDING)
+    kick.obj_bp.mv.comment_2 = "1035"
+    props = props_closet.get_object_props(kick.obj_bp)
+    props.is_toe_kick_skin_bp = True
+    kick.set_name("Toe Kick Skin")
+    kick.cutpart("Back")
     return kick
 
 def add_door_striker(assembly):
@@ -635,6 +667,33 @@ def add_cleat(assembly):
     cleat.y_dim(value = unit.inch(3.64))
     return cleat
 
+def add_wall_cleat(assembly):
+    cleat = assembly.add_assembly(PART_WITH_ALL_EDGES)
+    cleat.obj_bp.mv.comment_2 = "1008"
+    props = props_closet.get_object_props(cleat.obj_bp)
+    props.is_cleat_bp = True
+    props.is_wall_cleat_bp = True
+    cleat.add_prompt(name="Exposed Top",prompt_type='CHECKBOX',value=False,tab_index=1)
+    cleat.add_prompt(name="Exposed Left",prompt_type='CHECKBOX',value=False,tab_index=1)
+    cleat.add_prompt(name="Exposed Right",prompt_type='CHECKBOX',value=False,tab_index=1)
+    cleat.add_prompt(name="Exposed Bottom",prompt_type='CHECKBOX',value=False,tab_index=1)
+    cleat.set_name("Cleat")
+    cleat.cutpart("Cleat")
+    cleat.edgebanding("Edge_1",w1 = True)
+    cleat.edgebanding("Edge_2",l1 = True)
+    cleat.edgebanding("Edge_3",w2 = True)
+    cleat.edgebanding("Edge_4",l2 = True)
+    cleat.y_dim(value = unit.inch(3.64))
+    cleat.set_material_pointers("Core","Edgebanding")
+    cleat.set_material_pointers("Core","LeftEdge") 
+    cleat.set_material_pointers("Core","RightEdge")
+    cleat.set_material_pointers("Core","BackEdge")
+    for child in cleat.obj_bp.children:
+        if child.cabinetlib.type_mesh == 'CUTPART':
+           child.mv.use_multiple_edgeband_pointers = True    
+
+    return cleat
+
 def add_shelf_and_rod_cleat(assembly):
     cleat = assembly.add_assembly(PART_WITH_FRONT_EDGEBANDING)
     props = props_closet.get_object_props(cleat.obj_bp)
@@ -658,6 +717,17 @@ def add_back(assembly):
     backing.obj_bp.mv.comment_2 = "1037"
     props = props_closet.get_object_props(backing.obj_bp)
     props.is_back_bp = True
+    backing.set_name("Backing")
+    backing.cutpart("Back")
+    return backing
+
+def add_corner_back(assembly):
+    backing = assembly.add_assembly(FULL_BACK)
+    backing.obj_bp.mv.comment_2 = "1037"
+    backing.add_prompt(name="Is Left Back",prompt_type='CHECKBOX',value=False,tab_index=0)
+    props = props_closet.get_object_props(backing.obj_bp)
+    props.is_back_bp = True
+    props.is_corner_back_bp = True
     backing.set_name("Backing")
     backing.cutpart("Back")
     return backing
@@ -939,5 +1009,3 @@ def add_opening(assembly):
     opening.add_prompt(name="Top Thickness",prompt_type='DISTANCE',value=unit.inch(.75),tab_index=0)
     opening.add_prompt(name="Bottom Thickness",prompt_type='DISTANCE',value=unit.inch(.75),tab_index=0)
     return opening
-
-

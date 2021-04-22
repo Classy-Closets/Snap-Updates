@@ -68,7 +68,7 @@ class Drawer_Stack(fd_types.Assembly):
         Large_Drawer_Pull_Height = self.get_var("Large Drawer Pull Height")
         Standard_Drawer_Rear_Gap = self.get_var("Standard Drawer Rear Gap")
         Deep_Drawer_Rear_Gap = self.get_var("Deep Drawer Rear Gap")
-        Extra_Deep_Drawer_Box = self.get_var("Extra Deep Drawer Box")
+        EDDB = self.get_var("Extra Deep Drawer Box","EDDB")
         SDF = self.get_var("Small Drawer Face", "SDF")
         LDF = self.get_var("Large Drawer Face", "LDF")
         FHBD = self.get_var("Four Hole Box Difference", "FHBD")
@@ -179,7 +179,8 @@ class Drawer_Stack(fd_types.Assembly):
             drawer.y_rot(value = 0)
             drawer.z_rot(value = 0)
             drawer.x_dim('dim_x-(Drawer_Box_Slide_Gap*2)',[dim_x,Drawer_Box_Slide_Gap])
-            drawer.y_dim('IF(dim_y <= Extra_Deep_Drawer_Box, dim_y-Standard_Drawer_Rear_Gap, dim_y-Deep_Drawer_Rear_Gap)',[dim_y, Extra_Deep_Drawer_Box, Standard_Drawer_Rear_Gap, Deep_Drawer_Rear_Gap])
+            drawer.y_dim('IF(Use_FR,IF(FR_Direction == 1,IF(FR_Type == 0,INCH(14),INCH(17)),IF(dim_y <= EDDB, dim_y-Standard_Drawer_Rear_Gap, dim_y-Deep_Drawer_Rear_Gap)),IF(dim_y <= EDDB, dim_y-Standard_Drawer_Rear_Gap, dim_y-Deep_Drawer_Rear_Gap))',
+                         [dim_y, EDDB, Standard_Drawer_Rear_Gap, Deep_Drawer_Rear_Gap, Use_FR, FR_Direction, FR_Type])
 
             drawer.z_dim("IF(DF_Height<SDF,DF_Height-THBD,IF(OR(Lock_Drawer==2,Lock_Drawer==3),IF(UDD,LDBH,DF_Height-Drawer_Box_Top_Gap-Drawer_Box_Bottom_Gap),IF(DF_Height==SDF,DF_Height-FHBD,IF(UDD,DBH,DF_Height-Drawer_Box_Top_Gap-Drawer_Box_Bottom_Gap))))", [DF_Height,SDF,Drawer_Box_Top_Gap,Drawer_Box_Bottom_Gap,FHBD,THBD,Lock_Drawer,LDBH,DBH,UDD])
             
@@ -196,7 +197,7 @@ class Drawer_Stack(fd_types.Assembly):
             double_drawer.y_rot(value = 0)
             double_drawer.z_rot(value = 0)
             double_drawer.x_dim('dim_x-(Drawer_Box_Slide_Gap*2)',[dim_x,Drawer_Box_Slide_Gap])
-            double_drawer.y_dim('IF(dim_y <= Extra_Deep_Drawer_Box, dim_y-Standard_Drawer_Rear_Gap, dim_y-Deep_Drawer_Rear_Gap)',[dim_y, Extra_Deep_Drawer_Box, Standard_Drawer_Rear_Gap, Deep_Drawer_Rear_Gap])
+            double_drawer.y_dim('IF(dim_y <= EDDB, dim_y-Standard_Drawer_Rear_Gap, dim_y-Deep_Drawer_Rear_Gap)',[dim_y, EDDB, Standard_Drawer_Rear_Gap, Deep_Drawer_Rear_Gap])
 
             double_drawer.z_dim("DBH",[DBH])
 
@@ -1145,6 +1146,16 @@ class OPS_Drawer_Drop(bpy.types.Operator):
             if child.lm_closets.is_cleat_bp:
                 cleat_assembly = fd_types.Assembly(child)
                 cleat_assembly.prompt('Hide', 'IF(OR(Cleat_Location==2,Back_Thickness==1),True,False)', [Back_Thickness, Cleat_Location])
+        
+        carcass_props = props_closet.get_object_props(carcass_bp)
+        cleat_location = drawer_assembly.get_prompt("Cleat Location")
+        has_counter_top = False
+
+        for child in carcass_bp.children:
+            if child.lm_closets.is_countertop_bp or child.lm_closets.is_counter_top_insert_bp:
+                has_counter_top = True
+        if has_counter_top or carcass_props.is_island:
+            cleat_location.set_value("Below") 
 
     def set_backing_bottom_gap(self, insert_bp, selected_opening):
         opening_name = selected_opening.obj_bp.mv.opening_name

@@ -487,7 +487,20 @@ class PRODUCT_Corner_Shelves(data_closet_carcass_corner.L_Shelves):
         self.width = unit.inch(24)
         self.height = unit.millimeter(float(props.closet_defaults.panel_height))
         self.depth = unit.inch(24)
-        self.prompts = {"Is Hanging":False}
+        self.prompts = {"Is Hanging":False,
+                        "Angled Shelves":True}
+
+class PRODUCT_L_Shelves(data_closet_carcass_corner.L_Shelves):
+    
+    def __init__(self):
+        props = props_closet.get_scene_props()
+        self.library_name = LIBRARY_NAME
+        self.category_name = CLOSET_PRODUCTS_BASIC
+        self.width = unit.inch(24)
+        self.height = unit.millimeter(float(props.closet_defaults.panel_height))
+        self.depth = unit.inch(24)
+        self.prompts = {"Is Hanging":False,
+                        "Angled Shelves":False}
 
 class PRODUCT_Triangle_Shelves(data_closet_carcass_corner.Corner_Triangle_Shelves):
     
@@ -655,15 +668,15 @@ class PRODUCT_8_Drawers(data_drawers.Drawer_Stack):
 
 #--------CLOSET PRODUCTS SHELVES
 
-class PRODUCT_Shelves_Only(data_rods_and_shelves.Shelves_Only):
+#class PRODUCT_Shelves_Only(data_rods_and_shelves.Shelves_Only):
     
-    def __init__(self):
-        self.library_name = LIBRARY_NAME
-        self.category_name = CLOSET_PRODUCTS_SHELVES
-        self.width = unit.inch(18)
-        self.height = unit.inch(50)
-        self.depth = unit.inch(14)
-        self.drop_id = "fd_general.drop_insert"
+#    def __init__(self):
+#        self.library_name = LIBRARY_NAME
+#        self.category_name = CLOSET_PRODUCTS_SHELVES
+#        self.width = unit.inch(18)
+#        self.height = unit.inch(50)
+#        self.depth = unit.inch(14)
+#        self.drop_id = "fd_general.drop_insert"
 
 class PRODUCT_Shelves_Glass(data_rods_and_shelves.Glass_Shelves):
     
@@ -682,8 +695,8 @@ class PRODUCT_Shelves_Glass(data_rods_and_shelves.Glass_Shelves):
 #         self.category_name = CLOSET_PARTS_CUTPARTS
 #         self.assembly_type = "PRODUCT"
 #         self.width = unit.inch(18)
-#         self.depth = unit.inch(23)  
-class PRODUCT_Shelf_1(data_closet_splitters.Vertical_Splitters):  
+#         self.depth = unit.inch(23)
+class PRODUCT_Shelf_Stacks(data_closet_splitters.Vertical_Splitters):  
     
     def __init__(self):
         self.library_name = LIBRARY_NAME
@@ -691,97 +704,8 @@ class PRODUCT_Shelf_1(data_closet_splitters.Vertical_Splitters):
         self.width = unit.inch(34)
         self.height = unit.inch(34)
         self.depth = unit.inch(12)
-        self.vertical_openings = 2
-        self.drop_id = "fd_general.drop_insert"
-        
-class PRODUCT_Shelf_2(data_closet_splitters.Vertical_Splitters):  
-    
-    def __init__(self):
-        self.library_name = LIBRARY_NAME
-        self.category_name = CLOSET_PRODUCTS_SHELVES
-        self.width = unit.inch(34)
-        self.height = unit.inch(34)
-        self.depth = unit.inch(12)
-        self.vertical_openings = 3
-        self.drop_id = "fd_general.drop_insert"
-
-class PRODUCT_Shelf_3(data_closet_splitters.Vertical_Splitters):
-    
-    def __init__(self):
-        self.library_name = LIBRARY_NAME
-        self.category_name = CLOSET_PRODUCTS_SHELVES
-        self.width = unit.inch(34)
-        self.height = unit.inch(34)
-        self.depth = unit.inch(12)
-        self.vertical_openings = 4
-        self.drop_id = "fd_general.drop_insert"
-
-class PRODUCT_Shelf_4(data_closet_splitters.Vertical_Splitters):
-    
-    def __init__(self):
-        self.library_name = LIBRARY_NAME
-        self.category_name = CLOSET_PRODUCTS_SHELVES
-        self.width = unit.inch(34)
-        self.height = unit.inch(34)
-        self.depth = unit.inch(12)
-        self.vertical_openings = 5
-        self.drop_id = "fd_general.drop_insert"
-        
-class PRODUCT_Shelf_5(data_closet_splitters.Vertical_Splitters):
-    
-    def __init__(self):
-        self.library_name = LIBRARY_NAME
-        self.category_name = CLOSET_PRODUCTS_SHELVES
-        self.width = unit.inch(34)
-        self.height = unit.inch(34)
-        self.depth = unit.inch(12)
-        self.vertical_openings = 6
-        self.drop_id = "fd_general.drop_insert"        
-        
-class PRODUCT_Shelf_6(data_closet_splitters.Vertical_Splitters):
-    
-    def __init__(self):
-        self.library_name = LIBRARY_NAME
-        self.category_name = CLOSET_PRODUCTS_SHELVES
-        self.width = unit.inch(34)
-        self.height = unit.inch(34)
-        self.depth = unit.inch(12)
-        self.vertical_openings = 7
-        self.drop_id = "fd_general.drop_insert"     
-        
-class PRODUCT_Shelf_7(data_closet_splitters.Vertical_Splitters):
-    
-    def __init__(self):
-        self.library_name = LIBRARY_NAME
-        self.category_name = CLOSET_PRODUCTS_SHELVES
-        self.width = unit.inch(34)
-        self.height = unit.inch(34)
-        self.depth = unit.inch(12)
-        self.vertical_openings = 8
-        self.drop_id = "fd_general.drop_insert"     
-        
-class PRODUCT_Shelf_8(data_closet_splitters.Vertical_Splitters):
-    
-    def __init__(self):
-        self.library_name = LIBRARY_NAME
-        self.category_name = CLOSET_PRODUCTS_SHELVES
-        self.width = unit.inch(34)
-        self.height = unit.inch(34)
-        self.depth = unit.inch(12)
-        self.vertical_openings = 9
-        self.drop_id = "fd_general.drop_insert"     
-        
-class PRODUCT_Shelf_9(data_closet_splitters.Vertical_Splitters):
-    
-    def __init__(self):
-        self.library_name = LIBRARY_NAME
-        self.category_name = CLOSET_PRODUCTS_SHELVES
-        self.width = unit.inch(34)
-        self.height = unit.inch(34)
-        self.depth = unit.inch(12)
-        self.vertical_openings = 10
-        self.drop_id = "fd_general.drop_insert"     
-        
+        self.drop_id = "closets.insert_vertical_splitters_drop"  
+            
 #class PRODUCT_Shelf_10(data_closet_splitters.Vertical_Splitters):
     
     #def __init__(self):

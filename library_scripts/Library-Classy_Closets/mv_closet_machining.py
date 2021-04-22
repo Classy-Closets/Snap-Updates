@@ -337,6 +337,54 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
             token.associative_dia = 0
             token.associative_depth = 0
 
+    def add_mitered_pard_drilling(self,assembly):
+        macp = get_machining_props()
+        self.remove_machining_token(assembly, 'System Holes Right Bottom Front')
+
+        part_length = math.fabs(assembly.obj_x.location.x)
+        part_width = math.fabs(assembly.obj_y.location.y)
+        dim_to_front = macp.dim_to_front_system_hole
+        dim_to_rear = macp.dim_to_rear_system_hole
+
+        obj, token = assembly.add_machine_token('System Holes Right Bottom Front','BORE','5')
+
+        token.dim_in_x = part_length - macp.dim_to_system_top_hole
+        token.dim_in_y = part_width/2
+        token.dim_in_z = macp.system_hole_bore_depth
+        
+        token.end_dim_in_x = macp.dim_to_system_bottom_hole
+        token.end_dim_in_y = part_width/2
+
+        token.face_bore_dia = macp.system_hole_dia
+        token.distance_between_holes = macp.dim_between_holes
+
+        token.associative_dia = 0
+        token.associative_depth = 0
+
+    def add_corner_back_drilling(self,assembly):
+        macp = get_machining_props()
+        self.remove_machining_token(assembly, 'System Holes Right Bottom Front')
+        self.remove_machining_token(assembly, 'System Holes Right Bottom Rear')
+
+
+        part_length = math.fabs(assembly.obj_x.location.x)
+        part_width = math.fabs(assembly.obj_y.location.y)
+        dim_to_front = unit.inch(3)
+        dim_to_rear = unit.inch(3)
+
+        obj, token = assembly.add_machine_token('System Holes Right Bottom Rear','BORE','5')
+        token.dim_in_x = part_length - unit.millimeter(22.475)
+        token.dim_in_y = part_width - dim_to_rear
+        token.dim_in_z = macp.system_hole_bore_depth
+        token.end_dim_in_x =  unit.millimeter(22.475)
+        token.end_dim_in_y = dim_to_rear
+        token.face_bore_dia = macp.system_hole_dia
+        token.distance_between_holes = macp.dim_between_holes
+        token.associative_dia = 0
+        token.associative_depth = 0
+
+
+
     def add_panel_drilling(self,assembly):
         '''
             This should only be added if they have the option to always drill panels turned on.
@@ -1630,6 +1678,10 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
 
             if props.is_blind_corner_panel_bp:
                 self.add_blind_corner_panel_drilling(assembly)
+
+            #MITERED PARD
+            if props.is_mitered_pard_bp:
+                self.add_mitered_pard_drilling(assembly)
             
             #DOORS
             if props.is_door_bp:
@@ -1669,6 +1721,9 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
             
             if props.is_radius_shelf_bp:
                 self.add_radius_shelf_routing(assembly)
+            
+            if props.is_corner_back_bp:
+                self.add_corner_back_drilling(assembly)
             
             #DRAWERS
             if props.is_drawer_box_bp:

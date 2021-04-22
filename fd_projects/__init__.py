@@ -100,11 +100,51 @@ def reload_projects():
 
                                 for elm in root.findall("Rooms"):
                                     for sub_elm in elm:
-                                        #print("Name: ", sub_elm.get("name"))
                                         #print("Category: ", sub_elm.get("category"))
                                         #print("Path: ", sub_elm.get("path"))
                                         proj.add_room_from_file(sub_elm.get("name"), sub_elm.get("category"), sub_elm.get("path"))
 
+def make_new_name(path, category, new_name):
+    return path + "\\" + category + "_" + new_name + ".blend"
+
+def rename_room_callback(self, context):
+    if self.file_path:
+        curr_opnd_file = bpy.data.filepath
+        has_opnd_file = curr_opnd_file != ""
+        if not has_opnd_file:
+            return
+        new_room_name = self.name
+        ccp_file = ""
+        old_bl_path = str(self.file_path)
+        new_bl_path = ""
+        projs = context.window_manager.fd_project.projects
+        for proj in projs:
+            for room in proj.rooms:
+                ccp_file = str(proj.file_path)
+                if room.file_path == self.file_path and ccp_file != "":
+                    xml_tree = ET.parse(ccp_file)
+                    xml_root = xml_tree.getroot()
+                    for element in xml_root.findall('Rooms'):
+                        for element_room in element.getchildren():
+                            if element_room.attrib["path"] == old_bl_path:
+                                old_room = element_room.attrib["name"]
+                                category = element_room.attrib["category"]
+                                renaming = old_room != new_room_name
+                                is_opnd_room = old_room in curr_opnd_file
+                                if renaming and is_opnd_room:
+                                    element_room.attrib["name"] = new_room_name
+                                    element_room.text = new_room_name
+                                    new_bl_path = make_new_name(
+                                        proj.dir_path, category, new_room_name
+                                    )
+                                    bpy.ops.wm.save_as_mainfile(
+                                        filepath = new_bl_path)
+                                    element_room.attrib["path"] = new_bl_path
+                                    xml_tree.write(ccp_file)
+                                    bpy.ops.project.open_room( 
+                                        file_path = new_bl_path)
+                                    os.remove(old_bl_path)
+    return
 
 class CCP():
     
@@ -185,7 +225,7 @@ class UL_Rooms(UIList):
         path = item.file_path
 
         layout.label(text="",icon='SNAP_PEEL_OBJECT')
-        layout.label(text=item.name)
+        layout.prop(item, 'name', text='', emboss=False)
         layout.prop(item, "selected", text="")
         layout.operator("project.delete_room", text="", icon='X', emboss=True).index = index
 
@@ -253,7 +293,7 @@ def set_name_unique(op, name, value):
 
 
 class CollectionMixIn:
-    name = bpy.props.StringProperty(name="Project Name", default="")
+    name = bpy.props.StringProperty(name="Project Name", default="", update=rename_room_callback)
     dir_path = bpy.props.StringProperty(name="Directory Path", default="", subtype='DIR_PATH')
 
     def init(self, col, name=""):

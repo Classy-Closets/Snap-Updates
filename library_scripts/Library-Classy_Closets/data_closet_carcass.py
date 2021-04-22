@@ -1,3 +1,4 @@
+  
 import bpy
 import math
 from mv import fd_types, unit, utils
@@ -46,7 +47,7 @@ class PanelHeights:
             raise StopIteration
 
         mm = self.num
-        inch = round(self.num/25.4,2)
+        inch = round(self.num / 25.4,2)
         name = '{}H-{}"'.format(str(self.hole_amt),str(inch))
         self.num += 32
         self.hole_amt += 1
@@ -103,7 +104,7 @@ class Closet_Carcass(fd_types.Assembly):
             floor_mounted = True
             panel_height = props.panel_height        
          
-        for i in range(1,self.opening_qty+1):
+        for i in range(1,self.opening_qty + 1):
             self.add_prompt(name="Opening " + str(i) + " Width",
                             prompt_type='DISTANCE',
                             value=0,
@@ -125,36 +126,30 @@ class Closet_Carcass(fd_types.Assembly):
                                value=floor_mounted,
                                tab_index=1)
 
-            self.add_prompt(
-                name="Opening " + str(i) + " Top Backing Thickness",
+            self.add_prompt(name="Opening " + str(i) + " Top Backing Thickness",
                 prompt_type='COMBOBOX',
                 items=['1/4"', '3/4"'],
                 columns=2,
                 value=0,
-                tab_index=1
-            )
+                tab_index=1)
 
-            self.add_prompt(
-                name="Opening " + str(i) + " Center Backing Thickness",
+            self.add_prompt(name="Opening " + str(i) + " Center Backing Thickness",
                 prompt_type='COMBOBOX',
                 items=['1/4"', '3/4"'],
                 columns=2,                
                 value=0,
-                tab_index=1
-            )
+                tab_index=1)
 
-            self.add_prompt(
-                name="Opening " + str(i) + " Bottom Backing Thickness",
+            self.add_prompt(name="Opening " + str(i) + " Bottom Backing Thickness",
                 prompt_type='COMBOBOX',
                 items=['1/4"', '3/4"'],
                 columns=2,
                 value=0,
-                tab_index=1
-            )
+                tab_index=1)
 
         self.add_tab(name='Machining Options',tab_type='VISIBLE') #2
         
-        for i in range(1,self.opening_qty+1):
+        for i in range(1,self.opening_qty + 1):
 
             self.add_prompt(name="Opening " + str(i) + " Stop LB",
                             prompt_type='DISTANCE',
@@ -211,15 +206,19 @@ class Closet_Carcass(fd_types.Assembly):
         Right_Side_Wall_Filler = self.get_var('Right Side Wall Filler')
         Left_Side_Thickness = self.get_var('Left Side Thickness')
         Right_Side_Thickness = self.get_var('Right Side Thickness')
-        Extend_Left_Side = self.get_var('Extend Left Side')
-        Extend_Right_Side = self.get_var('Extend Right Side')
+        Extend_Left_End_Pard_Down = self.get_var('Extend Left End Pard Down')
+        Extend_Right_End_Pard_Down = self.get_var('Extend Right End Pard Down')
         Height_Left_Side = self.get_var('Height Left Side')
         Height_Right_Side = self.get_var('Height Right Side')
         Loc_Left_Side = self.get_var('Loc Left Side')
-        Loc_Right_Side = self.get_var('Loc Right Side') 
+        Loc_Right_Side = self.get_var('Loc Right Side')
+        Left_Filler_Setback_Amount = self.get_var('Left Filler Setback Amount')
+        Right_Filler_Setback_Amount = self.get_var('Right Filler Setback Amount')
         Left_End_Deduction = self.get_var('Left End Deduction')
         Right_End_Deduction = self.get_var('Right End Deduction')        
         Toe_Kick_Height = self.get_var('Toe Kick Height')
+        Edge_Bottom_of_Left_Filler = self.get_var("Edge Bottom of Left Filler")
+        Edge_Bottom_of_Right_Filler = self.get_var("Edge Bottom of Right Filler")
         Dog_Ear_Each = self.get_var('Dog Ear Each')
         
         Depth_1 = self.get_var('Opening 1 Depth','Depth_1')
@@ -231,10 +230,16 @@ class Closet_Carcass(fd_types.Assembly):
         Add_Backing = self.get_var('Opening ' + str(1) + ' Add Backing', 'Add_Backing')
         Left_End_Condition = self.get_var('Left End Condition')
         Right_End_Condition = self.get_var('Right End Condition')
-        # Stop_LB_First_Opening = self.get_var("Opening 1 Stop LB","Stop_LB_First_Opening")
-        # Start_LB_First_Opening = self.get_var("Opening 1 Start LB","Start_LB_First_Opening")
-        # Stop_LB_Last_Opening = self.get_var("Opening " + str(self.opening_qty) + " Stop LB","Stop_LB_Last_Opening")
-        # Start_LB_Last_Opening = self.get_var("Opening " + str(self.opening_qty) + " Start LB","Start_LB_Last_Opening")
+        Add_Capping_Left_Filler = self.get_var("Add Capping Left Filler")
+        Add_Capping_Right_Filler = self.get_var("Add Capping Right Filler")
+        # Stop_LB_First_Opening = self.get_var("Opening 1 Stop
+        # LB","Stop_LB_First_Opening")
+        # Start_LB_First_Opening = self.get_var("Opening 1 Start
+        # LB","Start_LB_First_Opening")
+        # Stop_LB_Last_Opening = self.get_var("Opening " +
+        # str(self.opening_qty) + " Stop LB","Stop_LB_Last_Opening")
+        # Start_LB_Last_Opening = self.get_var("Opening " +
+        # str(self.opening_qty) + " Start LB","Start_LB_Last_Opening")
 
         #Left side panel is always '1'
         Front_Angle_Height = self.get_var('Front Angle ' + str(1) + ' Height', 'Front_Angle_Height')
@@ -248,23 +253,47 @@ class Closet_Carcass(fd_types.Assembly):
         Rear_Angle_Depth_All = self.get_var('Rear Angle Depth', 'Rear_Angle_Depth_All')          
         
         left_filler = common_parts.add_filler(self)
-        left_filler.x_dim('IF(Extend_Left_Side,Height_1+Height_Left_Side,Height_1)',[Height_1,Height_Left_Side,Extend_Left_Side])
+        left_filler.set_name("Left Filler")
+        left_filler.x_dim('IF(Extend_Left_End_Pard_Down,Height_1+Height_Left_Side,Height_1)',[Height_1,Height_Left_Side,Extend_Left_End_Pard_Down])
         left_filler.y_dim('-Left_Side_Wall_Filler',[Left_Side_Wall_Filler])
         left_filler.z_dim('Left_Side_Thickness',[Left_Side_Thickness])
         left_filler.x_loc('Left_Side_Wall_Filler',[Left_Side_Wall_Filler])
-        left_filler.y_loc("-Depth_1+Left_End_Deduction", [Depth_1, Left_End_Deduction])
-        left_filler.z_loc('IF(Floor_1,Toe_Kick_Height,Product_Height-Height_1-IF(Extend_Left_Side,Height_Left_Side,0))',[Loc_Left_Side,Floor_1,Height_Left_Side,Product_Height,Height_1,Toe_Kick_Height,Extend_Left_Side])
+        left_filler.y_loc("-Depth_1-Left_End_Deduction+ Left_Filler_Setback_Amount", [Depth_1, Left_End_Deduction,Left_Filler_Setback_Amount])
+        left_filler.z_loc('IF(Floor_1,Toe_Kick_Height,Product_Height-Height_1-IF(Extend_Left_End_Pard_Down,Height_Left_Side,0))',[Loc_Left_Side,Floor_1,Height_Left_Side,Product_Height,Height_1,Toe_Kick_Height,Extend_Left_End_Pard_Down])
         left_filler.x_rot(value = 0)
         left_filler.y_rot(value = -90)
         left_filler.z_rot(value = -90)
         left_filler.prompt('Hide','IF(OR(Left_Side_Wall_Filler==0,Left_End_Condition==3),True,False)',[Left_Side_Wall_Filler, Left_End_Condition])
+        left_filler.prompt("Exposed Left",'IF(Edge_Bottom_of_Left_Filler,True,False)',[Edge_Bottom_of_Left_Filler])
+        left_filler.prompt("Exposed Left",value=True)
+        left_filler.prompt("Exposed Right",value=True)
+        left_filler.prompt("Exposed Back",value=True)
+
+        left_capping_filler = common_parts.add_filler(self)
+        left_capping_filler.set_name("Left Capping Filler")
+        left_capping_filler.x_dim('IF(Extend_Left_End_Pard_Down,Height_1+Height_Left_Side,Height_1-INCH(0.91))',[Height_1,Height_Left_Side,Extend_Left_End_Pard_Down])
+        left_capping_filler.y_dim('-Left_Side_Wall_Filler-INCH(0.25)',[Left_Side_Wall_Filler])
+        left_capping_filler.z_dim('Left_Side_Thickness',[Left_Side_Thickness])
+        left_capping_filler.x_loc('Left_Side_Wall_Filler+INCH(0.25)',[Left_Side_Wall_Filler])
+        left_capping_filler.y_loc("-Depth_1-Left_End_Deduction+Left_Filler_Setback_Amount-Left_Side_Thickness", [Depth_1, Left_End_Deduction,Left_Filler_Setback_Amount,Left_Side_Thickness])
+        left_capping_filler.z_loc('IF(Floor_1,Toe_Kick_Height,Product_Height-Height_1-IF(Extend_Left_End_Pard_Down,Height_Left_Side,0)+(INCH(0.455)))',[Loc_Left_Side,Floor_1,Height_Left_Side,Product_Height,Height_1,Toe_Kick_Height,Extend_Left_End_Pard_Down])
+        left_capping_filler.x_rot(value = 0)
+        left_capping_filler.y_rot(value = -90)
+        left_capping_filler.z_rot(value = -90)
+        left_capping_filler.prompt('Hide','IF(OR(Left_Side_Wall_Filler==0,Left_End_Condition==3),True,IF(Add_Capping_Left_Filler,False,True))',[Left_Side_Wall_Filler, Left_End_Condition,Add_Capping_Left_Filler])
+        left_capping_filler.prompt("Exposed Left",value=True)
+        left_capping_filler.prompt("Exposed Right",value=True)
+        left_capping_filler.prompt("Exposed Back",value=True)
+
         left_side = common_parts.add_panel(self)
-        left_side.x_dim('IF(Extend_Left_Side,Height_1+Height_Left_Side,Height_1)',[Height_1,Height_Left_Side,Extend_Left_Side])
-        left_side.y_dim('-Depth_1+Left_End_Deduction',[Depth_1,Left_End_Deduction])
+        left_props = props_closet.get_object_props(left_side.obj_bp)
+        left_props.is_left_panel_bp = True
+        left_side.x_dim('IF(Extend_Left_End_Pard_Down,Height_1+Height_Left_Side,Height_1)',[Height_1,Height_Left_Side,Extend_Left_End_Pard_Down])
+        left_side.y_dim('-Depth_1-Left_End_Deduction',[Depth_1,Left_End_Deduction])
         left_side.z_dim('-Left_Side_Thickness',[Left_Side_Thickness])
         left_side.x_loc('Left_Side_Wall_Filler',[Left_Side_Wall_Filler])
         left_side.y_loc(value = 0)
-        left_side.z_loc('IF(Extend_Left_Side,(Product_Height-Height_1-Height_Left_Side),IF(Floor_1,Toe_Kick_Height,Product_Height-Height_1))',[Loc_Left_Side,Floor_1,Height_Left_Side,Product_Height,Height_1,Toe_Kick_Height,Extend_Left_Side])
+        left_side.z_loc('IF(Extend_Left_End_Pard_Down,(Product_Height-Height_1-Height_Left_Side),IF(Floor_1,Toe_Kick_Height,Product_Height-Height_1))',[Loc_Left_Side,Floor_1,Height_Left_Side,Product_Height,Height_1,Toe_Kick_Height,Extend_Left_End_Pard_Down])
         left_side.x_rot(value = 0)
         left_side.y_rot(value = -90)
         left_side.z_rot(value = 0)
@@ -274,8 +303,10 @@ class Closet_Carcass(fd_types.Assembly):
         left_side.prompt('Right Depth','Depth_1',[Depth_1])
         # left_side.prompt('Stop Drilling Bottom Left','0',[])
         # left_side.prompt('Stop Drilling Top Left','0',[])
-        # left_side.prompt('Stop Drilling Bottom Right','Stop_LB_First_Opening',[Stop_LB_First_Opening])
-        # left_side.prompt('Stop Drilling Top Right','Start_LB_First_Opening',[Start_LB_First_Opening])
+        # left_side.prompt('Stop Drilling Bottom
+        # Right','Stop_LB_First_Opening',[Stop_LB_First_Opening])
+        # left_side.prompt('Stop Drilling Top
+        # Right','Start_LB_First_Opening',[Start_LB_First_Opening])
         left_side.prompt('Place Hanging Hardware On Right',value=True)
 
         left_side.prompt("Front Chamfer Height",'IF(Dog_Ear_Each,Front_Angle_Height,Front_Angle_Height_All)',[Dog_Ear_Each, Front_Angle_Height_All, Front_Angle_Height])
@@ -289,23 +320,47 @@ class Closet_Carcass(fd_types.Assembly):
         Add_Backing = self.get_var('Opening ' + str(self.opening_qty) + ' Add Backing', 'Add_Backing')
 
         right_filler = common_parts.add_filler(self)
-        right_filler.x_dim('IF(Extend_Right_Side,Last_Height+Height_Right_Side,Last_Height)',[Last_Height,Height_Right_Side,Extend_Right_Side])
+        right_filler.set_name("Right Filler")
+        right_filler.x_dim('IF(Extend_Right_End_Pard_Down,Last_Height+Height_Right_Side,Last_Height)',[Last_Height,Height_Right_Side,Extend_Right_End_Pard_Down])
         right_filler.y_dim('Right_Side_Wall_Filler',[Right_Side_Wall_Filler])
         right_filler.z_dim('Right_Side_Thickness',[Right_Side_Thickness])
         right_filler.x_loc('Product_Width-Right_Side_Wall_Filler',[Product_Width,Right_Side_Wall_Filler])
-        right_filler.y_loc("-Last_Depth+Right_End_Deduction", [Last_Depth, Right_End_Deduction])
-        right_filler.z_loc('IF(Last_Floor,Toe_Kick_Height,Product_Height-Last_Height-IF(Extend_Right_Side,Height_Right_Side,0))',[Loc_Right_Side,Height_Right_Side,Last_Floor,Product_Height,Toe_Kick_Height,Last_Height,Extend_Right_Side])
+        right_filler.y_loc("-Last_Depth-Right_End_Deduction+Right_Filler_Setback_Amount", [Last_Depth, Right_End_Deduction,Right_Filler_Setback_Amount])
+        right_filler.z_loc('IF(Last_Floor,Toe_Kick_Height,Product_Height-Last_Height-IF(Extend_Right_End_Pard_Down,Height_Right_Side,0))',[Loc_Right_Side,Height_Right_Side,Last_Floor,Product_Height,Toe_Kick_Height,Last_Height,Extend_Right_End_Pard_Down])
         right_filler.x_rot(value = 0)
         right_filler.y_rot(value = -90)
         right_filler.z_rot(value = -90)
         right_filler.prompt('Hide','IF(OR(Right_Side_Wall_Filler==0,Right_End_Condition==3),True,False)',[Right_Side_Wall_Filler, Right_End_Condition])
+        right_filler.prompt("Exposed Left",'IF(Edge_Bottom_of_Right_Filler,True,False)',[Edge_Bottom_of_Right_Filler])
+        right_filler.prompt("Exposed Left",value=True)
+        right_filler.prompt("Exposed Right",value=True)
+        right_filler.prompt("Exposed Back",value=True)
+
+        right_capping_filler = common_parts.add_filler(self)
+        right_capping_filler.set_name("Right Capping Filler")
+        right_capping_filler.x_dim('IF(Extend_Right_End_Pard_Down,Last_Height+Height_Right_Side,Last_Height)-INCH(0.91)',[Last_Height,Height_Right_Side,Extend_Right_End_Pard_Down])
+        right_capping_filler.y_dim('Right_Side_Wall_Filler+INCH(0.25)',[Right_Side_Wall_Filler])
+        right_capping_filler.z_dim('Right_Side_Thickness',[Right_Side_Thickness])
+        right_capping_filler.x_loc('Product_Width-Right_Side_Wall_Filler-INCH(0.25)',[Product_Width,Right_Side_Wall_Filler])
+        right_capping_filler.y_loc("-Last_Depth-Right_End_Deduction+Right_Filler_Setback_Amount-Right_Side_Thickness", [Last_Depth, Right_End_Deduction,Right_Filler_Setback_Amount,Right_Side_Thickness])
+        right_capping_filler.z_loc('IF(Last_Floor,Toe_Kick_Height,Product_Height-Last_Height-IF(Extend_Right_End_Pard_Down,Height_Right_Side,0)+(INCH(0.455)))',[Loc_Right_Side,Height_Right_Side,Last_Floor,Product_Height,Toe_Kick_Height,Last_Height,Extend_Right_End_Pard_Down])
+        right_capping_filler.x_rot(value = 0)
+        right_capping_filler.y_rot(value = -90)
+        right_capping_filler.z_rot(value = -90)
+        right_capping_filler.prompt('Hide','IF(OR(Right_Side_Wall_Filler==0,Right_End_Condition==3),True,IF(Add_Capping_Right_Filler,False,True))',[Right_Side_Wall_Filler, Right_End_Condition,Add_Capping_Right_Filler])
+        right_capping_filler.prompt("Exposed Left",value=True)
+        right_capping_filler.prompt("Exposed Right",value=True)
+        right_capping_filler.prompt("Exposed Back",value=True)
+
         right_side = common_parts.add_panel(self)
-        right_side.x_dim('IF(Extend_Right_Side,Last_Height+Height_Right_Side,Last_Height)',[Last_Height,Height_Right_Side,Extend_Right_Side,Last_Floor])
-        right_side.y_dim('-Last_Depth+Right_End_Deduction',[Last_Depth,Right_End_Deduction])
+        right_props = props_closet.get_object_props(right_side.obj_bp)
+        right_props.is_right_panel_bp = True
+        right_side.x_dim('IF(Extend_Right_End_Pard_Down,Last_Height+Height_Right_Side,Last_Height)',[Last_Height,Height_Right_Side,Extend_Right_End_Pard_Down,Last_Floor])
+        right_side.y_dim('-Last_Depth-Right_End_Deduction',[Last_Depth,Right_End_Deduction])
         right_side.z_dim('Right_Side_Thickness',[Right_Side_Thickness])
         right_side.x_loc('Product_Width-Right_Side_Wall_Filler',[Product_Width,Right_Side_Wall_Filler])
         right_side.y_loc(value = 0)
-        right_side.z_loc('IF(Extend_Right_Side,(Product_Height-Last_Height-Height_Right_Side),IF(Last_Floor,Toe_Kick_Height,Product_Height-Last_Height))',[Loc_Right_Side,Height_Right_Side,Last_Floor,Product_Height,Toe_Kick_Height,Last_Height,Extend_Right_Side])
+        right_side.z_loc('IF(Extend_Right_End_Pard_Down,(Product_Height-Last_Height-Height_Right_Side),IF(Last_Floor,Toe_Kick_Height,Product_Height-Last_Height))',[Loc_Right_Side,Height_Right_Side,Last_Floor,Product_Height,Toe_Kick_Height,Last_Height,Extend_Right_End_Pard_Down])
         right_side.x_rot(value = 0)
         right_side.y_rot(value = -90)
         right_side.z_rot(value = 0)
@@ -313,16 +368,19 @@ class Closet_Carcass(fd_types.Assembly):
         right_side.prompt('Is Right End Panel','IF(Right_End_Condition==0,True,False)',[Right_End_Condition])
         right_side.prompt('Left Depth','Last_Depth',[Last_Depth])
         right_side.prompt('Right Depth','0',[])
-        # right_side.prompt('Stop Drilling Bottom Left','Stop_LB_Last_Opening',[Stop_LB_Last_Opening])
-        # right_side.prompt('Stop Drilling Top Left','Start_LB_Last_Opening',[Start_LB_Last_Opening])
+        # right_side.prompt('Stop Drilling Bottom
+        # Left','Stop_LB_Last_Opening',[Stop_LB_Last_Opening])
+        # right_side.prompt('Stop Drilling Top
+        # Left','Start_LB_Last_Opening',[Start_LB_Last_Opening])
         # right_side.prompt('Stop Drilling Bottom Right','0',[])
         # right_side.prompt('Stop Drilling Top Right','0',[])
 
-        #Right side panel is always 'self.opening_qty + 1' (with 4 openings the 5th panel is the right side and last panel)
-        Front_Angle_Height = self.get_var('Front Angle ' + str(self.opening_qty+1) + ' Height', 'Front_Angle_Height')
-        Front_Angle_Depth = self.get_var('Front Angle ' + str(self.opening_qty+1) + ' Depth', 'Front_Angle_Depth')
-        Rear_Angle_Height = self.get_var('Rear Angle ' + str(self.opening_qty+1) + ' Height', 'Rear_Angle_Height')
-        Rear_Angle_Depth = self.get_var('Rear Angle ' + str(self.opening_qty+1) + ' Depth', 'Rear_Angle_Depth')
+        #Right side panel is always 'self.opening_qty + 1' (with 4 openings the
+        #5th panel is the right side and last panel)
+        Front_Angle_Height = self.get_var('Front Angle ' + str(self.opening_qty + 1) + ' Height', 'Front_Angle_Height')
+        Front_Angle_Depth = self.get_var('Front Angle ' + str(self.opening_qty + 1) + ' Depth', 'Front_Angle_Depth')
+        Rear_Angle_Height = self.get_var('Rear Angle ' + str(self.opening_qty + 1) + ' Height', 'Rear_Angle_Height')
+        Rear_Angle_Depth = self.get_var('Rear Angle ' + str(self.opening_qty + 1) + ' Depth', 'Rear_Angle_Depth')
 
         right_side.prompt("Front Chamfer Height",'IF(Dog_Ear_Each,Front_Angle_Height,Front_Angle_Height_All)',[Dog_Ear_Each, Front_Angle_Height_All, Front_Angle_Height])
         right_side.prompt("Front Chamfer Depth",'IF(Dog_Ear_Each,Front_Angle_Depth,Front_Angle_Depth_All)',[Dog_Ear_Each, Front_Angle_Depth_All, Front_Angle_Depth])
@@ -334,17 +392,21 @@ class Closet_Carcass(fd_types.Assembly):
 
     def add_panel(self,index,previous_panel):
         PH = self.get_var('dim_z','PH')
-        Width = self.get_var('Opening ' + str(index-1) + ' Width',"Width")
-        Depth = self.get_var('Opening ' + str(index-1) + ' Depth',"Depth")
-        H = self.get_var('Opening ' + str(index-1) + ' Height',"H")
-        Floor = self.get_var('Opening ' + str(index-1) + ' Floor Mounted',"Floor")
+        Width = self.get_var('Opening ' + str(index - 1) + ' Width',"Width")
+        Depth = self.get_var('Opening ' + str(index - 1) + ' Depth',"Depth")
+        H = self.get_var('Opening ' + str(index - 1) + ' Height',"H")
+        Floor = self.get_var('Opening ' + str(index - 1) + ' Floor Mounted',"Floor")
         Next_Floor = self.get_var('Opening ' + str(index) + ' Floor Mounted',"Next_Floor")
         Next_Depth = self.get_var('Opening ' + str(index) + ' Depth',"Next_Depth")
         NH = self.get_var('Opening ' + str(index) + ' Height',"NH")
-        # Stop_LB_Left_Opening = self.get_var("Opening " + str(index-1) + " Stop LB","Stop_LB_Left_Opening")
-        # Start_LB_Left_Opening = self.get_var("Opening " + str(index-1) + " Start LB","Start_LB_Left_Opening")        
-        # Stop_LB_Right_Opening = self.get_var("Opening " + str(index) + " Stop LB","Stop_LB_Right_Opening")
-        # Start_LB_Right_Opening = self.get_var("Opening " + str(index) + " Start LB","Start_LB_Right_Opening")
+        # Stop_LB_Left_Opening = self.get_var("Opening " + str(index-1) + "
+        # Stop LB","Stop_LB_Left_Opening")
+        # Start_LB_Left_Opening = self.get_var("Opening " + str(index-1) + "
+        # Start LB","Start_LB_Left_Opening")
+        # Stop_LB_Right_Opening = self.get_var("Opening " + str(index) + " Stop
+        # LB","Stop_LB_Right_Opening")
+        # Start_LB_Right_Opening = self.get_var("Opening " + str(index) + "
+        # Start LB","Start_LB_Right_Opening")
 
         Panel_Thickness = self.get_var('Panel Thickness')
         Left_Side_Wall_Filler = self.get_var('Left Side Wall Filler')
@@ -384,10 +446,14 @@ class Closet_Carcass(fd_types.Assembly):
         panel.z_dim('Panel_Thickness',[Panel_Thickness])
         panel.prompt('Left Depth','Depth',[Depth])
         panel.prompt('Right Depth','Next_Depth',[Next_Depth])
-        # panel.prompt('Stop Drilling Bottom Left','Stop_LB_Left_Opening',[Stop_LB_Left_Opening])
-        # panel.prompt('Stop Drilling Top Left','Start_LB_Left_Opening',[Start_LB_Left_Opening])
-        # panel.prompt('Stop Drilling Bottom Right','Stop_LB_Right_Opening',[Stop_LB_Right_Opening])
-        # panel.prompt('Stop Drilling Top Right','Start_LB_Right_Opening',[Start_LB_Right_Opening])
+        # panel.prompt('Stop Drilling Bottom
+        # Left','Stop_LB_Left_Opening',[Stop_LB_Left_Opening])
+        # panel.prompt('Stop Drilling Top
+        # Left','Start_LB_Left_Opening',[Start_LB_Left_Opening])
+        # panel.prompt('Stop Drilling Bottom
+        # Right','Stop_LB_Right_Opening',[Stop_LB_Right_Opening])
+        # panel.prompt('Stop Drilling Top
+        # Right','Start_LB_Right_Opening',[Start_LB_Right_Opening])
 
         panel.prompt("Front Chamfer Height",'IF(Dog_Ear_Each,Front_Angle_Height,Front_Angle_Height_All)',[Dog_Ear_Each, Front_Angle_Height_All, Front_Angle_Height])
         panel.prompt("Front Chamfer Depth",'IF(Dog_Ear_Each,Front_Angle_Depth,Front_Angle_Depth_All)',[Dog_Ear_Each, Front_Angle_Depth_All, Front_Angle_Depth])
@@ -400,7 +466,6 @@ class Closet_Carcass(fd_types.Assembly):
     
     def add_plant_on_top(self,i,panel):
         """This function is not being used.
-
         'scene.lm_closets.use_plant_on_top' is set to False by default
         and is hidden from the closet options panel. 'add_shelf' function
         adds the top and bottom KD shelves.
@@ -409,10 +474,10 @@ class Closet_Carcass(fd_types.Assembly):
         Width = self.get_var('Opening ' + str(i) + ' Width','Width')
         Depth = self.get_var('Opening ' + str(i) + ' Depth','Depth')
         Height = self.get_var('Opening ' + str(i) + ' Height','Height')
-        P_Depth = self.get_var('Opening ' + str(i-1) + ' Depth','P_Depth') 
-        P_Height = self.get_var('Opening ' + str(i-1) + ' Height','P_Height')    
-        N_Depth = self.get_var('Opening ' + str(i+1) + ' Depth','N_Depth') 
-        N_Height = self.get_var('Opening ' + str(i+1) + ' Height','N_Height')       
+        P_Depth = self.get_var('Opening ' + str(i - 1) + ' Depth','P_Depth') 
+        P_Height = self.get_var('Opening ' + str(i - 1) + ' Height','P_Height')    
+        N_Depth = self.get_var('Opening ' + str(i + 1) + ' Depth','N_Depth') 
+        N_Height = self.get_var('Opening ' + str(i + 1) + ' Height','N_Height')       
         Floor = self.get_var('Opening ' + str(i) + ' Floor Mounted','Floor')
         Add_Backing = self.get_var('Add Backing')
         Shelf_Thickness = self.get_var('Shelf Thickness')
@@ -594,7 +659,7 @@ class Closet_Carcass(fd_types.Assembly):
         Dog_Ear_Each = self.get_var('Dog Ear Each')
         Rear_Angle_Height_All = self.get_var('Rear Angle Height', 'Rear_Angle_Height_All')
         Rear_Angle_Height_Left = self.get_var('Rear Angle ' + str(i) + ' Height', 'Rear_Angle_Height_Left')
-        Rear_Angle_Height_Right = self.get_var('Rear Angle ' + str(i+1) + ' Height', 'Rear_Angle_Height_Right')
+        Rear_Angle_Height_Right = self.get_var('Rear Angle ' + str(i + 1) + ' Height', 'Rear_Angle_Height_Right')
 
         for child in self.obj_bp.children:
             if child.lm_closets.is_back_bp and not child.lm_closets.is_hutch_back_bp:
@@ -634,11 +699,9 @@ class Closet_Carcass(fd_types.Assembly):
             cleat.x_loc('X_Loc+INCH(.01)',[X_Loc]) #USED TO FIX DRAWER SIDE TOKEN
             cleat.x_dim('Width',[Width])
 
-        cleat.prompt(
-            'Hide',
+        cleat.prompt('Hide',
             'IF(OR(Add_Hanging_Rail,AND(B_Sec==1,CBT==1,CTR),AND(B_Sec>1,OR(AND(IS_SB,CBT==1,TOP),AND(IS_SB,CBT==1,TOP,CTR,BTM==False),AND(IS_SB==False,TOP,TBT==1)))),True,False)',
-            [Add_Hanging_Rail,TBT,CBT,B_Sec,TOP,CTR,BTM,IS_SB]
-        )
+            [Add_Hanging_Rail,TBT,CBT,B_Sec,TOP,CTR,BTM,IS_SB])
 
     def add_bottom_cleat(self,i,panel):
         Hanging_Height = self.get_var('dim_z','Hanging_Height')
@@ -697,11 +760,9 @@ class Closet_Carcass(fd_types.Assembly):
             cleat.x_loc('X_Loc+INCH(.01)',[X_Loc]) #USED TO FIX DRAWER SIDE TOKEN
             cleat.x_dim('Width',[Width])
     
-        cleat.prompt(
-            'Hide',
+        cleat.prompt('Hide',
             'IF(OR(B_Cleat==False,AND(B_Sec==1,CBT==1,CTR,BIG==0),AND(B_Sec>1,AND(BIG==0,OR(AND(IS_SB,CBT==1,BTM),AND(IS_SB,CBT==1,BTM,CTR,TOP==False),AND(IS_SB==False,BTM,BBT==1))))),True,False)',
-            [B_Cleat,CBT,BBT,B_Sec,SB,TOP,CTR,BTM,IS_SB,BIG]
-        )
+            [B_Cleat,CBT,BBT,B_Sec,SB,TOP,CTR,BTM,IS_SB,BIG])
 
         cleat.prompt('Use Cleat Cover','IF(OR(BIB>0,BIG>0),False,True)', [BIB, BIG])    
 
@@ -983,20 +1044,16 @@ class Closet_Carcass(fd_types.Assembly):
         backing.add_prompt(name="Bottom Insert Gap",prompt_type='DISTANCE',value=0,tab_index=0)
         backing.add_prompt(name="Backing Inset Amount",prompt_type='DISTANCE',value=unit.inch(0.25),tab_index=0)
 
-        backing.add_prompt(
-            name="2 Section Backing Config",
+        backing.add_prompt(name="2 Section Backing Config",
             prompt_type='COMBOBOX',
             items=['Full', 'Top', 'Bottom'],
             value=0,
-            tab_index=0
-        )        
-        backing.add_prompt(
-            name="3 Section Backing Config",
+            tab_index=0)        
+        backing.add_prompt(name="3 Section Backing Config",
             prompt_type='COMBOBOX',
             items=['Full', 'Top', 'Bottom', 'Center', 'Top & Center', 'Bottom & Center', 'Top & Bottom'],
             value=0,
-            tab_index=0
-        )
+            tab_index=0)
 
         TOP = backing.get_var("Top Section Backing", 'TOP')
         CTR = backing.get_var("Center Section Backing", 'CTR')
@@ -1026,86 +1083,61 @@ class Closet_Carcass(fd_types.Assembly):
         backing.prompt('Backing Sections', 'IF(AND(TIB>0,BIB>0),3,IF(OR(TIB>0,BIB>0),2,1))', [TIB, BIB])
         backing.prompt('Opening Bottom', 'IF(Floor,TKH,PH-Height)', [Floor,TKH,PH,Height])
 
-        backing.prompt(
-            'Is Single Back',
+        backing.prompt('Is Single Back',
             'IF(B_Sections==2,IF(AND(SB,TOP,BTM),True,False),IF(B_Sections==3,IF(OR(AND(SB,TOP,CTR,BTM),AND(SB,TOP,CTR),AND(SB,CTR,BTM)),True,False),True))',
-            [SB,TOP,CTR,BTM,B_Sections]
-        )
+            [SB,TOP,CTR,BTM,B_Sections])
 
-        backing.prompt(
-            "Backing Top Offset",
+        backing.prompt("Backing Top Offset",
             'IF(T_Shelf,ST,0)+IF(OR(AND(B_Sections==1,CTR,CBT==0),AND(B_Sections>1,IS_SB,CBT==0),AND(B_Sections>1,SB==False,TOP,TBT==0)),CH-BIA,0)',
-            [T_Shelf,ST,CH,TOP,CTR,BTM,TBT,CBT,SB,BIA,IS_SB,B_Sections]
-        )
+            [T_Shelf,ST,CH,TOP,CTR,BTM,TBT,CBT,SB,BIA,IS_SB,B_Sections])
 
-        backing.prompt(
-            "Backing Bottom Offset",
+        backing.prompt("Backing Bottom Offset",
             'IF(BIG>0,BIG,B_Cleat_Loc)+IF(OR(Floor,B_Shelf),ST,0)+IF(OR(AND(B_Sections==1,CBT==0,CTR),AND(B_Sections>1,OR(AND(IS_SB,CBT==0),AND(IS_SB,CBT==0,BTM,CTR,TOP==False),AND(IS_SB==False,BTM,BBT==0)))),CH-BIA,0)',
-            [Floor,B_Cleat,B_Cleat_Loc,ST,B_Shelf,CH,BIG,TOP,CTR,BTM,SB,CBT,BBT,BIA,B_Sections,IS_SB]            
-        )
+            [Floor,B_Cleat,B_Cleat_Loc,ST,B_Shelf,CH,BIG,TOP,CTR,BTM,SB,CBT,BBT,BIA,B_Sections,IS_SB])
 
         #1 section
-        backing.prompt(
-            '1 Section Backing Z Location',
+        backing.prompt('1 Section Backing Z Location',
             'OB+IF(BIG>0,BIG+IF(CBT==0,CH-BIA,0),BBO)',
-            [OB,BBO,BIG,CBT,CH,BIA]
-        )
-        backing.prompt(
-            '1 Section Backing X Dimension',
+            [OB,BBO,BIG,CBT,CH,BIA])
+        backing.prompt('1 Section Backing X Dimension',
             'Height-IF(TIG>0,TIG,BTO)-IF(BIG>0,BIG+IF(CBT==0,CH-BIA,0),BBO)',
-            [Height,BTO,TIG,BBO,BIG,CH,BIA,CBT]
-        )
+            [Height,BTO,TIG,BBO,BIG,CH,BIA,CBT])
 
         #2 section
-        backing.prompt(
-            '2 Section Backing Config',
+        backing.prompt('2 Section Backing Config',
             'IF(AND(TOP,BTM),0,IF(TOP,1,IF(BTM,2,0)))',
-            [TOP,BTM]
-        )
+            [TOP,BTM])
 
         #Top insert
-        backing.prompt(
-            '2 Section Backing Z Location with Top Insert',
+        backing.prompt('2 Section Backing Z Location with Top Insert',
             'IF(BC2==0,BZ1,IF(BC2==1,OB+Height-TIB+ST+IF(BT==0,CH-BIA,0),IF(BC2==2,IF(BT==0,OB+BBO-BIA,BZ1),BZ1)))',
-            [Height,OB,BC2,BZ1,TIB,BBO,BIA,CH,ST,BT]
-        )
-        backing.prompt(
-            '2 Section Backing X Dimension with Top Insert',
+            [Height,OB,BC2,BZ1,TIB,BBO,BIA,CH,ST,BT])
+        backing.prompt('2 Section Backing X Dimension with Top Insert',
             'IF(BC2==0,BX1,IF(BC2==1,TIB-IF(BT==0,CH*2+BIA,ST)-IF(T_Shelf,ST,0),IF(BC2==2,Height-TIB-IF(BT==0,CH*2-BIA*2,0)-B_Cleat_Loc-IF(B_Shelf,ST,0),BX1)))',
-            [BC2,Height,TIB,BIB,BX1,BIA,CH,B_Cleat_Loc,T_Shelf,B_Shelf,ST,BT]
-        )
+            [BC2,Height,TIB,BIB,BX1,BIA,CH,B_Cleat_Loc,T_Shelf,B_Shelf,ST,BT])
 
         #Bottom insert
-        backing.prompt(
-            '2 Section Backing Z Location with Bottom Insert',
+        backing.prompt('2 Section Backing Z Location with Bottom Insert',
             'IF(BC2==0,BZ1,IF(BC2==1,BIB+OB+IF(BT==0,CH-BIA,0),IF(BC2==2,OB+IF(BT==0,BBO-BIA,IF(B_Shelf,ST,0)),BZ1)))',
-            [OB,BC2,BZ1,BIB,TIB,BBO,BIA,CH,BT,B_Shelf,ST]
-        )
-        backing.prompt(
-            '2 Section Backing X Dimension with Bottom Insert',
+            [OB,BC2,BZ1,BIB,TIB,BBO,BIA,CH,BT,B_Shelf,ST])
+        backing.prompt('2 Section Backing X Dimension with Bottom Insert',
             'IF(BC2==0,BX1,IF(BC2==1,Height-BIB-IF(BT==0,CH*2-BIA*2,0)-IF(T_Shelf,ST,0),IF(BC2==2,BIB-IF(BT==0,CH*2+BIA-B_Cleat_Loc,ST)-IF(B_Shelf,ST,0),BX1)))',
-            [BC2,Height,TIB,BIB,BX1,BIA,CH,B_Cleat_Loc,T_Shelf,B_Shelf,ST,BT]
-        )
+            [BC2,Height,TIB,BIB,BX1,BIA,CH,B_Cleat_Loc,T_Shelf,B_Shelf,ST,BT])
 
         #3 section
-        #[0:'Full', 1:'Top', 2:'Bottom', 3:'Center', 4:'Top & Center', 5:'Bottom & Center', 6:'Top & Bottom']
-        backing.prompt(
-            '3 Section Backing Config',
+        #[0:'Full', 1:'Top', 2:'Bottom', 3:'Center', 4:'Top & Center',
+        #5:'Bottom & Center', 6:'Top & Bottom']
+        backing.prompt('3 Section Backing Config',
             'IF(AND(TOP,CTR,BTM),0,IF(AND(TOP,CTR),4,IF(AND(BTM,CTR),5,IF(AND(TOP,BTM),6,IF(TOP,1,IF(CTR,3,IF(BTM,2,0)))))))',
-            [TOP,CTR,BTM]
-        )
+            [TOP,CTR,BTM])
 
-        backing.prompt(
-            '3 Section Backing Z Location',
+        backing.prompt('3 Section Backing Z Location',
             'IF(OR(AND(BC3==0,IS_SB==False),BC3==3,BC3==4,AND(BC3==5,IS_SB==False)), OB+BIB+IF(CBT==0,CH-BIA,0) ,BZ1)',
-            [OB,BC3,BZ1,BIB,TIB,BIA,Height,ST,CH,CBT,IS_SB]
-        )
+            [OB,BC3,BZ1,BIB,TIB,BIA,Height,ST,CH,CBT,IS_SB])
         
-        backing.prompt(
-            '3 Section Backing X Dimension',
+        backing.prompt('3 Section Backing X Dimension',
             'IF(IS_SB,IF(BC3==0,BX1,IF(BC3==4,Height-BIB-BTO-IF(CBT==0,CH-BIA,0),IF(BC3==5,Height-TIB-BBO-IF(CBT==0,CH-BIA,0),BX1))),Height-TIB-BIB-IF(CBT==0,CH*2-BIA*2,0))',
-            [BC3,Height,TIB,BIB,BX1,BIA,CH,B_Cleat_Loc,T_Shelf,B_Shelf,ST,CBT,IS_SB,BBO,BTO]
-        )
+            [BC3,Height,TIB,BIB,BX1,BIA,CH,B_Cleat_Loc,T_Shelf,B_Shelf,ST,CBT,IS_SB,BBO,BTO])
 
         #Get X loc from opening panel
         if panel:
@@ -1117,19 +1149,15 @@ class Closet_Carcass(fd_types.Assembly):
             backing.x_loc('Left_Side_Wall_Filler+X_Loc',[Left_Side_Wall_Filler,X_Loc])
 
         backing.y_loc(value=0)
-        backing.z_loc(
-            'IF(B_Sections==1,BZ1,IF(B_Sections==2,IF(TIB>0,BZ2T,IF(BIB>0,BZ2B,0)),IF(B_Sections==3,BZ3,0)))',
-            [B_Sections,BZ1,BZ2T,BZ2B,BZ3,TIB,BIB,OB,Height,ST,CBT,CH,BIA]
-        )
+        backing.z_loc('IF(B_Sections==1,BZ1,IF(B_Sections==2,IF(TIB>0,BZ2T,IF(BIB>0,BZ2B,0)),IF(B_Sections==3,BZ3,0)))',
+            [B_Sections,BZ1,BZ2T,BZ2B,BZ3,TIB,BIB,OB,Height,ST,CBT,CH,BIA])
 
         backing.x_rot(value=-90)
         backing.y_rot(value=-90)
         backing.z_rot(value=0)
 
-        backing.x_dim(
-            'IF(B_Sections==1,BX1-TKDVO,IF(B_Sections==2,IF(TIB>0,BX2T,IF(BIB>0,BX2B,0)),IF(B_Sections==3,BX3,0)))',
-            [B_Sections,BX1,BX2T,BX2B,BX3,TIB,BIB,Height,CBT,CH,BIA,TKDVO]
-        )
+        backing.x_dim('IF(B_Sections==1,BX1-TKDVO,IF(B_Sections==2,IF(TIB>0,BX2T,IF(BIB>0,BX2B,0)),IF(B_Sections==3,BX3,0)))',
+            [B_Sections,BX1,BX2T,BX2B,BX3,TIB,BIB,Height,CBT,CH,BIA,TKDVO])
 
         backing.y_dim("Width",[Width])
         backing.z_dim('IF(OR(AND(B_Sections==1,CBT==0),AND(B_Sections>1,CBT==0)),INCH(-0.25),INCH(-0.75))',[CBT, B_Sections])
@@ -1150,19 +1178,15 @@ class Closet_Carcass(fd_types.Assembly):
             top_backing.x_loc('Left_Side_Wall_Filler+X_Loc',[Left_Side_Wall_Filler,X_Loc])
 
         top_backing.y_loc(value=0)
-        top_backing.z_loc(
-            'IF(B_Sections>1,IF(TIB>0,OB+Height-TIB+ST+IF(TBT==0,CH-BIA,0),IF(BIB>0,BIB+OB+IF(TBT==0,CH-BIA,0),0)),0)',
-            [B_Sections,OB,Height,TIB,CH,BIA,ST,TBT,BZ2T,BZ2B,BIB]
-        )
+        top_backing.z_loc('IF(B_Sections>1,IF(TIB>0,OB+Height-TIB+ST+IF(TBT==0,CH-BIA,0),IF(BIB>0,BIB+OB+IF(TBT==0,CH-BIA,0),0)),0)',
+            [B_Sections,OB,Height,TIB,CH,BIA,ST,TBT,BZ2T,BZ2B,BIB])
 
         top_backing.x_rot(value=-90)
         top_backing.y_rot(value=-90)
         top_backing.z_rot(value=0)
 
-        top_backing.x_dim(
-            'IF(B_Sections==2,IF(TIB>0,TIB-IF(TBT==0,CH*2+BIA,ST)-IF(T_Shelf,ST,0),IF(BIB>0,Height-BIB-IF(TBT==0,CH*2-BIA*2,0)-IF(T_Shelf,ST,0),0)),IF(B_Sections==3,TIB-IF(TBT==0,CH*2-BIA*2,0)-ST-IF(T_Shelf,ST,0),0))-TKDVO',
-            [B_Sections,BC3,Height,CH,ST,TIB,BIB,BIA,T_Shelf,TBT,BX2T,BX2B,TKDVO]
-        )
+        top_backing.x_dim('IF(B_Sections==2,IF(TIB>0,TIB-IF(TBT==0,CH*2+BIA,ST)-IF(T_Shelf,ST,0),IF(BIB>0,Height-BIB-IF(TBT==0,CH*2-BIA*2,0)-IF(T_Shelf,ST,0),0)),IF(B_Sections==3,TIB-IF(TBT==0,CH*2-BIA*2,0)-ST-IF(T_Shelf,ST,0),0))-TKDVO',
+            [B_Sections,BC3,Height,CH,ST,TIB,BIB,BIA,T_Shelf,TBT,BX2T,BX2B,TKDVO])
         top_backing.y_dim("Width",[Width])
         top_backing.z_dim('IF(TBT==0,INCH(-0.25),INCH(-0.75))',[TBT])
         top_backing.prompt('Hide','IF(OR(B_Sections==1,TOP==False,AND(B_Sections>1,IS_SB)),True,False)',[B_Sections,TOP,CTR,BTM,IS_SB])
@@ -1182,29 +1206,24 @@ class Closet_Carcass(fd_types.Assembly):
             bottom_backing.x_loc('Left_Side_Wall_Filler+X_Loc',[Left_Side_Wall_Filler,X_Loc])
 
         bottom_backing.y_loc(value=0)
-        bottom_backing.z_loc(
-            'OB+BBO-IF(AND(B_Shelf,BIG>0),ST,0)',
-            [B_Sections,OB,Height,TIB,CH,ST,BZ2T,BZ2B,BIB,BBT,BBO,B_Shelf,BIG,BIA]
-        )
+        bottom_backing.z_loc('OB+BBO-IF(AND(B_Shelf,BIG>0),ST,0)',
+            [B_Sections,OB,Height,TIB,CH,ST,BZ2T,BZ2B,BIB,BBT,BBO,B_Shelf,BIG,BIA])
 
         bottom_backing.x_rot(value=-90)
         bottom_backing.y_rot(value=-90)
         bottom_backing.z_rot(value=0)
-        bottom_backing.x_dim(
-            'IF(B_Sections==3,IF(BBT==0,BIB-CH*2-BIA,BIB-ST)-IF(B_Shelf,ST,0), IF(TIB>0,Height-TIB-IF(BIG>0,BIG,0)+ST,BIB-IF(BIG>0,BIG,0))-IF(BBT==0,CH*2-BIA*2,0)-ST-IF(AND(B_Shelf,BIG==0),ST,0))',
-            [B_Sections,Height,CH,ST,TIB,BIB,BIA,T_Shelf,TBT,BX2T,BX2B,BBT,B_Cleat_Loc,B_Shelf,BIG]
-        )
+        bottom_backing.x_dim('IF(B_Sections==3,IF(BBT==0,BIB-CH*2-BIA,BIB-ST)-IF(B_Shelf,ST,0), IF(TIB>0,Height-TIB-IF(BIG>0,BIG,0)+ST,BIB-IF(BIG>0,BIG,0))-IF(BBT==0,CH*2-BIA*2,0)-ST-IF(AND(B_Shelf,BIG==0),ST,0))',
+            [B_Sections,Height,CH,ST,TIB,BIB,BIA,T_Shelf,TBT,BX2T,BX2B,BBT,B_Cleat_Loc,B_Shelf,BIG])
         bottom_backing.y_dim("Width",[Width])
         bottom_backing.z_dim('IF(BBT==0,INCH(-0.25),INCH(-0.75))',[BBT])
         bottom_backing.prompt('Hide', 'IF(OR(B_Sections==1,BTM==False,AND(B_Sections>1,IS_SB)),True,False)', [B_Sections,TOP,BTM,IS_SB])                
 
         #Additional cleats for multi-section backing
-        #BC3 - [0:'Full', 1:'Top', 2:'Bottom', 3:'Center', 4:'Top & Center', 5:'Bottom & Center', 6:'Top & Bottom']
+        #BC3 - [0:'Full', 1:'Top', 2:'Bottom', 3:'Center', 4:'Top & Center',
+        #5:'Bottom & Center', 6:'Top & Bottom']
         top_sec_bottom_cleat = self.add_backing_cleat(i, panel, top_cleat=False)
-        top_sec_bottom_cleat.prompt(
-            'Hide','IF(OR(TBT==1,TOP==False,B_Sections==1,AND(B_Sections>1,IS_SB)),True,False)',
-            [B_Sections,TBT,TOP,BTM,IS_SB]
-        )
+        top_sec_bottom_cleat.prompt('Hide','IF(OR(TBT==1,TOP==False,B_Sections==1,AND(B_Sections>1,IS_SB)),True,False)',
+            [B_Sections,TBT,TOP,BTM,IS_SB])
         top_sec_bottom_cleat.z_loc('IF(B_Sections==2,IF(TIB>0,OB+Height-TIB+ST,IF(BIB>0,OB+BIB,0)),IF(B_Sections==3,OB+Height-TIB+ST,0))',[Height,OB,TIB,BIB,ST,B_Sections])
 
         mid_sec_top_cleat = self.add_backing_cleat(i, panel, top_cleat=True)
@@ -1216,18 +1235,16 @@ class Closet_Carcass(fd_types.Assembly):
         mid_sec_bottom_cleat.z_loc('OB+BIB', [OB, BIB])
 
         bottom_sec_top_cleat = self.add_backing_cleat(i, panel, top_cleat=True)
-        bottom_sec_top_cleat.prompt(
-            'Hide','IF(OR(BBT==1,BTM==False,B_Sections==1,AND(B_Sections>1,IS_SB)),True,False)',
-            [B_Sections,BBT,TOP,BTM,IS_SB]
-        )
+        bottom_sec_top_cleat.prompt('Hide','IF(OR(BBT==1,BTM==False,B_Sections==1,AND(B_Sections>1,IS_SB)),True,False)',
+            [B_Sections,BBT,TOP,BTM,IS_SB])
         bottom_sec_top_cleat.z_loc('IF(B_Sections==2,IF(TIB>0,OB+Height-TIB,IF(BIB>0,OB+BIB-ST,0)),IF(B_Sections==3,OB+BIB-ST,0))', [Height, OB, TIB, BIB, ST, B_Sections])
         bottom_sec_top_cleat.prompt('Use Cleat Cover', 'IF(BIB>0,False,True)', [BIB])    
 
     def add_hutch_backing(self):
             Add_Hutch_Backing = self.get_var("Add Hutch Backing")
             Has_Capping_Bottom = self.get_var("Has Capping Bottom")
-            Extend_Left_Side = self.get_var("Extend Left Side")
-            Extend_Right_Side = self.get_var("Extend Right Side")
+            Extend_Left_End_Pard_Down = self.get_var("Extend Left End Pard Down")
+            Extend_Right_End_Pard_Down = self.get_var("Extend Right End Pard Down")
             Height_Left_Side = self.get_var("Height Left Side")
             Height_Right_Side = self.get_var("Height Right Side")
             Width = self.get_var('dim_x','Width')
@@ -1235,20 +1252,24 @@ class Closet_Carcass(fd_types.Assembly):
             Height_1 = self.get_var('Opening 1 Height','Height_1')
             Last_Height = self.get_var('Opening ' + str(self.opening_qty) + ' Height',"Last_Height")
             Panel_Thickness = self.get_var("Panel Thickness")
+            Add_Left_Filler = self.get_var("Add Left Filler")
+            Add_Right_Filler = self.get_var("Add Right Filler")
+            Left_Side_Wall_Filler = self.get_var("Left Side Wall Filler")
+            Right_Side_Wall_Filler = self.get_var("Right Side Wall Filler")
 
             hutch_backing = common_parts.add_back(self)
             hutch_backing.obj_bp.lm_closets.is_hutch_back_bp = True
             hutch_backing.obj_bp.mv.name_object = "Hutch Backing"
-            hutch_backing.x_loc("Panel_Thickness",[Panel_Thickness])
+            hutch_backing.x_loc("Panel_Thickness+IF(Add_Left_Filler,Left_Side_Wall_Filler,0)",[Panel_Thickness,Add_Left_Filler,Left_Side_Wall_Filler])
             hutch_backing.y_loc(value = 0)
             hutch_backing.z_loc("Product_Height-IF(Height_1>=Last_Height,Height_1,Last_Height)-IF(Has_Capping_Bottom,Panel_Thickness,0)",[Product_Height,Height_1,Last_Height,Has_Capping_Bottom,Panel_Thickness])
             hutch_backing.x_rot(value=-90)
             hutch_backing.y_rot(value=0)
             hutch_backing.z_rot(value=0)
-            hutch_backing.x_dim("Width-(Panel_Thickness*2)",[Width,Panel_Thickness])
+            hutch_backing.x_dim("Width-(Panel_Thickness*2)-IF(Add_Left_Filler,Left_Side_Wall_Filler,0)-IF(Add_Right_Filler,Right_Side_Wall_Filler,0)",[Width,Panel_Thickness,Add_Left_Filler,Add_Right_Filler,Left_Side_Wall_Filler,Right_Side_Wall_Filler])
             hutch_backing.y_dim("IF(Height_Left_Side>=Height_Right_Side,Height_Left_Side,Height_Right_Side)-IF(Has_Capping_Bottom,Panel_Thickness,0)",[Height_Left_Side,Height_Right_Side,Has_Capping_Bottom,Panel_Thickness])
             hutch_backing.z_dim("-Panel_Thickness",[Panel_Thickness])
-            hutch_backing.prompt('Hide',"IF(OR(Extend_Left_Side,Extend_Right_Side),IF(Add_Hutch_Backing,False,True),True)",[Extend_Left_Side,Extend_Right_Side,Add_Hutch_Backing])
+            hutch_backing.prompt('Hide',"IF(OR(Extend_Left_End_Pard_Down,Extend_Right_End_Pard_Down),IF(Add_Hutch_Backing,False,True),True)",[Extend_Left_End_Pard_Down,Extend_Right_End_Pard_Down,Add_Hutch_Backing])
 
     def add_system_holes(self,i,panel):
         Product_Height = self.get_var('dim_z',"Product_Height")
@@ -1553,7 +1574,7 @@ class Closet_Carcass(fd_types.Assembly):
         First_Opening_Depth = self.get_var("Opening 1 Depth", "First_Opening_Depth")
         Last_Opening_Depth = self.get_var("Opening " + str(self.opening_qty) + " Depth", "Last_Opening_Depth")
         First_Floor_Mounted = self.get_var('Opening 1 Floor Mounted','First_Floor_Mounted')
-        Last_Floor_Mounted = self.get_var('Opening '+ str(self.opening_qty) +' Floor Mounted','Last_Floor_Mounted')
+        Last_Floor_Mounted = self.get_var('Opening ' + str(self.opening_qty) + ' Floor Mounted','Last_Floor_Mounted')
         Panel_Thickness = self.get_var("Panel Thickness")
         Width = self.get_var("dim_x", 'Width')
         Hanging_Height = self.get_var("dim_z",'Hanging_Height')
@@ -1621,11 +1642,13 @@ class Closet_Carcass(fd_types.Assembly):
         self.add_opening_prompts()
         common_prompts.add_thickness_prompts(self)
 
-        #when a carcass is added and drawn add_closet_carcass_prompts is called first
+        #when a carcass is added and drawn add_closet_carcass_prompts is called
+        #first
         common_prompts.add_closet_carcass_prompts(self)
         #self.add_machining_prompts()
         
-        #This adds the the left and right side panels (first panel '1' and last panel 'self.opening_qty+2') 
+        #This adds the the left and right side panels (first panel '1' and last
+        #panel 'self.opening_qty+2')
         self.add_sides()
         self.add_hanging_rail()
         panel = None
@@ -1650,11 +1673,12 @@ class Closet_Carcass(fd_types.Assembly):
 
         # self.add_inside_dimension( 1, panel)
         
-        #This loop adds all the panels between first and last (left and right sides)
-        for i in range(2,self.opening_qty+1):
+        #This loop adds all the panels between first and last (left and right
+        #sides)
+        for i in range(2,self.opening_qty + 1):
             panel = self.add_panel(i,panel)
             if defaults.use_plant_on_top:
-                self.add_plant_on_top( i, panel)
+                self.add_plant_on_top(i, panel)
             else:
                 self.add_shelf(i,panel,is_top=True)
             self.add_shelf(i,panel,is_top=False)
@@ -1675,7 +1699,6 @@ class Closet_Carcass(fd_types.Assembly):
                 
             # self.add_inside_dimension(i, panel)
 
-
 class PROMPTS_Opening_Starter(bpy.types.Operator):
     bl_idname = props_closet.LIBRARY_NAME_SPACE + ".openings"
     bl_label = "Opening Starter Prompts" 
@@ -1686,7 +1709,8 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
     tabs = bpy.props.EnumProperty(name="Tabs",
                         items=[('OPENINGS','Opening Sizes','Show the Width x Height x Depth for each opening'),
                                ('CONSTRUCTION','Construction Options','Show Additional Construction Options')],
-                               #('MACHINING','Machining Options','Machining Options')],
+                               #('MACHINING','Machining Options','Machining
+                               #Options')],
                         default = 'OPENINGS')
     
     placement_on_wall = bpy.props.EnumProperty(name="Placement on Wall",items=[('SELECTED_POINT',"Selected Point",""),
@@ -1714,11 +1738,9 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
     init_height_list = bpy.props.BoolProperty(name="Init Height List", default=True)
     default_height = bpy.props.StringProperty(name="Default Height", default='1203')
 
-    height = bpy.props.EnumProperty(
-        name="Height",
+    height = bpy.props.EnumProperty(name="Height",
         items=get_panel_heights,
-        update=update_closet_height
-        )
+        update=update_closet_height)
     
     #Height_Left_Side = bpy.props.EnumProperty(
     #    name="Height Left Side",
@@ -1730,50 +1752,32 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
     #    items=get_panel_heights
     #    )
     
-    Opening_1_Height = bpy.props.EnumProperty(
-        name="Opening 1 Height",
-        items=get_panel_heights
-        )
+    Opening_1_Height = bpy.props.EnumProperty(name="Opening 1 Height",
+        items=get_panel_heights)
     
-    Opening_2_Height = bpy.props.EnumProperty(
-        name="Opening 2 Height",
-        items=get_panel_heights
-        )
+    Opening_2_Height = bpy.props.EnumProperty(name="Opening 2 Height",
+        items=get_panel_heights)
     
-    Opening_3_Height = bpy.props.EnumProperty(
-        name="Opening 3 Height",
-        items=get_panel_heights
-        )
+    Opening_3_Height = bpy.props.EnumProperty(name="Opening 3 Height",
+        items=get_panel_heights)
     
-    Opening_4_Height = bpy.props.EnumProperty(
-        name="Opening 4 Height",
-        items=get_panel_heights
-        )
+    Opening_4_Height = bpy.props.EnumProperty(name="Opening 4 Height",
+        items=get_panel_heights)
     
-    Opening_5_Height = bpy.props.EnumProperty(
-        name="Opening 5 Height",
-        items=get_panel_heights
-        )
+    Opening_5_Height = bpy.props.EnumProperty(name="Opening 5 Height",
+        items=get_panel_heights)
     
-    Opening_6_Height = bpy.props.EnumProperty(
-        name="Opening 6 Height",
-        items=get_panel_heights
-        )
+    Opening_6_Height = bpy.props.EnumProperty(name="Opening 6 Height",
+        items=get_panel_heights)
     
-    Opening_7_Height = bpy.props.EnumProperty(
-        name="Opening 7 Height",
-        items=get_panel_heights
-        )
+    Opening_7_Height = bpy.props.EnumProperty(name="Opening 7 Height",
+        items=get_panel_heights)
     
-    Opening_8_Height = bpy.props.EnumProperty(
-        name="Opening 8 Height",
-        items=get_panel_heights,
-        )
+    Opening_8_Height = bpy.props.EnumProperty(name="Opening 8 Height",
+        items=get_panel_heights,)
 
-    Opening_9_Height = bpy.props.EnumProperty(
-        name="Opening 9 Height",
-        items=get_panel_heights,
-        )
+    Opening_9_Height = bpy.props.EnumProperty(name="Opening 9 Height",
+        items=get_panel_heights,)
     
     Left_End_Condition = bpy.props.EnumProperty(name="Left Side",
                                        items=common_lists.END_CONDITIONS,
@@ -1793,29 +1797,40 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
     default_width = 0
     selected_location = 0
 
+    add_left_filler = bpy.props.BoolProperty(name="Add Left Filler", default=False)
+    add_right_filler = bpy.props.BoolProperty(name="Add Right Filler", default=False)
+
     def check(self, context):
         self.product.obj_x.location.x = self.width
         props = props_closet.get_scene_props()
 
         #----------Called after a property is changed on the prompts page
         #Get props from product
-        extend_left_side = self.product.get_prompt("Extend Left Side")
-        extend_right_side = self.product.get_prompt("Extend Right Side")
+        extend_left_end_pard_down = self.product.get_prompt("Extend Left End Pard Down")
+        extend_right_end_pard_down = self.product.get_prompt("Extend Right Side Down")
         height_left_side = self.product.get_prompt("Height Left Side")
         height_right_side = self.product.get_prompt("Height Right Side")
         more_than_one_opening = self.product.get_prompt("Opening 2 Height")
         blind_corner_left = self.product.get_prompt("Blind Corner Left")
         blind_corner_right = self.product.get_prompt("Blind Corner Right")
+        add_left_filler = self.product.get_prompt("Add Left Filler")
+        add_right_filler = self.product.get_prompt("Add Right Filler")
+        left_side_wall_filler = self.product.get_prompt("Left Side Wall Filler")
+        right_side_wall_filler = self.product.get_prompt("Right Side Wall Filler")
+        left_filler_setback_amount = self.product.get_prompt("Left Filler Setback Amount")
+        right_filler_setback_amount = self.product.get_prompt("Right Filler Setback Amount")
 
 
         #Temp fix for older library data
-        #TODO: Find a more efficient solution for handling older library data versions
-        #if extend_left_side and height_left_side:
+        #TODO: Find a more efficient solution for handling older library data
+        #versions
+        #if extend_left_end_pard_down and height_left_side:
         #    height_left_side.set_value(unit.millimeter(float(self.Height_Left_Side)))
 
         #Temp fix for older library data
-        #TODO: Find a more efficient solution for handling older library data versions
-        #if extend_right_side and height_right_side:
+        #TODO: Find a more efficient solution for handling older library data
+        #versions
+        #if extend_right_end_pard_down and height_right_side:
         #    height_right_side.set_value(unit.millimeter(float(self.Height_Right_Side)))
 
         if props.closet_defaults.use_32mm_system:
@@ -1847,8 +1862,21 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
         self.update_opening_inserts()
         self.update_placement(context)
         
+        filler_prompts = [add_left_filler,add_right_filler,left_side_wall_filler,right_side_wall_filler,left_filler_setback_amount,right_filler_setback_amount]
+        if all(filler_prompts):
+            self.add_left_filler = add_left_filler.value()
+            self.add_right_filler = add_right_filler.value()
+            if not add_left_filler.value():
+                left_side_wall_filler.set_value(0)
+                left_filler_setback_amount.set_value(0)
+            if not add_right_filler.value():
+                right_side_wall_filler.set_value(0)
+                right_filler_setback_amount.set_value(0)
+        
+        props_closet.update_render_materials(self,context)
         utils.run_calculators(self.product.obj_bp)
-        #Hack I Dont know why i need to run calculators twice just for left right side removal
+        #Hack I Dont know why i need to run calculators twice just for left
+        #right side removal
         # utils.run_calculators(self.product.obj_bp)
         return True
 
@@ -1857,11 +1885,11 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
         capping_bottoms = 0
         for child in self.product.obj_bp.children:
             obj_props = child.lm_closets
-            if obj_props.is_drawer_stack_bp or obj_props.is_hamper_insert_bp or obj_props.is_door_insert_bp or obj_props.is_closet_bottom_bp:
+            if obj_props.is_drawer_stack_bp or obj_props.is_hamper_insert_bp or obj_props.is_door_insert_bp or obj_props.is_closet_bottom_bp or obj_props.is_closet_top_bp:
                 insert_bp.append(child)
             for nchild in child.children:
                 obj_props = nchild.lm_closets
-                if obj_props.is_drawer_stack_bp or obj_props.is_hamper_insert_bp or obj_props.is_door_insert_bp or obj_props.is_closet_bottom_bp:
+                if obj_props.is_drawer_stack_bp or obj_props.is_hamper_insert_bp or obj_props.is_door_insert_bp or obj_props.is_closet_bottom_bp or obj_props.is_closet_top_bp:
                     insert_bp.append(nchild)                    
 
         for obj_bp in insert_bp:
@@ -1994,14 +2022,16 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
 
                             if all(prompts):
                                 if obj_props.is_hamper_insert_bp:
-                                   #For Hampers, Remove_Bottom_Shelf == True means that there is no bottom shelf
+                                   #For Hampers, Remove_Bottom_Shelf == True
+                                   #means that there is no bottom shelf
                                     if(RBS.value() or floor.value()):
                                         Remove_Bottom_Shelf.set_value(True)
                                     else:
                                         Remove_Bottom_Shelf.set_value(False)
 
                                 if obj_props.is_drawer_stack_bp:
-                                    #For Drawers, Remove_Bottom_Shelf == False means that there is no bottom shelf
+                                    #For Drawers, Remove_Bottom_Shelf == False
+                                    #means that there is no bottom shelf
                                     Lift_Drawers_From_Bottom = insert.get_prompt("Lift Drawers From Bottom")
                                     if((RBS.value() or floor.value()) and Lift_Drawers_From_Bottom.value() == False):
                                         Remove_Bottom_Shelf.set_value(False)
@@ -2012,8 +2042,9 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
                                         insert.get_prompt("Pard Has Bottom KD").set_value(False)                        
 
                                 if obj_props.is_splitter_bp:
-                                    #For Splitter, Remove_Bottom_Shelf == True means that there is no bottom shelf
-                                    if(RBS.value() or floor.value()==False):
+                                    #For Splitter, Remove_Bottom_Shelf == True
+                                    #means that there is no bottom shelf
+                                    if(RBS.value() or floor.value() == False):
                                         Remove_Bottom_Shelf.set_value(True)
 
 
@@ -2030,8 +2061,8 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
                     if child.lm_closets.is_closet_bottom_bp:
                         capping_bottom_assembly = fd_types.Assembly(child)
                         capping_bottoms += 1
-                        extend_left_side = self.product.get_prompt("Extend Left Side")
-                        extend_right_side = self.product.get_prompt("Extend Right Side")
+                        extend_left_end_pard_down = self.product.get_prompt("Extend Left End Pard Down")
+                        extend_right_end_pard_down = self.product.get_prompt("Extend Right End Pard Down")
                         height_left_side = self.product.get_prompt("Height Left Side")
                         height_right_side = self.product.get_prompt("Height Right Side")
                         left_partition_extended = capping_bottom_assembly.get_prompt("Left Partition Extended")
@@ -2040,16 +2071,39 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
                         right_partition_extension_height = capping_bottom_assembly.get_prompt("Right Partition Extension Height")
                         against_left_wall = capping_bottom_assembly.get_prompt('Against Left Wall')
                         against_right_wall = capping_bottom_assembly.get_prompt('Against Right Wall')
-                        prompts = [extend_left_side,extend_right_side,height_left_side,height_right_side,left_partition_extended,right_partition_extended,left_partition_extension_height,right_partition_extension_height,against_left_wall,against_right_wall]
+                        prompts = [extend_left_end_pard_down,extend_right_end_pard_down,height_left_side,height_right_side,left_partition_extended,right_partition_extended,left_partition_extension_height,right_partition_extension_height,against_left_wall,against_right_wall]
                         if all(prompts):
-                            left_partition_extended.set_value(extend_left_side.value())
-                            right_partition_extended.set_value(extend_right_side.value())
+                            left_partition_extended.set_value(extend_left_end_pard_down.value())
+                            right_partition_extended.set_value(extend_right_end_pard_down.value())
                             left_partition_extension_height.set_value(height_left_side.value())
                             right_partition_extension_height.set_value(height_right_side.value())
-                            if(extend_left_side.value() and height_left_side.value() > 0):
+                            if(extend_left_end_pard_down.value() and height_left_side.value() > 0):
                                 against_left_wall.set_value(False)
-                            if(extend_right_side.value() and height_right_side.value() > 0):
+                            if(extend_right_end_pard_down.value() and height_right_side.value() > 0):
                                 against_right_wall.set_value(False)
+                    
+            if obj_props.is_closet_top_bp:
+                extend_left = insert.get_prompt("Extend Left Amount")
+                extend_right = insert.get_prompt("Extend Right Amount")
+                on_left_most_panel = insert.get_prompt("On Left Most Panel")
+                on_right_most_panel = insert.get_prompt("On Right Most Panel")
+
+                add_left_filler = self.product.get_prompt("Add Left Filler")
+                add_right_filler = self.product.get_prompt("Add Right Filler")
+                left_wall_filler = self.product.get_prompt("Left Side Wall Filler")
+                right_wall_filler = self.product.get_prompt("Right Side Wall Filler")
+                prompts = [extend_left,extend_right,add_left_filler,add_right_filler,left_wall_filler,right_wall_filler,on_left_most_panel,on_right_most_panel]
+
+                if all(prompts):
+                    if add_left_filler.value() and on_left_most_panel.value():
+                        extend_left.set_value(left_wall_filler.value())
+                    elif self.add_left_filler and add_left_filler.value() == False and on_left_most_panel.value():
+                        extend_left.set_value(unit.inch(0))
+                            
+                    if add_right_filler.value() and on_right_most_panel.value():
+                        extend_right.set_value(right_wall_filler.value())
+                    elif self.add_right_filler and add_right_filler.value() == False and on_right_most_panel.value():
+                        extend_right.set_value(unit.inch(0))
 
         has_capping_bottom = self.product.get_prompt("Has Capping Bottom")
         if(has_capping_bottom):
@@ -2079,7 +2133,7 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
                 self.product.obj_bp.rotation_euler.z = math.radians(-90)
             self.product.obj_x.location.x = self.width
             self.product.obj_bp.location.x = (right_x - self.product.calc_width()) - self.right_offset
-        # utils.run_calculators(self.product.obj_bp)        
+        # utils.run_calculators(self.product.obj_bp)
 
     def execute(self, context):
         obj_list = []
@@ -2138,12 +2192,14 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
 
 
             #----------Initial setting of self.Height_Left_Side
-            #Get Height Left Side value from selected product and convert to rounded int for setting Height_Left_Side
+            #Get Height Left Side value from selected product and convert to
+            #rounded int for setting Height_Left_Side
             #height_left_side = self.product.get_prompt("Height Left Side")
 
             #IF "Height Left Side" exists
             #Temp fix for older library data
-            #TODO: Find a more efficient solution for handling older library data versions            
+            #TODO: Find a more efficient solution for handling older library
+            #data versions
             #if height_left_side:
             #    prompt_val = height_left_side.value()
             #    height_left_side_mil = unit.meter_to_millimeter(prompt_val)
@@ -2152,19 +2208,21 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
                 #Set Prompt Page initial value (self.Height_Left_Side)
             #    self.Height_Left_Side = str(int_height_left_side)
 
-            #Get Height Right Side value from selected product and convert to rounded int for setting Height_Right_Side
+            #Get Height Right Side value from selected product and convert to
+            #rounded int for setting Height_Right_Side
             #height_right_side = self.product.get_prompt("Height Right Side")
 
             #IF "Height Right Side" exists
             #Temp fix for older library data
-            #TODO: Find a more efficient solution for handling older library data versions   
+            #TODO: Find a more efficient solution for handling older library
+            #data versions
             #if height_right_side:
             #    prompt_val = height_right_side.value()
             #    height_right_side_mil = unit.meter_to_millimeter(prompt_val)
             #    int_height_right_side = int(round(height_right_side_mil))
 
                 #Set Prompt Page initial value (self.Height_Right_Side)
-            #    self.Height_Right_Side = str(int_height_right_side)            
+            #    self.Height_Right_Side = str(int_height_right_side)
 
         self.current_location = self.product.obj_bp.location.x
         self.selected_location = self.product.obj_bp.location.x
@@ -2254,7 +2312,7 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
             floor = self.product.get_prompt("Opening " + str(i) + " Floor Mounted")
             if width:
                 row = box.row()
-                row.label( str(i) + ":")
+                row.label(str(i) + ":")
                 if width.equal == False:
                     row.prop(width,'equal',text="")
                 else:
@@ -2287,7 +2345,8 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
 
     def draw_backing_options(self,layout):
         #Temp fix for older library data
-        #TODO: Find a more efficient solution for handling older library data versions
+        #TODO: Find a more efficient solution for handling older library data
+        #versions
         if self.product.get_prompt("Opening 1 Add Backing"):
             add_backing_prompts = []
             back_thickness_prompts = []
@@ -2389,11 +2448,9 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
 
                         #3 Section
                         if backing_sections and backing_sections.value() == 3:
-                            single_back_config = [
-                                use_top.value() and use_bottom.value() and use_center.value(),
+                            single_back_config = [use_top.value() and use_bottom.value() and use_center.value(),
                                 use_top.value() and use_center.value(),
-                                use_bottom.value() and use_center.value()
-                            ]
+                                use_bottom.value() and use_center.value()]
 
                             if any(single_back_config):
                                 single_back.draw_prompt(col,text="Single Back", split_text=False)
@@ -2548,6 +2605,8 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
         
         toe_kick_height = self.product.get_prompt("Toe Kick Height")
         toe_kick_setback = self.product.get_prompt("Toe Kick Setback")
+        add_left_filler = self.product.get_prompt("Add Left Filler")
+        add_right_filler = self.product.get_prompt("Add Right Filler")
         left_wall_filler = self.product.get_prompt("Left Side Wall Filler")
         right_wall_filler = self.product.get_prompt("Right Side Wall Filler")
         add_top_accent_shelf = self.product.get_prompt("Add Top Accent Shelf")
@@ -2562,15 +2621,23 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
         second_rear_notch_height = self.product.get_prompt("Second Rear Notch Height")
         second_rear_notch_depth = self.product.get_prompt("Second Rear Notch Depth")             
         crown_molding_depth = self.product.get_prompt("Front Angle Height")
-        extend_left_side = self.product.get_prompt("Extend Left Side")
-        extend_right_side = self.product.get_prompt("Extend Right Side")
+        extend_left_end_pard_forward = self.product.get_prompt("Extend Left End Pard Forward")
+        extend_right_end_pard_forward = self.product.get_prompt("Extend Right End Pard Forward")
+        extend_left_end_pard_down = self.product.get_prompt("Extend Left End Pard Down")
+        extend_right_end_pard_down = self.product.get_prompt("Extend Right End Pard Down")
         height_left_side = self.product.get_prompt("Height Left Side")
         height_right_side = self.product.get_prompt("Height Right Side")
         loc_left_side = self.product.get_prompt("Loc Left Side")
         loc_right_side = self.product.get_prompt("Loc Right Side")
         add_hanging_rail = self.product.get_prompt("Add Hanging Rail")
+        left_filler_setback_amount = self.product.get_prompt("Left Filler Setback Amount")
+        right_filler_setback_amount = self.product.get_prompt("Right Filler Setback Amount")
         left_end_deduction = self.product.get_prompt("Left End Deduction")
         right_end_deduction = self.product.get_prompt("Right End Deduction")
+        edge_bottom_of_left_filler = self.product.get_prompt("Edge Bottom of Left Filler")
+        edge_bottom_of_right_filler = self.product.get_prompt("Edge Bottom of Right Filler")
+        add_capping_left_filler = self.product.get_prompt("Add Capping Left Filler")
+        add_capping_right_filler = self.product.get_prompt("Add Capping Right Filler")
         add_hutch_backing = self.product.get_prompt("Add Hutch Backing")
         # remove_top_shelf = self.product.get_prompt("Remove Top Shelf")
         
@@ -2587,34 +2654,73 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
         
         self.draw_bottom_options(box)        
                 
-        if left_wall_filler and right_wall_filler:
-            split = box.split()
+        if add_left_filler and add_right_filler:
+            filler_box = box.box()
+            split = filler_box.split()
             col = split.column(align=True)
-            col.label("Filler Options:")
+            col.label("Filler Options :")
             row = col.row()
-            row.prop(left_wall_filler,'DistanceValue',text="Left Filler Amount")
-            row.prop(left_end_deduction,'DistanceValue',text="Left End Deduction")
+            row.prop(add_left_filler,'CheckBoxValue',text="Add Left Filler")
+            row.prop(add_right_filler,'CheckBoxValue',text="Add Right Filler")
             row = col.row()
-            row.prop(right_wall_filler,'DistanceValue',text="Right Filler Amount")
-            row.prop(right_end_deduction,'DistanceValue',text="Right End Deduction")
-            
-            row = col.row()
-            extend_left_side.draw_prompt(row,split_text=False)
-            extend_right_side.draw_prompt(row,split_text=False)
-            if extend_left_side.CheckBoxValue:
+            distance_row = col.row()
+            setback_amount_row = col.row()
+            capping_filler_row = col.row()
+            edge_row = col.row()
+                         
+        if add_left_filler.value():
+            distance_row.prop(left_wall_filler,'DistanceValue',text="Left Filler Amount")
+            setback_amount_row.prop(left_filler_setback_amount,'DistanceValue',text="Left Filler Setback Amount")
+            capping_filler_row.prop(add_capping_left_filler,'CheckBoxValue',text="Add Capping Left Filler")
+            edge_row.prop(edge_bottom_of_left_filler,'CheckBoxValue',text="Edge Bottom of Left Filler")
+        elif add_right_filler.value():
+            distance_row.label("")
+            setback_amount_row.label("")
+            capping_filler_row.label("")
+            edge_row.label("")
+
+        if add_right_filler.value():
+            distance_row.prop(right_wall_filler,'DistanceValue',text=" Right Filler Amount")
+            setback_amount_row.prop(right_filler_setback_amount,'DistanceValue',text="Right Filler Setback Amount")
+            capping_filler_row.prop(add_capping_right_filler,'CheckBoxValue',text=" Add Capping Right Filler")
+            edge_row.prop(edge_bottom_of_right_filler,'CheckBoxValue',text="Edge Bottom of Right Filler")
+        elif add_left_filler.value():
+            distance_row.label("")
+            setback_amount_row.label("")
+            capping_filler_row.label("")
+            edge_row.label("")
+
+
+        row = box.row() 
+
+        split = box.split()
+        col = split.column(align=True)
+        col.label("Left/Right End Options:")
+        row = col.row()
+        row.prop(extend_left_end_pard_down,'CheckBoxValue',text="Extend Left Partition")
+        row.prop(extend_right_end_pard_down,'CheckBoxValue',text="Extend Right Partition")
+        forward_row = col.row()
+        down_row = col.row()
+        hutch_row = col.row()
+        if extend_left_end_pard_down and extend_right_end_pard_down:
+            if extend_left_end_pard_down.value():
                 row = col.row()
-                row.prop(height_left_side,'DistanceValue',text="Left Partition Extension")
-                #row.prop(loc_left_side,'DistanceValue',text="Left Partition Hang Height")
-   
-            if extend_right_side.CheckBoxValue:
-                row = col.row()
-                row.prop(height_right_side,'DistanceValue',text="Right Partition Extension")
-                #row.prop(loc_right_side, 'DistanceValue',text="Right Partition Hang Height")
-            if extend_left_side.CheckBoxValue or extend_right_side.CheckBoxValue:
-                row = col.row()
-                row.prop(add_hutch_backing,'CheckBoxValue',text="Add Hutch Backing")
-        self.draw_dogear_options(box)
-        
+                forward_row.prop(left_end_deduction,'DistanceValue',text="Left Forward Extension Amount")
+                down_row.prop(height_left_side,'DistanceValue',text="Left Down Extension Amount")
+            elif extend_right_end_pard_down.value():
+                forward_row.label("")
+                down_row.label("")
+            if extend_right_end_pard_down.value():
+                forward_row.prop(right_end_deduction,'DistanceValue',text="Right Forward Extension Amount")
+                down_row.prop(height_right_side,'DistanceValue',text="Right Down Extension Amount")
+            elif extend_left_end_pard_down.value():
+                forward_row.label("")
+                down_row.label("")
+
+            if extend_left_end_pard_down.value() and extend_right_end_pard_down.value():
+                hutch_row.prop(add_hutch_backing,'CheckBoxValue',text="Add Hutch Backing")
+               
+      
         # CARCASS OPTIONS:
         col = box.column(align=True)
         col.label("Full Back Options:")
@@ -2855,8 +2961,8 @@ class OPERATOR_Closet_Standard_Draw_Plan(bpy.types.Operator):
         front_overhang = top.get_prompt("Front Overhang")
         panel_thickness = top.get_prompt("Panel Thickness")      
         
-        overlay_left = 0 if extend_left.value() else -(panel_thickness.value()/2)
-        overlay_right = 0 if extend_right.value() else -(panel_thickness.value()/2)
+        overlay_left = 0 if extend_left.value() else -(panel_thickness.value() / 2)
+        overlay_right = 0 if extend_right.value() else -(panel_thickness.value() / 2)
         
         length = top.obj_x.location.x + extend_left_amount.value() + extend_right_amount.value() + overlay_left + overlay_right
         width = -top.obj_y.location.y - front_overhang.value()
@@ -2881,6 +2987,8 @@ class OPERATOR_Closet_Standard_Draw_Plan(bpy.types.Operator):
         l_thickness = self.product.get_prompt("Left Side Thickness")
         left_filler = self.product.get_prompt("Left Side Wall Filler")
         right_filler = self.product.get_prompt("Right Side Wall Filler")
+        left_filler_setback_amount = self.product.get_prompt("Left Filler Setback Amount")
+        right_filler_setback_amount = self.product.get_prompt("Right Filler Setback Amount")
         l_end = self.product.get_prompt("Left End Condition")
         r_end = self.product.get_prompt("Right End Condition")
         
@@ -2945,7 +3053,7 @@ class OPERATOR_Closet_Standard_Draw_Plan(bpy.types.Operator):
                             right_filler_obj.location.y -= section_depth.value()
                             right_filler_obj.rotation_euler = self.product.obj_bp.rotation_euler
                             right_filler_obj.mv.type = 'CAGE'
-
+                          
         return {'FINISHED'}
                 
 bpy.utils.register_class(PROMPTS_Opening_Starter)

@@ -20,7 +20,6 @@ def render_material_exists(material_name):
 
 class ColorMixIn:
     has_render_mat = bpy.props.BoolProperty(name="Has Rendering Material")
-    location_code = bpy.props.IntProperty(name="Location Code")
     oversize_max_len = bpy.props.IntProperty(name="Oversize Material Max Length", default=0)
 
     def render_material_exists(self, material_name):

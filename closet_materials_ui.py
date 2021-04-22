@@ -101,7 +101,6 @@ class MENU_Edge_Colors(bpy.types.Menu):
     bl_label = "Edge Colors"
 
     def draw(self, context):
-        snap_db_prefs = context.user_preferences.addons["snap_db"].preferences
         cab_mat_props = context.scene.db_materials
         edge_type = cab_mat_props.edges.get_edge_type()
         colors = edge_type.colors
@@ -109,14 +108,7 @@ class MENU_Edge_Colors(bpy.types.Menu):
         row = layout.row()
         G.collection = colors
 
-        location_colors = []
-        location_colors.clear()
-
-        for color in colors:
-            if color.location_code == int(snap_db_prefs.location_code):
-                location_colors.append(color)
-
-        for index, item in enumerate(location_colors):
+        for index, item in enumerate(colors):
 
             if index % MAX_MENU_COL_LEN == 0:
                 col = row.column()
@@ -160,7 +152,6 @@ class MENU_Door_Drawer_Edge_Colors(bpy.types.Menu):
     bl_label = "Door/Drawer Edge Colors"
 
     def draw(self, context):
-        snap_db_prefs = context.user_preferences.addons["snap_db"].preferences
         cab_mat_props = context.scene.db_materials
         edge_type = cab_mat_props.door_drawer_edges.get_edge_type()
         colors = edge_type.colors
@@ -168,14 +159,7 @@ class MENU_Door_Drawer_Edge_Colors(bpy.types.Menu):
         row = layout.row()
         G.collection = colors
 
-        location_colors = []
-        location_colors.clear()
-
-        for color in colors:
-            if color.location_code == int(snap_db_prefs.location_code):
-                location_colors.append(color)
-
-        for index, item in enumerate(location_colors):
+        for index, item in enumerate(colors):
 
             if index % MAX_MENU_COL_LEN == 0:
                 col = row.column()
@@ -219,7 +203,6 @@ class MENU_Secondary_Edge_Colors(bpy.types.Menu):
     bl_label = "Secondary Edge Colors"
 
     def draw(self, context):
-        snap_db_prefs = context.user_preferences.addons["snap_db"].preferences
         cab_mat_props = context.scene.db_materials
         edge_type = cab_mat_props.secondary_edges.get_edge_type()
         colors = edge_type.colors
@@ -227,14 +210,7 @@ class MENU_Secondary_Edge_Colors(bpy.types.Menu):
         row = layout.row()
         G.collection = colors
 
-        location_colors = []
-        location_colors.clear()
-
-        for color in colors:
-            if color.location_code == int(snap_db_prefs.location_code):
-                location_colors.append(color)
-
-        for index, item in enumerate(location_colors):
+        for index, item in enumerate(colors):
 
             if index % MAX_MENU_COL_LEN == 0:
                 col = row.column()
@@ -253,7 +229,6 @@ class MENU_Mat_Colors(bpy.types.Menu):
     bl_label = "Material Colors"
 
     def draw(self, context):
-        snap_db_prefs = context.user_preferences.addons["snap_db"].preferences
         cab_mat_props = context.scene.db_materials
         mat_type = cab_mat_props.materials.get_mat_type()
         colors = mat_type.colors
@@ -261,14 +236,7 @@ class MENU_Mat_Colors(bpy.types.Menu):
         row = layout.row()
         G.collection = colors
 
-        location_colors = []
-        location_colors.clear()
-
-        for color in colors:
-            if color.location_code == int(snap_db_prefs.location_code):
-                location_colors.append(color)
-
-        for index, item in enumerate(location_colors):
+        for index, item in enumerate(colors):
 
             if index % MAX_MENU_COL_LEN == 0:
                 col = row.column()
@@ -319,7 +287,6 @@ class MENU_Door_Drawer_Mat_Colors(bpy.types.Menu):
     bl_label = "Custom Material Colors"
 
     def draw(self, context):
-        snap_db_prefs = context.user_preferences.addons["snap_db"].preferences
         cab_mat_props = context.scene.db_materials
         mat_type = cab_mat_props.door_drawer_materials.get_mat_type()
         colors = mat_type.colors
@@ -327,14 +294,7 @@ class MENU_Door_Drawer_Mat_Colors(bpy.types.Menu):
         row = layout.row()
         G.collection = colors
 
-        location_colors = []
-        location_colors.clear()
-
-        for color in colors:
-            if color.location_code == int(snap_db_prefs.location_code):
-                location_colors.append(color)
-
-        for index, item in enumerate(location_colors):
+        for index, item in enumerate(colors):
 
             if index % MAX_MENU_COL_LEN == 0:
                 col = row.column()

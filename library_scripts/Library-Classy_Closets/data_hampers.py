@@ -512,7 +512,16 @@ class OPS_Hamper_Drop(bpy.types.Operator):
         carcass_bp = utils.get_parent_assembly_bp(insert_bp)
         hamper_assembly = fd_types.Assembly(insert_bp)        
         Hamper_Backing_Gap = hamper_assembly.get_var('Hamper Backing Gap')
+        carcass_props = props_closet.get_object_props(carcass_bp)
+        cleat_location = hamper_assembly.get_prompt("Cleat Location")
+        has_counter_top = False
 
+        for child in carcass_bp.children:
+            if child.lm_closets.is_countertop_bp or child.lm_closets.is_counter_top_insert_bp:
+                has_counter_top = True
+        if has_counter_top or carcass_props.is_island:
+            cleat_location.set_value("Below")
+            
         for child in carcass_bp.children:
             if child.lm_closets.is_back_bp:
                 if child.mv.opening_name == opening_name:

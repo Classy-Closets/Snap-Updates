@@ -24,17 +24,24 @@ class Wall_Cleat(fd_types.Assembly):
         #self.add_prompt(name="Width",prompt_type='DISTANCE',value=unit.inch(18),tab_index=1)
         self.add_prompt(name="Height",prompt_type='DISTANCE',value=unit.inch(3.64),tab_index=1)
         self.add_prompt(name="Distance Above Floor",prompt_type='DISTANCE',value=unit.inch(60),tab_index=1)
-
+        self.add_prompt(name="Exposed Top",prompt_type='CHECKBOX',value=False,tab_index=0)
+        self.add_prompt(name="Exposed Left",prompt_type='CHECKBOX',value=False,tab_index=0)
+        self.add_prompt(name="Exposed Right",prompt_type='CHECKBOX',value=False,tab_index=0)
+        self.add_prompt(name="Exposed Bottom",prompt_type='CHECKBOX',value=False,tab_index=0) 
         common_prompts.add_thickness_prompts(self)
 
         Width = self.get_var("dim_x","Width")
         Height = self.get_var("Height")
-
-
         Distance_Above_Floor = self.get_var('Distance Above Floor')
         Panel_Thickness = self.get_var('Panel Thickness')
         
-        cleat = common_parts.add_cleat(self)
+        Exposed_Left = self.get_var('Exposed Left')
+        Exposed_Right = self.get_var('Exposed Right')
+        Exposed_Bottom = self.get_var('Exposed Bottom')
+        Exposed_Top = self.get_var('Exposed Top')
+        
+
+        cleat = common_parts.add_wall_cleat(self)
         cleat.obj_bp.mv.comment_2 = "1024"
         cleat.set_name("Cleat")
 
@@ -47,8 +54,12 @@ class Wall_Cleat(fd_types.Assembly):
         cleat.x_dim('Width',[Width])
         cleat.y_dim('-Height',[Height])
         cleat.z_dim('-Panel_Thickness',[Panel_Thickness])
-        cleat.prompt('Use Cleat Cover', value=False)
-
+        cleat.prompt('Exposed Left','Exposed_Left',[Exposed_Left])
+        cleat.prompt('Exposed Right','Exposed_Right',[Exposed_Right])
+        cleat.prompt('Exposed Bottom','Exposed_Bottom',[Exposed_Bottom])
+        cleat.prompt('Exposed Top','Exposed_Top',[Exposed_Top])
+        
+        
         self.update()
 
 class PROMPTS_Wall_Cleat_Prompts(fd_types.Prompts_Interface):
@@ -63,8 +74,8 @@ class PROMPTS_Wall_Cleat_Prompts(fd_types.Prompts_Interface):
     width = bpy.props.FloatProperty(name="Width",unit='LENGTH',precision=4)
     height = bpy.props.FloatProperty(name="Height",unit='LENGTH',precision=4)
     depth = bpy.props.FloatProperty(name="Depth",unit='LENGTH',precision=4)
-
-
+    
+    
     placement_on_wall = bpy.props.EnumProperty(name="Placement on Wall",items=[('SELECTED_POINT',"Selected Point",""),
                                                                      ('FILL',"Fill",""),
                                                                      ('FILL_LEFT',"Fill Left",""),
@@ -88,6 +99,7 @@ class PROMPTS_Wall_Cleat_Prompts(fd_types.Prompts_Interface):
     def check(self, context):
         self.product.obj_x.location.x = self.width
         self.update_placement(context)
+        props_closet.update_render_materials(self, context)
         return True
 
 
@@ -168,19 +180,43 @@ class PROMPTS_Wall_Cleat_Prompts(fd_types.Prompts_Interface):
         layout.label(self.product.obj_bp.mv.name_object)
         self.draw_product_size(layout)
         box = layout.box()
-
         distance_above_floor = self.product.get_prompt("Distance Above Floor")
         #width = self.product.get_prompt("Width")
         height = self.product.get_prompt("Height")
-               
+        exposed_top = self.product.get_prompt("Exposed Top")
+        exposed_left = self.product.get_prompt("Exposed Left")
+        exposed_right = self.product.get_prompt("Exposed Right")      
+        exposed_bottom = self.product.get_prompt("Exposed Bottom") 
+        
+              
 
         #row = box.row()
         #width.draw_prompt(row,text="Width:",split_text=True)
+        
         row = box.row()
         height.draw_prompt(row,text="Height:",split_text=True)
         row = box.row()
         distance_above_floor.draw_prompt(row,text="Distance Above Floor:",split_text=True)
-
+        split = box.split()
+        col = split.column(align=True)
+        edgebanding_prompts =[exposed_left,exposed_right,exposed_bottom,exposed_top]
+     
+        if all(edgebanding_prompts):
+            col.label("Exposed Edges:")
+            row = col.row()
+            row.prop(exposed_left,'CheckBoxValue',text="Left")
+            row.prop(exposed_top,'CheckBoxValue',text="Top")
+            row = col.row()
+            row.prop(exposed_right,'CheckBoxValue',text="Right")
+            row.prop(exposed_bottom,'CheckBoxValue',text="Bottom")
+        row = box.row()
+        #row.label("Exposed Ends:")
+        #exposed_left.draw_prompt(row,text="Left",split_text=False)
+        #exposed_right.draw_prompt(row,text="Right",split_text=False)       
+        #exposed_back.draw_prompt(row,text="Back",split_text=False) 
+            
+                
+                
 #        row = box.row()
 #        row.label('Distance From Wall:')
 #        row.prop(self,'current_location',text="")

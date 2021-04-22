@@ -1323,6 +1323,7 @@ class OPS_Doors_Drop(bpy.types.Operator):
                                 if(opening_quantity == 1):
                                     if(closet_assembly.get_prompt("Blind Corner Left").value()):
                                         self.insert.get_prompt("Has Blind Left Corner").set_value(True)
+                                        self.insert.get_prompt("Use Left Swing").set_value(True)
                                         opening_width = opening_width - left_depth + unit.inch(0.75)
                                     if(closet_assembly.get_prompt("Blind Corner Right").value()):
                                         self.insert.get_prompt("Has Blind Right Corner").set_value(True)
@@ -1330,6 +1331,7 @@ class OPS_Doors_Drop(bpy.types.Operator):
                                 elif(self.insert.obj_bp.mv.opening_name == '1'):
                                     if(closet_assembly.get_prompt("Blind Corner Left").value()):
                                         self.insert.get_prompt("Has Blind Left Corner").set_value(True)
+                                        self.insert.get_prompt("Use Left Swing").set_value(True)
                                         opening_width = opening_width - left_depth + unit.inch(0.75)
                                 elif(self.insert.obj_bp.mv.opening_name == str(opening_quantity)):
                                     if(closet_assembly.get_prompt("Blind Corner Right").value()):

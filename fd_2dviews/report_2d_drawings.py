@@ -14,11 +14,17 @@ from mv import fd_types, unit, utils
 from PIL import Image, ImageChops
 
 
+def get_dimension_props():
+    dimprops = eval("bpy.context.scene.mv_closet_dimensions")
+    return dimprops
+
+
 class OPERATOR_create_pdf(bpy.types.Operator):
     bl_idname = "2dviews.report_2d_drawings"
     bl_label = "Save 2D Drawing As..."
     bl_description = "This creates a 2D drawing pdf of all of the images"
 
+    filter_glob = bpy.props.StringProperty(default="*.pdf", options={'HIDDEN'})
     filepath = bpy.props.StringProperty(subtype="FILE_PATH")
     filename = bpy.props.StringProperty()
     directory = bpy.props.StringProperty()
@@ -198,7 +204,7 @@ class OPERATOR_create_pdf(bpy.types.Operator):
         max_height = max(heights) + border[1] + border[3]
         new_im = Image.new('RGB', (total_width, max_height), white_bg)
         for im in cropped_ims:
-            y_offset = int((max(heights) - im.size[1]) / 2) + border[1]
+            y_offset = max(heights) - im.size[1] + border[1]
             new_im.paste(im, (x_offset, y_offset))
             x_offset += im.size[0] + 10
         # Always save as PNG, JPG makes blender crash silently
@@ -286,6 +292,17 @@ class OPERATOR_create_pdf(bpy.types.Operator):
             return self.join_images_vertical([upper_image, lower_image], self.random_string(6))
         return False
 
+    def fix_file_ext(self, name, file_ext):
+        if not name.lower().endswith(file_ext):
+            name_strs = name.split('.')
+            if len(name_strs) > 1 and name_strs[-1] == 'ccp' or 'blend':
+                fixed_name = '{}.{}'.format('.'.join(name_strs[:-1]), file_ext)
+            else:
+                fixed_name = '{}.{}'.format(name, file_ext)
+            return fixed_name
+        else:
+            return name
+
     # HINGES
 #     def get_hinge_qty(self,context):
 #         number_of_hinges = 0
@@ -299,6 +316,11 @@ class OPERATOR_create_pdf(bpy.types.Operator):
             return {'FINISHED'}
 
         props = context.window_manager.views_2d
+        dimprops = get_dimension_props()
+        incl_accordions = dimprops.include_accordions
+        option = props.page_layout_setting
+        if incl_accordions:
+            option = props.accordions_layout_setting
         bpy.ops.lm_closets.assign_materials()
         pdf_images = []
 
@@ -340,12 +362,68 @@ class OPERATOR_create_pdf(bpy.types.Operator):
         width, height = self.paper_size(props.paper_size)
         image_views = context.window_manager.mv.image_views
         plan_view = [view for view in image_views if view.is_plan_view]
-        elevations = [view for view in image_views if view.is_elv_view]
+        elevations = [view for view in image_views if view.is_elv_view and 'accordion' not in view.image_name.lower()]
+        accordions = [view for view in image_views if view.is_elv_view and 'accordion' in view.image_name.lower()]
         pages = []
 
-        if props.page_layout_setting == 'SINGLE':
-            pages = pdf_images
-        elif props.page_layout_setting == '2ELVS':
+        if option == '1_ACCORD':
+            pages = []
+            chunk_length = 1
+            first_page_qty = 1
+            feeds = []
+            if len(plan_view) > 0:
+                feeds.append(plan_view[0])
+            while len(accordions) > 0:
+                feeds.append(accordions.pop(0))
+            first_page = feeds[:first_page_qty]
+            pages.append(self.__prepare_image_page__(
+                first_page, props.paper_size, "full"))
+            other_pages = feeds[first_page_qty:]
+            feeds_chunks = [other_pages[x:x+chunk_length]
+                            for x in range(0, len(other_pages), chunk_length)]
+            for i in range(len(feeds_chunks)):
+                pages.append(self.__prepare_image_page__(
+                    feeds_chunks[i], props.paper_size, "two"))
+
+        if option == '2_ACCORD':
+            pages = []
+            chunk_length = 2
+            first_page_qty = 1
+            feeds = []
+            if len(plan_view) > 0:
+                feeds.append(plan_view[0])
+            while len(accordions) > 0:
+                feeds.append(accordions.pop(0))
+            first_page = feeds[:first_page_qty]
+            pages.append(self.__prepare_image_page__(
+                first_page, props.paper_size, "full"))
+            other_pages = feeds[first_page_qty:]
+            feeds_chunks = [other_pages[x:x+chunk_length]
+                            for x in range(0, len(other_pages), chunk_length)]
+            for i in range(len(feeds_chunks)):
+                pages.append(self.__prepare_image_page__(
+                    feeds_chunks[i], props.paper_size, "two"))
+
+        if option == 'SINGLE':
+            pages = []
+            chunk_length = 1
+            first_page_qty = 1
+            feeds = []
+            if len(plan_view) > 0:
+                feeds.append(plan_view[0])
+            while len(elevations) > 0:
+                feeds.append(elevations.pop(0))
+            first_page = feeds[:first_page_qty]
+            pages.append(self.__prepare_image_page__(
+                first_page, props.paper_size, "full"))
+            other_pages = feeds[first_page_qty:]
+            feeds_chunks = [other_pages[x:x+chunk_length]
+                            for x in range(0, len(other_pages), chunk_length)]
+            for i in range(len(feeds_chunks)):
+                pages.append(self.__prepare_image_page__(
+                    feeds_chunks[i], props.paper_size, "full"))
+
+        elif option == '2ELVS':
             pages = []
             chunk_length = 2
             first_page_qty = 1
@@ -364,7 +442,7 @@ class OPERATOR_create_pdf(bpy.types.Operator):
                 pages.append(self.__prepare_image_page__(
                     feeds_chunks[i], props.paper_size, "two"))
 
-        elif props.page_layout_setting == '3ELVS':
+        elif option == '3ELVS':
             pages = []
             chunk_length = 3
             first_page_qty = 1
@@ -383,7 +461,7 @@ class OPERATOR_create_pdf(bpy.types.Operator):
                 pages.append(self.__prepare_image_page__(
                     feeds_chunks[i], props.paper_size, "three"))
 
-        elif props.page_layout_setting == 'PLAN+1ELVS':
+        elif option == 'PLAN+1ELVS':
             pages = []
             if (len(elevations) == 1):
                 first_page_qty = 2
@@ -484,6 +562,107 @@ class OPERATOR_create_pdf(bpy.types.Operator):
                     pages.append(self.__prepare_image_page__(
                         feeds_chunks[i], props.paper_size, "three"))
 
+        elif option == 'PLAN+1ACCORDS':
+            pages = []
+            if (len(accordions) == 1):
+                first_page_qty = 2
+                feeds = []
+                if len(plan_view) > 0:
+                    feeds.append(plan_view[0])
+                while len(accordions) > 0:
+                    feeds.append(accordions.pop(0))
+                first_page = feeds[:first_page_qty]
+                pages.append(self.__prepare_image_page__(
+                    first_page, props.paper_size, "two"))
+            elif (len(accordions) == 2):
+                first_page_qty = 3
+                feeds = []
+                if len(plan_view) > 0:
+                    feeds.append(plan_view[0])
+                while len(accordions) > 0:
+                    feeds.append(accordions.pop(0))
+                first_page = feeds[:first_page_qty]
+                pages.append(self.__prepare_image_page__(
+                    first_page, props.paper_size, "1up2down"))
+            elif (len(accordions) == 3):
+                first_page_qty = 4
+                feeds = []
+                if len(plan_view) > 0:
+                    feeds.append(plan_view[0])
+                while len(accordions) > 0:
+                    feeds.append(accordions.pop(0))
+                first_page = feeds[:first_page_qty]
+                pages.append(self.__prepare_image_page__(
+                    first_page, props.paper_size, "1up3down"))
+            elif (len(accordions) == 4):
+                chunk_length = 3
+                first_page_qty = 2
+                feeds = []
+                if len(plan_view) > 0:
+                    feeds.append(plan_view[0])
+                while len(accordions) > 0:
+                    feeds.append(accordions.pop(0))
+                first_page = feeds[:first_page_qty]
+                other_pages = feeds[first_page_qty:]
+                pages.append(self.__prepare_image_page__(
+                    first_page, props.paper_size, "two"))
+                feeds_chunks = [other_pages[x:x+chunk_length]
+                                for x in range(0, len(other_pages), chunk_length)]
+                for i in range(len(feeds_chunks)):
+                    pages.append(self.__prepare_image_page__(
+                        feeds_chunks[i], props.paper_size, "three"))
+            elif (len(accordions) == 5):
+                chunk_length = 3
+                first_page_qty = 3
+                feeds = []
+                if len(plan_view) > 0:
+                    feeds.append(plan_view[0])
+                while len(accordions) > 0:
+                    feeds.append(accordions.pop(0))
+                first_page = feeds[:first_page_qty]
+                other_pages = feeds[first_page_qty:]
+                pages.append(self.__prepare_image_page__(
+                    first_page, props.paper_size, "1up2down"))
+                feeds_chunks = [other_pages[x:x+chunk_length]
+                                for x in range(0, len(other_pages), chunk_length)]
+                for i in range(len(feeds_chunks)):
+                    pages.append(self.__prepare_image_page__(
+                        feeds_chunks[i], props.paper_size, "three"))
+            elif (len(accordions) == 6):
+                chunk_length = 3
+                first_page_qty = 4
+                feeds = []
+                if len(plan_view) > 0:
+                    feeds.append(plan_view[0])
+                while len(accordions) > 0:
+                    feeds.append(accordions.pop(0))
+                first_page = feeds[:first_page_qty]
+                other_pages = feeds[first_page_qty:]
+                pages.append(self.__prepare_image_page__(
+                    first_page, props.paper_size, "1up3down"))
+                feeds_chunks = [other_pages[x:x+chunk_length]
+                                for x in range(0, len(other_pages), chunk_length)]
+                for i in range(len(feeds_chunks)):
+                    pages.append(self.__prepare_image_page__(
+                        feeds_chunks[i], props.paper_size, "three"))
+            elif (len(accordions) > 6):
+                chunk_length = 3
+                first_page_qty = 1
+                feeds = []
+                if len(plan_view) > 0:
+                    feeds.append(plan_view[0])
+                while len(elevations) > 0:
+                    feeds.append(elevations.pop(0))
+                first_page = feeds[:first_page_qty]
+                pages.append(self.__prepare_image_page__(
+                    first_page, props.paper_size, "full"))
+                other_pages = feeds[first_page_qty:]
+                feeds_chunks = [other_pages[x:x+chunk_length]
+                                for x in range(0, len(other_pages), chunk_length)]
+                for i in range(len(feeds_chunks)):
+                    pages.append(self.__prepare_image_page__(
+                        feeds_chunks[i], props.paper_size, "three"))
+
         self.write_images(context, pages, props.paper_size)
 
         # FIX FILE PATH To remove all double backslashes
@@ -503,6 +682,10 @@ class OPERATOR_create_pdf(bpy.types.Operator):
         #     os.system('start "Title" /D "' + fixed_file_path + '" "' + file_name + '"')
         # else:
         #     print('Cannot Find ' + os.path.join(fixed_file_path,file_name))
+
+        # Clean up temp dir at the end to prevent black renders
+        for f in os.listdir(bpy.app.tempdir):
+            os.remove(os.path.join(bpy.app.tempdir, f))
 
         return {'FINISHED'}
 
@@ -669,6 +852,9 @@ class OPERATOR_create_pdf(bpy.types.Operator):
             rod_type = "None"
         else:
             rod_type = context.scene.lm_closets.closet_options.rods_name
+
+        self.filepath = self.fix_file_ext(self.filepath, 'pdf')
+        self.filename = self.fix_file_ext(self.filename, 'pdf')
 
         c = canvas.Canvas(
             self.filepath, pagesize=self.paper_size(print_paper_size))

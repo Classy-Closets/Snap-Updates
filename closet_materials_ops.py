@@ -372,7 +372,76 @@ class OPERATOR_Assign_Materials(bpy.types.Operator):
                                     for mat_slot in child.cabinetlib.material_slots:
                                         if mat_slot.name == 'BackEdge':
                                             mat_slot.pointer_name = "Core"
-
+                                            
+                #Wall_Cleat
+                if props.is_wall_cleat_bp:
+                    exposed_left = assembly.get_prompt("Exposed Left")
+                    exposed_right = assembly.get_prompt("Exposed Right")
+                    exposed_top = assembly.get_prompt("Exposed Top")
+                    exposed_bottom = assembly.get_prompt("Exposed Bottom")
+                    
+                    if exposed_left:
+                        if exposed_left.value():
+                            for child in assembly.obj_bp.children:
+                                if child.cabinetlib.type_mesh == 'CUTPART':                        
+                                    child.mv.edge_w1 = 'Edge'
+                                    for mat_slot in child.cabinetlib.material_slots:
+                                        if mat_slot.name == 'LeftEdge':
+                                            mat_slot.pointer_name = "Closet_Part_Edges"                                
+                        else:
+                            for child in assembly.obj_bp.children:
+                                if child.cabinetlib.type_mesh == 'CUTPART':                        
+                                    child.mv.edge_w1 = ''
+                                    for mat_slot in child.cabinetlib.material_slots:
+                                        if mat_slot.name == 'LeftEdge':
+                                            mat_slot.pointer_name = "Core"                    
+                    if exposed_right:
+                        if exposed_right.value():
+                            for child in assembly.obj_bp.children:
+                                if child.cabinetlib.type_mesh == 'CUTPART':                        
+                                    child.mv.edge_w2 = 'Edge'
+                                    for mat_slot in child.cabinetlib.material_slots:
+                                        if mat_slot.name == 'RightEdge':
+                                            mat_slot.pointer_name = "Closet_Part_Edges"                                   
+                        else:
+                            for child in assembly.obj_bp.children:
+                                if child.cabinetlib.type_mesh == 'CUTPART':                        
+                                    child.mv.edge_w2 = ''
+                                    for mat_slot in child.cabinetlib.material_slots:
+                                        if mat_slot.name == 'RightEdge':
+                                            mat_slot.pointer_name = "Core"    
+                                            
+                    if exposed_top:
+                        if exposed_top.value():
+                            for child in assembly.obj_bp.children:
+                                if child.cabinetlib.type_mesh == 'CUTPART':                        
+                                    child.mv.edge_l2 = 'Edge'
+                                    for mat_slot in child.cabinetlib.material_slots:  
+                                        if mat_slot.name == 'Edgebanding':
+                                            mat_slot.pointer_name = "Closet_Part_Edges"                                   
+                        else:
+                            for child in assembly.obj_bp.children:
+                                if child.cabinetlib.type_mesh == 'CUTPART':                        
+                                    child.mv.edge_l2 = ''
+                                    for mat_slot in child.cabinetlib.material_slots: 
+                                        if mat_slot.name == 'Edgebanding':
+                                            mat_slot.pointer_name = "Core"
+                                                                                
+                    if exposed_bottom:
+                        if exposed_bottom.value():
+                            for child in assembly.obj_bp.children:
+                                if child.cabinetlib.type_mesh == 'CUTPART':                        
+                                    child.mv.edge_l2 = 'Edge'
+                                for mat_slot in child.cabinetlib.material_slots:
+                                    if mat_slot.name == 'BackEdge':
+                                        mat_slot.pointer_name = "Closet_Part_Edges"                                   
+                        else:
+                            for child in assembly.obj_bp.children:
+                                if child.cabinetlib.type_mesh == 'CUTPART':                        
+                                    child.mv.edge_l2 = ''
+                                    for mat_slot in child.cabinetlib.material_slots:
+                                        if mat_slot.name == 'BackEdge':
+                                            mat_slot.pointer_name = "Core"
                 # Crown
                 if props.is_crown_molding:
                     exposed_left = assembly.get_prompt("Exposed Left")
@@ -425,6 +494,59 @@ class OPERATOR_Assign_Materials(bpy.types.Operator):
                                     for mat_slot in child.cabinetlib.material_slots:
                                         if mat_slot.name == 'BackEdge':
                                             mat_slot.pointer_name = "Core"
+
+                #Edge Bottom Filler                                            
+                if props.is_filler_bp:
+                    exposed_left = assembly.get_prompt("Exposed Left")
+                    exposed_right = assembly.get_prompt("Exposed Right")
+                    exposed_back = assembly.get_prompt("Exposed Back")
+                    if exposed_left:
+                        if exposed_left.value():
+                            for child in assembly.obj_bp.children:
+                                if child.cabinetlib.type_mesh == 'CUTPART':                        
+                                    child.mv.edge_w1 = 'Edge'
+                                    for mat_slot in child.cabinetlib.material_slots:
+                                        if mat_slot.name == 'LeftEdge':
+                                            mat_slot.pointer_name = "Closet_Part_Edges"                                
+                        else:
+                            for child in assembly.obj_bp.children:
+                                if child.cabinetlib.type_mesh == 'CUTPART':                        
+                                    child.mv.edge_w1 = ''
+                                    for mat_slot in child.cabinetlib.material_slots:
+                                        if mat_slot.name == 'LeftEdge':
+                                            mat_slot.pointer_name = "Core"                    
+                    if exposed_right:
+                        if exposed_right.value():
+                            for child in assembly.obj_bp.children:
+                                if child.cabinetlib.type_mesh == 'CUTPART':                        
+                                    child.mv.edge_w2 = 'Edge'
+                                    for mat_slot in child.cabinetlib.material_slots:
+                                        if mat_slot.name == 'RightEdge':
+                                            mat_slot.pointer_name = "Closet_Part_Edges"                                   
+                        else:
+                            for child in assembly.obj_bp.children:
+                                if child.cabinetlib.type_mesh == 'CUTPART':                        
+                                    child.mv.edge_w2 = ''
+                                    for mat_slot in child.cabinetlib.material_slots:
+                                        if mat_slot.name == 'RightEdge':
+                                            mat_slot.pointer_name = "Core"    
+                                              
+                    if exposed_back:
+                        if exposed_back.value():
+                            for child in assembly.obj_bp.children:
+                                if child.cabinetlib.type_mesh == 'CUTPART':                        
+                                    child.mv.edge_l2 = 'Edge'
+                                    for mat_slot in child.cabinetlib.material_slots:
+                                        if mat_slot.name == 'BackEdge':
+                                            mat_slot.pointer_name = "Closet_Part_Edges"                                   
+                        else:
+                            for child in assembly.obj_bp.children:
+                                if child.cabinetlib.type_mesh == 'CUTPART':                        
+                                    child.mv.edge_l2 = ''
+                                    for mat_slot in child.cabinetlib.material_slots:
+                                        if mat_slot.name == 'BackEdge':
+                                            mat_slot.pointer_name = "Core"
+                                            
 
                 catnum = assembly.get_prompt("CatNum")
                 if catnum:

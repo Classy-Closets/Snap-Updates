@@ -37,6 +37,7 @@ class L_Shelves(fd_types.Assembly):
         
         self.add_tab(name='L Shelf Options',tab_type='VISIBLE')
         self.add_tab(name='Material Thickness',tab_type='HIDDEN')
+        self.add_tab(name='Shelf Heights',tab_type='VISIBLE')
         self.add_prompt(name="Panel Height",prompt_type='DISTANCE',value=unit.millimeter(float(props.closet_defaults.panel_height)),tab_index=0)
         self.add_prompt(name="Back Inset",prompt_type='DISTANCE',value=unit.inch(.25),tab_index=0)
         self.add_prompt(name="Spine Width",prompt_type='DISTANCE',value=unit.inch(1),tab_index=0)
@@ -45,29 +46,37 @@ class L_Shelves(fd_types.Assembly):
         self.add_prompt(name="Left Depth",prompt_type='DISTANCE',value=unit.inch(12),tab_index=0)       
         self.add_prompt(name="Right Depth",prompt_type='DISTANCE',value=unit.inch(12),tab_index=0)  
         self.add_prompt(name="Shelf Quantity",prompt_type='QUANTITY',value=3,tab_index=0)  
-        self.add_prompt(name="Add Top",prompt_type='CHECKBOX',value=True,tab_index=1,export=True)  
-        self.add_prompt(name="Hide Toe Kick",prompt_type='CHECKBOX',value=False,tab_index=1,export=True)
-        self.add_prompt(name="Add Backing",prompt_type='CHECKBOX',value=False,tab_index=1,export=True)
-        self.add_prompt(name="Is Hanging",prompt_type='CHECKBOX',value=False,tab_index=1,export=True)
-        self.add_prompt(name="Remove Left Side",prompt_type='CHECKBOX',value=False,tab_index=1,export=True)
-        self.add_prompt(name="Remove Right Side",prompt_type='CHECKBOX',value=False,tab_index=1,export=True)
-        self.add_prompt(name="Angled Shelves",prompt_type='CHECKBOX',value=False,tab_index=1,export=True)
-        self.add_prompt(name="Use Left Swing",prompt_type='CHECKBOX',value=False,tab_index=1,export=True)
-        self.add_prompt(name="Force Double Doors",prompt_type='CHECKBOX',value=False,tab_index=1,export=True)
-        self.add_prompt(name="Door",prompt_type='CHECKBOX',value=False,tab_index=1,export=True)        
+        self.add_prompt(name="Add Top",prompt_type='CHECKBOX',value=True,tab_index=0,export=True)  
+        self.add_prompt(name="Hide Toe Kick",prompt_type='CHECKBOX',value=False,tab_index=0,export=True)
+        self.add_prompt(name="Add Backing",prompt_type='CHECKBOX',value=False,tab_index=0,export=True)
+        self.add_prompt(name="Is Hanging",prompt_type='CHECKBOX',value=False,tab_index=0,export=True)
+        self.add_prompt(name="Angled Shelves",prompt_type='CHECKBOX',value=False,tab_index=0,export=True)
+        self.add_prompt(name="Use Left Swing",prompt_type='CHECKBOX',value=False,tab_index=0,export=True)
+        self.add_prompt(name="Pull Location",prompt_type='COMBOBOX',items=["Pull on Left Door","Pull on Right Door"],value=0,tab_index=0,export=True)
+        self.add_prompt(name="Force Double Doors",prompt_type='CHECKBOX',value=False,tab_index=0,export=True)
+        self.add_prompt(name="Door",prompt_type='CHECKBOX',value=False,tab_index=0,export=True)        
         self.add_prompt(name="Door Pull Height",prompt_type='DISTANCE',value=unit.inch(36),tab_index=0)
+        self.add_prompt(name="Door Type",prompt_type='COMBOBOX',items=["Reach Back","Lazy Susan"],value=0,tab_index=0,export=True)
+        self.add_prompt(name="Open Door",prompt_type='PERCENTAGE',value=0,tab_index=0)
+        self.add_prompt(name="Door Rotation",prompt_type='ANGLE',value=120,tab_index=0)
+        self.add_prompt(name="Half Open",prompt_type='PERCENTAGE',value=0.5,tab_index=0)
+        self.add_prompt(name="Pull Type",prompt_type='COMBOBOX',items=["Base","Tall","Upper"],value=0,tab_index=0)
+
+        for i in range(1,11):
+            self.add_prompt(name="Shelf " + str(i) + " Height",prompt_type='DISTANCE',value=unit.millimeter(493.014),tab_index=2)
 
         self.add_prompt(
                 name="Backing Thickness",
                 prompt_type='COMBOBOX',
                 items=['1/4"', '3/4"'],
-                value=0,
-                tab_index=0
+                value=1,
+                tab_index=1
             )
         
         common_prompts.add_toe_kick_prompts(self)
         common_prompts.add_thickness_prompts(self)
         common_prompts.add_door_prompts(self)
+        common_prompts.add_door_pull_prompts(self)
         
         Width = self.get_var('dim_x','Width')
         Height = self.get_var('dim_z','Height')
@@ -83,12 +92,11 @@ class L_Shelves(fd_types.Assembly):
         Shelf_Quantity = self.get_var('Shelf Quantity')
         Add_Backing = self.get_var('Add Backing')
         Back_Inset = self.get_var('Back Inset')
+        DT = self.get_var('Door Type','DT')
 
         Add_Top = self.get_var('Add Top')
         Backing_Thickness = self.get_var('Backing Thickness')
         Is_Hanging = self.get_var('Is Hanging')
-        RLS = self.get_var('Remove Left Side',"RLS")
-        RRS = self.get_var('Remove Right Side',"RRS")
         Spine_Width = self.get_var('Spine Width')
         Spine_Y_Location = self.get_var('Spine Y Location')
         Cleat_Height = self.get_var('Cleat Height')
@@ -96,7 +104,16 @@ class L_Shelves(fd_types.Assembly):
         Door = self.get_var('Door')              
         Door_Pull_Height = self.get_var('Door Pull Height')
         Use_Left_Swing = self.get_var("Use Left Swing")
+        Pull_Location = self.get_var("Pull Location")
         Force_Double_Doors = self.get_var("Force Double Doors")
+        Open = self.get_var("Open Door",'Open')
+        Rotation = self.get_var("Door Rotation",'Rotation')
+        Half = self.get_var("Half Open",'Half')
+        Pull_Type = self.get_var("Pull Type")
+        Base_Pull_Location = self.get_var("Base Pull Location")
+        Tall_Pull_Location = self.get_var("Tall Pull Location")
+        Upper_Pull_Location = self.get_var("Upper Pull Location")
+        World_Z = self.get_var('world_loc_z','World_Z',transform_type='LOC_Z')
         
         inside_height_empty = self.add_empty()
         inside_height_empty.z_loc('IF(Is_Hanging,Panel_Height-(Shelf_Thickness*2)-(Shelf_Thickness*Shelf_Quantity),Height-Toe_Kick_Height-(Shelf_Thickness*2)-(Shelf_Thickness*Shelf_Quantity))',[Panel_Height,Is_Hanging,Height,Toe_Kick_Height,Shelf_Thickness,Shelf_Quantity])
@@ -109,12 +126,14 @@ class L_Shelves(fd_types.Assembly):
         top.x_rot(value = 0)
         top.y_rot(value = 0)
         top.z_rot(value = 0)
-        top.x_dim('Width-IF(RRS,0,PT)',[Width,RRS,PT])
-        top.y_dim('Depth+IF(RLS,0,PT)',[Depth,PT,RLS])
+        top.x_dim('Width-PT',[Width,PT])
+        top.y_dim('Depth+PT',[Depth,PT])
         top.z_dim('-Shelf_Thickness',[Shelf_Thickness])
         top.prompt('Left Depth','Left_Depth',[Left_Depth])
         top.prompt('Right Depth','Right_Depth',[Right_Depth])
-        top.prompt('Hide','IF(Angled_Shelves,True,IF(Add_Top,False,True))',[Angled_Shelves,Add_Top])
+        top.prompt('Hide','IF(Angled_Shelves,True,False)',[Angled_Shelves,Add_Top])
+        top.prompt('Is Locked Shelf',value=True)
+        top.prompt('Is Forced Locked Shelf',value=True)
         
         top_angled = common_parts.add_angle_shelf(self)
         top_angled.x_loc(value=0)
@@ -123,12 +142,14 @@ class L_Shelves(fd_types.Assembly):
         top_angled.x_rot(value = 0)
         top_angled.y_rot(value = 0)
         top_angled.z_rot(value = 0)
-        top_angled.x_dim('Width-IF(RRS,0,PT)',[Width,RRS,PT])
-        top_angled.y_dim('Depth+IF(RLS,0,PT)',[Depth,PT,RLS])
+        top_angled.x_dim('Width-PT',[Width,PT])
+        top_angled.y_dim('Depth+PT',[Depth,PT])
         top_angled.z_dim('-Shelf_Thickness',[Shelf_Thickness])
         top_angled.prompt('Left Depth','Left_Depth',[Left_Depth])
         top_angled.prompt('Right Depth','Right_Depth',[Right_Depth])
-        top_angled.prompt('Hide','IF(Angled_Shelves != True,True,IF(Add_Top,False,True))',[Angled_Shelves,Add_Top])
+        top_angled.prompt('Hide','IF(Angled_Shelves != True,True,False)',[Angled_Shelves,Add_Top])
+        top_angled.prompt('Is Locked Shelf',value=True)
+        top_angled.prompt('Is Forced Locked Shelf',value=True)
         
         right_top_cleat = common_parts.add_cleat(self)
         right_top_cleat.set_name("Right Top Cleat")
@@ -138,7 +159,7 @@ class L_Shelves(fd_types.Assembly):
         right_top_cleat.x_rot(value=-90)
         right_top_cleat.y_rot(value=0)
         right_top_cleat.z_rot(value=0)
-        right_top_cleat.x_dim('Width-Spine_Width-IF(RRS,0,PT)',[RRS,Width,PT,Spine_Width])
+        right_top_cleat.x_dim('Width-Spine_Width-PT',[Width,PT,Spine_Width])
         right_top_cleat.y_dim('Cleat_Height',[Cleat_Height])
         right_top_cleat.z_dim('-PT',[PT])   
         right_top_cleat.prompt('Hide', 'IF(AND(Add_Backing,Backing_Thickness==1),True,False)', [Add_Backing,Backing_Thickness])   
@@ -146,12 +167,12 @@ class L_Shelves(fd_types.Assembly):
         left_top_cleat = common_parts.add_cleat(self)
         left_top_cleat.set_name("Left Top Cleat")
         left_top_cleat.x_loc(value=0)
-        left_top_cleat.y_loc('IF(RLS,Depth,Depth+PT)',[Depth,RLS,PT])
+        left_top_cleat.y_loc('Depth+PT',[Depth,PT])
         left_top_cleat.z_loc('(IF(Add_Top,Height-Shelf_Thickness,Height))+IF(Is_Hanging,0,Toe_Kick_Height)',[Height,Shelf_Thickness,Add_Top,Is_Hanging,Toe_Kick_Height])
         left_top_cleat.x_rot(value=-90)
         left_top_cleat.y_rot(value=0)
         left_top_cleat.z_rot(value=90)
-        left_top_cleat.x_dim('-Depth-Spine_Width-IF(RLS,0,PT)',[RLS,Depth,PT,Spine_Width])
+        left_top_cleat.x_dim('-Depth-Spine_Width-PT',[Depth,PT,Spine_Width])
         left_top_cleat.y_dim('Cleat_Height',[Cleat_Height])
         left_top_cleat.z_dim('-PT',[PT])
         left_top_cleat.prompt('Hide', 'IF(AND(Add_Backing,Backing_Thickness==1),True,False)', [Add_Backing,Backing_Thickness])   
@@ -163,12 +184,14 @@ class L_Shelves(fd_types.Assembly):
         bottom.x_rot(value = 0)
         bottom.y_rot(value = 0)
         bottom.z_rot(value = 0)
-        bottom.x_dim('Width-IF(RRS,0,PT)',[Width,RRS,PT])
-        bottom.y_dim('Depth+IF(RLS,0,PT)',[Depth,PT,RLS])
+        bottom.x_dim('Width-PT',[Width,PT])
+        bottom.y_dim('Depth+PT',[Depth,PT])
         bottom.z_dim('Shelf_Thickness',[Shelf_Thickness])
         bottom.prompt('Left Depth','Left_Depth',[Left_Depth])
         bottom.prompt('Right Depth','Right_Depth',[Right_Depth])
-        bottom.prompt('Hide','IF(Angled_Shelves,True,False)',[Angled_Shelves])         
+        bottom.prompt('Hide','IF(Angled_Shelves,True,False)',[Angled_Shelves])    
+        bottom.prompt('Is Locked Shelf',value=True)     
+        bottom.prompt('Is Forced Locked Shelf',value=True)
         
         bottom_angled = common_parts.add_angle_shelf(self)
         bottom_angled.x_loc(value=0)
@@ -177,12 +200,14 @@ class L_Shelves(fd_types.Assembly):
         bottom_angled.x_rot(value = 0)
         bottom_angled.y_rot(value = 0)
         bottom_angled.z_rot(value = 0)
-        bottom_angled.x_dim('Width-IF(RRS,0,PT)',[Width,RRS,PT])
-        bottom_angled.y_dim('Depth+IF(RLS,0,PT)',[Depth,PT,RLS])
+        bottom_angled.x_dim('Width-PT',[Width,PT])
+        bottom_angled.y_dim('Depth+PT',[Depth,PT])
         bottom_angled.z_dim('Shelf_Thickness',[Shelf_Thickness])
         bottom_angled.prompt('Left Depth','Left_Depth',[Left_Depth])
         bottom_angled.prompt('Right Depth','Right_Depth',[Right_Depth])
         bottom_angled.prompt('Hide','IF(Angled_Shelves,False,True)',[Angled_Shelves]) 
+        bottom_angled.prompt('Is Locked Shelf',value=True)  
+        bottom_angled.prompt('Is Forced Locked Shelf',value=True)
         
         right_bot_cleat = common_parts.add_cleat(self)
         right_bot_cleat.set_name("Right Bottom Cleat")
@@ -192,7 +217,7 @@ class L_Shelves(fd_types.Assembly):
         right_bot_cleat.x_rot(value=-90)
         right_bot_cleat.y_rot(value=0)
         right_bot_cleat.z_rot(value=0)
-        right_bot_cleat.x_dim('Width-Spine_Width-IF(RRS,0,PT)',[RRS,Width,PT,Spine_Width])
+        right_bot_cleat.x_dim('Width-Spine_Width-PT',[Width,PT,Spine_Width])
         right_bot_cleat.y_dim('-Cleat_Height',[Cleat_Height])
         right_bot_cleat.z_dim('-PT',[PT])
         right_bot_cleat.prompt('Hide', 'IF(AND(Add_Backing,Backing_Thickness==1),True,False)', [Add_Backing,Backing_Thickness])        
@@ -200,51 +225,15 @@ class L_Shelves(fd_types.Assembly):
         left_bot_cleat = common_parts.add_cleat(self)
         left_bot_cleat.set_name("Left Bottom Cleat")
         left_bot_cleat.x_loc(value=0)
-        left_bot_cleat.y_loc('IF(RLS,Depth,Depth+PT)',[Depth,RLS,PT])
+        left_bot_cleat.y_loc('Depth+PT',[Depth,PT])
         left_bot_cleat.z_loc('IF(Is_Hanging,Height-Panel_Height+Shelf_Thickness,Shelf_Thickness+Toe_Kick_Height)',[Height,Panel_Height,Is_Hanging,Shelf_Thickness,Toe_Kick_Height])
         left_bot_cleat.x_rot(value=-90)
         left_bot_cleat.y_rot(value=0)
         left_bot_cleat.z_rot(value=90)
-        left_bot_cleat.x_dim('-Depth-Spine_Width-IF(RLS,0,PT)',[RLS,Depth,PT,Spine_Width])
+        left_bot_cleat.x_dim('-Depth-Spine_Width-PT',[Depth,PT,Spine_Width])
         left_bot_cleat.y_dim('-Cleat_Height',[Cleat_Height])
         left_bot_cleat.z_dim('-PT',[PT])
-        left_bot_cleat.prompt('Hide', 'IF(AND(Add_Backing,Backing_Thickness==1),True,False)', [Add_Backing,Backing_Thickness])   
-        
-        shelf = common_parts.add_l_shelf(self)
-        shelf.x_loc('IF(Add_Backing,IF(Backing_Thickness==0,INCH(0.25),INCH(0.75)),0)',[Add_Backing,Backing_Thickness])
-        shelf.y_loc('IF(Add_Backing,IF(Backing_Thickness==0,-INCH(0.25),-INCH(0.75)),0)',[Add_Backing,Backing_Thickness])
-        shelf.z_loc('IF(Is_Hanging,Height-Panel_Height+Shelf_Thickness+(Inside_Height/(Shelf_Quantity+1)),Toe_Kick_Height+Shelf_Thickness+(Inside_Height/(Shelf_Quantity+1)))',
-                    [Is_Hanging,Panel_Height,Height,Inside_Height,Toe_Kick_Height,Shelf_Thickness,Shelf_Quantity])
-        shelf.x_rot(value = 0)
-        shelf.y_rot(value = 0)
-        shelf.z_rot(value = 0)
-        shelf.x_dim('Width-IF(RRS,0,PT)-IF(Add_Backing,IF(Backing_Thickness==0,INCH(0.25),INCH(0.75)),0)',[Width,RRS,PT,Add_Backing,Backing_Thickness])
-        shelf.y_dim('Depth+IF(RLS,0,PT)+IF(Add_Backing,IF(Backing_Thickness==0,INCH(0.25),INCH(0.75)),0)',[Depth,PT,RLS,Add_Backing,Backing_Thickness])
-        shelf.z_dim('Shelf_Thickness',[Shelf_Thickness])
-        shelf.prompt('Left Depth','Left_Depth-IF(Add_Backing,IF(Backing_Thickness==0,INCH(0.25),INCH(0.75)),0)',[Left_Depth,Add_Backing,Backing_Thickness])
-        shelf.prompt('Right Depth','Right_Depth-IF(Add_Backing,IF(Backing_Thickness==0,INCH(0.25),INCH(0.75)),0)',[Right_Depth,Add_Backing,Backing_Thickness])
-        shelf.prompt('Hide','IF(Shelf_Quantity==0,True,False)',[Shelf_Quantity])
-        shelf.prompt('Z Quantity','Shelf_Quantity',[Shelf_Quantity])
-        shelf.prompt('Z Offset','((Inside_Height+IF(Is_Hanging,0,Toe_Kick_Height))/(Shelf_Quantity+1))+Shelf_Thickness',[Inside_Height,Shelf_Quantity,Shelf_Thickness,Toe_Kick_Height,Is_Hanging]) 
-        shelf.prompt('Hide','IF(Angled_Shelves,True,False)',[Angled_Shelves])              
-       
-        shelf_angled = common_parts.add_angle_shelf(self)
-        shelf_angled.x_loc('IF(Add_Backing,IF(Backing_Thickness==0,INCH(0.25),INCH(0.75)),0)',[Add_Backing,Backing_Thickness])
-        shelf_angled.y_loc('IF(Add_Backing,IF(Backing_Thickness==0,-INCH(0.25),-INCH(0.75)),0)',[Add_Backing,Backing_Thickness])
-        shelf_angled.z_loc('IF(Is_Hanging,Height-Panel_Height+Shelf_Thickness+(Inside_Height/(Shelf_Quantity+1)),Toe_Kick_Height+Shelf_Thickness+(Inside_Height/(Shelf_Quantity+1)))',
-                    [Is_Hanging,Panel_Height,Height,Inside_Height,Toe_Kick_Height,Shelf_Thickness,Shelf_Quantity])
-        shelf_angled.x_rot(value = 0)
-        shelf_angled.y_rot(value = 0)
-        shelf_angled.z_rot(value = 0)
-        shelf_angled.x_dim('Width-IF(RRS,0,PT)-IF(Add_Backing,IF(Backing_Thickness==0,INCH(0.25),INCH(0.75)),0)',[Width,RRS,PT,Add_Backing,Backing_Thickness])
-        shelf_angled.y_dim('Depth+IF(RLS,0,PT)+IF(Add_Backing,IF(Backing_Thickness==0,INCH(0.25),INCH(0.75)),0)',[Depth,PT,RLS,Add_Backing,Backing_Thickness])
-        shelf_angled.z_dim('Shelf_Thickness',[Shelf_Thickness])
-        shelf_angled.prompt('Left Depth','Left_Depth-IF(Add_Backing,IF(Backing_Thickness==0,INCH(0.25),INCH(0.75)),0)',[Left_Depth,Add_Backing,Backing_Thickness])
-        shelf_angled.prompt('Right Depth','Right_Depth-IF(Add_Backing,IF(Backing_Thickness==0,INCH(0.25),INCH(0.75)),0)',[Right_Depth,Add_Backing,Backing_Thickness])
-        shelf_angled.prompt('Hide','IF(Shelf_Quantity==0,True,False)',[Shelf_Quantity])
-        shelf_angled.prompt('Z Quantity','Shelf_Quantity',[Shelf_Quantity])
-        shelf_angled.prompt('Z Offset','((Inside_Height+IF(Is_Hanging,0,Toe_Kick_Height))/(Shelf_Quantity+1))+Shelf_Thickness',[Inside_Height,Shelf_Quantity,Shelf_Thickness,Toe_Kick_Height,Is_Hanging])
-        shelf_angled.prompt('Hide','IF(Angled_Shelves,False,True)',[Angled_Shelves]) 
+        left_bot_cleat.prompt('Hide', 'IF(AND(Add_Backing,Backing_Thickness==1),True,False)', [Add_Backing,Backing_Thickness])               
         
         left_panel = common_parts.add_panel(self)
         left_panel.set_name("Left Panel")
@@ -257,9 +246,10 @@ class L_Shelves(fd_types.Assembly):
         left_panel.x_dim('Panel_Height',[Panel_Height])
         left_panel.y_dim('Left_Depth',[Left_Depth])
         left_panel.z_dim('PT',[PT])
-        left_panel.prompt('Hide','IF(RLS,True,False)',[RLS])
+        left_panel.prompt('Left Depth','Left_Depth',[Left_Depth])#Adding this in order to drill the panel on one side
          
         right_panel = common_parts.add_panel(self)
+        right_panel.set_name("Right Panel")
         right_panel.x_loc('Width-PT',[Width,PT])
         right_panel.y_loc(value=0)
         right_panel.z_loc('IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)',[Height,Panel_Height,Is_Hanging,Toe_Kick_Height])
@@ -269,35 +259,39 @@ class L_Shelves(fd_types.Assembly):
         right_panel.x_dim('Panel_Height',[Panel_Height])
         right_panel.y_dim('Right_Depth',[Right_Depth])
         right_panel.z_dim('PT',[PT])
-        right_panel.prompt('Hide','IF(RRS,True,False)',[RRS])
+        right_panel.prompt('Right Depth','Right_Depth',[Right_Depth])#Adding this in order to drill the panel on one side
         
-        right_back = common_parts.add_back(self)
+        right_back = common_parts.add_corner_back(self)
         right_back.set_name("Backing")
-        right_back.x_loc('Spine_Y_Location',[Spine_Y_Location])
+        right_back.x_loc('Width-PT',[Spine_Y_Location,Width,PT])
         right_back.y_loc(value = 0)
         right_back.z_loc('IF(Is_Hanging,Height-Panel_Height+PT+IF(Backing_Thickness==0,Cleat_Height-Back_Inset,0),Toe_Kick_Height+PT+IF(Backing_Thickness==0,Cleat_Height-Back_Inset,0))',[Height,Panel_Height,Is_Hanging,Toe_Kick_Height,Cleat_Height,Back_Inset,PT,Backing_Thickness])
         right_back.x_rot(value = 0)
         right_back.y_rot(value = -90)
         right_back.z_rot(value = -90)
         right_back.x_dim('Panel_Height-IF(Backing_Thickness==0,Cleat_Height*2+Back_Inset,PT)-IF(Add_Top,PT,0)',[Panel_Height,Cleat_Height,Back_Inset,PT,Add_Top,Backing_Thickness])
-        right_back.y_dim('Width-Spine_Y_Location-IF(RRS,0,PT)',[RRS,Width,PT,Spine_Y_Location])
+        right_back.y_dim('-Width+(PT*2)',[Width,PT,Spine_Y_Location])
         right_back.z_dim('IF(Backing_Thickness==0,-INCH(0.25),-INCH(0.75))',[Backing_Thickness])
-        right_back.prompt('Hide','IF(Add_Backing,False,True)',[Add_Backing]),
+        right_back.prompt('Hide','IF(Add_Backing,False,True)',[Add_Backing])
         
-        left_back = common_parts.add_back(self)
+        left_back = common_parts.add_corner_back(self)
         left_back.x_loc(value = 0)
-        left_back.y_loc('-Spine_Y_Location',[Spine_Y_Location])
+        left_back.y_loc('Depth+PT',[Spine_Y_Location,Depth,PT])
         left_back.z_loc('IF(Is_Hanging,Height-Panel_Height+PT+IF(Backing_Thickness==0,Cleat_Height-Back_Inset,0),Toe_Kick_Height+PT+IF(Backing_Thickness==0,Cleat_Height-Back_Inset,0))',[Height,Panel_Height,Is_Hanging,Toe_Kick_Height,Cleat_Height,Back_Inset,PT,Backing_Thickness])
         left_back.x_rot(value = 0)
         left_back.y_rot(value = -90)
         left_back.z_rot(value = -180)
         left_back.x_dim('Panel_Height-IF(Backing_Thickness==0,Cleat_Height*2+Back_Inset,PT)-IF(Add_Top,PT,0)',[Panel_Height,Cleat_Height,Back_Inset,PT,Add_Top,Backing_Thickness])
-        left_back.y_dim('-Depth-Spine_Y_Location-IF(RLS,0,PT)',[Depth,Spine_Y_Location,RLS,PT])
+        left_back.y_dim('Depth+PT',[Depth,Spine_Y_Location,PT])
         left_back.z_dim('IF(Backing_Thickness==0,INCH(0.25),INCH(0.75))',[Backing_Thickness])
         left_back.prompt('Hide','IF(Add_Backing,False,True)',[Add_Backing])
+        left_back.prompt('Is Left Back',value=True)
         
         spine = common_parts.add_panel(self)
         spine.set_name("Mitered Pard")
+        props = props_closet.get_object_props(spine.obj_bp)
+        props.is_panel_bp = False
+        props.is_mitered_pard_bp = True
         spine.obj_bp.mv.comment_2 = "1510"
         spine.x_loc(value = 0)
         spine.y_loc("-Spine_Y_Location", [Spine_Y_Location])
@@ -306,8 +300,9 @@ class L_Shelves(fd_types.Assembly):
         spine.y_rot(value = -90)
         spine.z_rot(value = -45)
         spine.x_dim('Panel_Height',[Panel_Height])
-        spine.y_dim('Spine_Width*3',[Spine_Width])
+        spine.y_dim(value=unit.inch(2.92))
         spine.z_dim('PT',[PT])
+        spine.prompt('Hide','IF(Add_Backing,True,False)',[Add_Backing])
         
         #Toe_Kick   
         left_kick = common_parts.add_toe_kick(self)
@@ -411,14 +406,14 @@ class L_Shelves(fd_types.Assembly):
         #Left Angled Door     
         angled_door_l = common_parts.add_door(self)
         angled_door_l.set_name("Angled Door Left")
-        angled_door_l.x_loc('IF(Force_Double_Doors,(Left_Depth+(sqrt(((Width-Left_Depth-PT)/2)**2))),(Left_Depth+(sqrt((Width-Left_Depth-PT)**2))))',[Left_Depth,Width,PT,Force_Double_Doors])        
-        angled_door_l.y_loc('IF(Force_Double_Doors,(Depth+PT+(sqrt(((Depth+Right_Depth+PT)/2)**2))),(Depth+PT+(sqrt((Depth+Right_Depth+PT)**2))))',[Depth,PT,Right_Depth,Force_Double_Doors])      
+        angled_door_l.x_loc("Left_Depth",[Left_Depth])
+        angled_door_l.y_loc("Depth+PT",[Depth,PT])
         angled_door_l.z_loc('IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)+(Shelf_Thickness/2)',[Height,Panel_Height,Is_Hanging,Toe_Kick_Height,Shelf_Thickness])
         angled_door_l.x_rot(value = 0)
         angled_door_l.y_rot(value = -90)
-        angled_door_l.z_rot('(atan((Width-Left_Depth)/(Depth+Right_Depth)))+3.14159',[Width,Depth,Right_Depth,Left_Depth])
+        angled_door_l.z_rot('(atan((Width-Left_Depth)/(Depth+Right_Depth)))+3.14159-radians(Open*Rotation)',[Width,Depth,Right_Depth,Left_Depth,Open,Rotation])
         angled_door_l.x_dim('Panel_Height-(Shelf_Thickness)',[Panel_Height,Shelf_Thickness])
-        angled_door_l.y_dim('IF(Force_Double_Doors,(sqrt((Width-Left_Depth-PT)**2+(Depth+Right_Depth+PT)**2)/2)-0.0015875,(sqrt((Width-Left_Depth-PT)**2+(Depth+Right_Depth+PT)**2)))',[Width,Left_Depth,Depth,Right_Depth,PT,Force_Double_Doors])
+        angled_door_l.y_dim('IF(Force_Double_Doors,(sqrt((Width-Left_Depth-PT)**2+(Depth+Right_Depth+PT)**2)/2)-0.0015875,(sqrt((Width-Left_Depth-PT)**2+(Depth+Right_Depth+PT)**2)))*-1',[Width,Left_Depth,Depth,Right_Depth,PT,Force_Double_Doors])
         angled_door_l.z_dim('PT',[PT])
         angled_door_l.prompt('Hide','IF((Door and Angled_Shelves and Force_Double_Doors and Use_Left_Swing),False,IF((Door and Angled_Shelves and Force_Double_Doors),False,IF((Door and Angled_Shelves and Use_Left_Swing),True,IF((Door and Angled_Shelves),False,True))))',[Door,Use_Left_Swing,Angled_Shelves,Force_Double_Doors])
  
@@ -430,7 +425,7 @@ class L_Shelves(fd_types.Assembly):
         angled_door_r.z_loc('IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)+(Shelf_Thickness/2)',[Height,Panel_Height,Is_Hanging,Toe_Kick_Height,Shelf_Thickness])
         angled_door_r.x_rot(value = 0)
         angled_door_r.y_rot(value = -90)
-        angled_door_r.z_rot('(atan((Width-Left_Depth)/(Depth+Right_Depth)))+3.14159',[Width,Depth,Right_Depth,Left_Depth])
+        angled_door_r.z_rot('(atan((Width-Left_Depth)/(Depth+Right_Depth)))+3.14159+radians(Open*Rotation)',[Width,Depth,Right_Depth,Left_Depth,Open,Rotation])
         angled_door_r.x_dim('Panel_Height-(Shelf_Thickness)',[Panel_Height,Shelf_Thickness])
         angled_door_r.y_dim('IF(Force_Double_Doors,(sqrt((Width-Left_Depth-PT)**2+(Depth+Right_Depth+PT)**2)/2)-0.0015875,(sqrt((Width-Left_Depth-PT)**2+(Depth+Right_Depth+PT)**2)))',[Width,Left_Depth,Depth,Right_Depth,PT,Force_Double_Doors])
         angled_door_r.z_dim('PT',[PT])
@@ -439,101 +434,191 @@ class L_Shelves(fd_types.Assembly):
         #Left Angled Pull
         angled_door_l_pull = common_parts.add_drawer_pull(self)
         angled_door_l_pull.set_name("Left Door Pull")
-        angled_door_l_pull.x_loc('Width-0.017526-IF(Force_Double_Doors,(sqrt(((Width-Left_Depth-PT)/2)**2)),0)',[Left_Depth,PT,Width,Force_Double_Doors])        
-        angled_door_l_pull.y_loc('-Right_Depth-0.0254-IF(Force_Double_Doors,(sqrt(((Depth+Right_Depth+PT)/2)**2)),0)',[Depth,PT,Right_Depth,Force_Double_Doors])       
-        angled_door_l_pull.z_loc('Door_Pull_Height',[Door_Pull_Height])
+        angled_door_l_pull.x_loc("Left_Depth",[Left_Depth])
+        angled_door_l_pull.y_loc("Depth+PT",[Depth,PT])
+        angled_door_l_pull.z_dim('PT',[PT])
+        angled_door_l_pull.y_dim('IF(Force_Double_Doors,(sqrt((Width-Left_Depth-PT)**2+(Depth+Right_Depth+PT)**2)/2)-0.0015875,(sqrt((Width-Left_Depth-PT)**2+(Depth+Right_Depth+PT)**2)))*-1+PT',[Width,Left_Depth,Depth,Right_Depth,PT,Force_Double_Doors])       
+        angled_door_l_pull.z_loc('IF(Pull_Type==0,IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)+(Shelf_Thickness/2)+Base_Pull_Location,IF(Pull_Type==1,Height-Tall_Pull_Location+World_Z,Height-Upper_Pull_Location))',[Door_Pull_Height,Pull_Type,Base_Pull_Location,Tall_Pull_Location,Upper_Pull_Location,Height,World_Z,Toe_Kick_Height,Shelf_Thickness,Is_Hanging,Panel_Height])
         angled_door_l_pull.x_rot(value = 0)
         angled_door_l_pull.y_rot(value = -90)
-        angled_door_l_pull.z_rot('(atan((Width-Left_Depth)/(Depth+Right_Depth)))+3.14159',[Width,Depth,Right_Depth,Left_Depth])
+        angled_door_l_pull.z_rot('(atan((Width-Left_Depth)/(Depth+Right_Depth)))+3.14159-radians(Open*Rotation)',[Width,Depth,Right_Depth,Left_Depth,Open,Rotation])
         angled_door_l_pull.prompt('Hide','IF((Door and Angled_Shelves and Force_Double_Doors and Use_Left_Swing),False,IF((Door and Angled_Shelves and Force_Double_Doors),False,IF((Door and Angled_Shelves and Use_Left_Swing),True,IF((Door and Angled_Shelves),False,True))))',[Door,Use_Left_Swing,Angled_Shelves,Force_Double_Doors])
         
         #Right Angled Pull
         angled_door_r_pull = common_parts.add_drawer_pull(self)
         angled_door_r_pull.set_name("Right Door Pull")
-        angled_door_r_pull.x_loc('Left_Depth+0.0254+IF(Force_Double_Doors,(sqrt(((Width-Left_Depth-PT)/2)**2)),0)',[Left_Depth,PT,Width,Force_Double_Doors])        
-        angled_door_r_pull.y_loc('Depth+0.017526+IF(Force_Double_Doors,(sqrt(((Depth+Right_Depth+PT)/2)**2)),0)',[Depth,PT,Right_Depth,Force_Double_Doors])       
-        angled_door_r_pull.z_loc('Door_Pull_Height',[Door_Pull_Height])
+        angled_door_r_pull.x_loc('Width-PT',[Width,PT])
+        angled_door_r_pull.y_loc('-Right_Depth',[Right_Depth])
+        angled_door_r_pull.z_dim('PT',[PT])
+        angled_door_r_pull.y_dim('IF(Force_Double_Doors,(sqrt((Width-Left_Depth-PT)**2+(Depth+Right_Depth+PT)**2)/2)-0.0015875,(sqrt((Width-Left_Depth-PT)**2+(Depth+Right_Depth+PT)**2)))-PT',[Width,Left_Depth,Depth,Right_Depth,PT,Force_Double_Doors])
+        angled_door_r_pull.z_loc('IF(Pull_Type==0,IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)+(Shelf_Thickness/2)+Base_Pull_Location,IF(Pull_Type==1,Height-Tall_Pull_Location+World_Z,Height-Upper_Pull_Location))',[Door_Pull_Height,Pull_Type,Base_Pull_Location,Tall_Pull_Location,Upper_Pull_Location,Height,World_Z,Toe_Kick_Height,Shelf_Thickness,Is_Hanging,Panel_Height])
         angled_door_r_pull.x_rot(value = 0)
         angled_door_r_pull.y_rot(value = -90)
-        angled_door_r_pull.z_rot('(atan((Width-Left_Depth)/(Depth+Right_Depth)))+3.14159',[Width,Depth,Right_Depth,Left_Depth])
+        angled_door_r_pull.z_rot('(atan((Width-Left_Depth)/(Depth+Right_Depth)))+3.14159+radians(Open*Rotation)',[Width,Depth,Right_Depth,Left_Depth,Open,Rotation])
         angled_door_r_pull.prompt('Hide','IF((Door and Angled_Shelves and Force_Double_Doors and Use_Left_Swing),False,IF((Door and Angled_Shelves and Force_Double_Doors),False,IF((Door and Angled_Shelves and Use_Left_Swing),False,IF((Door and Angled_Shelves),True,True))))',[Door,Use_Left_Swing,Angled_Shelves,Force_Double_Doors])
           
         
-        #Left L Door
-        l_door_l = common_parts.add_door(self)
-        l_door_l.set_name("L Door Left 1")
-        l_door_l.x_loc('Left_Depth',[Depth,Left_Depth])        
-        l_door_l.y_loc('Depth+(PT/2)',[Depth,PT])       
-        l_door_l.z_loc('IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)+(Shelf_Thickness/2)',[Height,Panel_Height,Is_Hanging,Toe_Kick_Height,Shelf_Thickness])
-        l_door_l.x_rot(value = 0)
-        l_door_l.y_rot(value = -90)
-        l_door_l.z_rot(value = 180)
-        l_door_l.x_dim('Panel_Height-(Shelf_Thickness)',[Panel_Height,Shelf_Thickness])
-        l_door_l.y_dim('Depth+Right_Depth+(PT*1.5)',[Depth,Right_Depth,PT])
-        l_door_l.z_dim('PT',[PT])
-        l_door_l.prompt('Hide','IF(Use_Left_Swing != True,True,IF(Angled_Shelves,True,IF(Door,False,True)))',[Door,Use_Left_Swing,Angled_Shelves])        
+        #L Reach Back Doors 
+        l_door_reach_back_left = common_parts.add_door(self)
+        l_door_reach_back_left.set_name("Left Door")
+        l_door_reach_back_left.x_loc('Left_Depth',[Depth,Left_Depth])        
+        l_door_reach_back_left.y_loc('Depth+(PT/2)',[Depth,PT])       
+        l_door_reach_back_left.z_loc('IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)+(Shelf_Thickness/2)',[Height,Panel_Height,Is_Hanging,Toe_Kick_Height,Shelf_Thickness])
+        l_door_reach_back_left.x_rot(value = 0)
+        l_door_reach_back_left.y_rot(value = -90)
+        l_door_reach_back_left.z_rot("radians(180)-IF(DT==0,IF(Pull_Location==0,IF(Open<=Half,radians((Open*2)*Rotation),radians(Rotation)),IF(Open>Half,radians((Open-Half)*2*Rotation),0)),0)",[Pull_Location,Open,Rotation,DT,Half])
+        l_door_reach_back_left.x_dim('Panel_Height-(Shelf_Thickness)',[Panel_Height,Shelf_Thickness])
+        l_door_reach_back_left.y_dim('Depth+Right_Depth+(PT)',[Depth,Right_Depth,PT])
+        l_door_reach_back_left.z_dim('PT',[PT])
+        l_door_reach_back_left.prompt('Hide','IF(Angled_Shelves,True,IF(Door,IF(DT==0,False,True),True))',[Door,Angled_Shelves,DT])        
 
-        l_door_r = common_parts.add_door(self)
-        l_door_r.set_name("L Door Left 2")
-        l_door_r.x_loc('Width-(PT/2)',[Width,PT])        
-        l_door_r.y_loc('-Right_Depth',[Right_Depth])       
-        l_door_r.z_loc('IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)+(Shelf_Thickness/2)',[Height,Panel_Height,Is_Hanging,Toe_Kick_Height,Shelf_Thickness])
-        l_door_r.x_rot(value = 0)
-        l_door_r.y_rot(value = -90)
-        l_door_r.z_rot(value = 90)
-        l_door_r.x_dim('Panel_Height-(Shelf_Thickness)',[Panel_Height,Shelf_Thickness])
-        l_door_r.y_dim('Width-Left_Depth-(PT*1.5)',[Width,Left_Depth,PT])
-        l_door_r.z_dim('PT',[PT])
-        l_door_r.prompt('Hide','IF(Use_Left_Swing != True,True,IF(Angled_Shelves,True,IF(Door,False,True)))',[Door,Use_Left_Swing,Angled_Shelves])
-          
-        #Left L Pull
-        angled_door_l_pull = common_parts.add_drawer_pull(self)
-        angled_door_l_pull.set_name("Left Door Pull")
-        angled_door_l_pull.x_loc('Width-0.0381',[Width])        
-        angled_door_l_pull.y_loc('-Right_Depth-PT',[Right_Depth,PT])       
-        angled_door_l_pull.z_loc('Door_Pull_Height',[Door_Pull_Height])
-        angled_door_l_pull.x_rot(value = 0)
-        angled_door_l_pull.y_rot(value = -90)
-        angled_door_l_pull.z_rot(value = 90)
-        angled_door_l_pull.prompt('Hide','IF(Use_Left_Swing != True,True,IF(Angled_Shelves,True,IF(Door,False,True)))',[Door,Use_Left_Swing,Angled_Shelves])
-        
-        #Right L Door
-        l_door_l = common_parts.add_door(self)
-        l_door_l.set_name("L Door Right 1")
-        l_door_l.x_loc('Left_Depth',[Depth,Left_Depth])        
-        l_door_l.y_loc('Depth+(PT/2)',[Depth,PT])       
-        l_door_l.z_loc('IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)+(Shelf_Thickness/2)',[Height,Panel_Height,Is_Hanging,Toe_Kick_Height,Shelf_Thickness])
-        l_door_l.x_rot(value = 0)
-        l_door_l.y_rot(value = -90)
-        l_door_l.z_rot(value = 180)
-        l_door_l.x_dim('Panel_Height-(Shelf_Thickness)',[Panel_Height,Shelf_Thickness])
-        l_door_l.y_dim('Depth+Right_Depth+(PT*1.5)',[Depth,Right_Depth,PT])
-        l_door_l.z_dim('PT',[PT])
-        l_door_l.prompt('Hide','IF(Use_Left_Swing,True,IF(Angled_Shelves,True,IF(Door,False,True)))',[Door,Use_Left_Swing,Angled_Shelves])        
+        l_door_reach_back_right = common_parts.add_door(self)
+        l_door_reach_back_right.set_name("Right Door")
+        l_door_reach_back_right.x_loc('Width-(PT/2)',[Width,PT])        
+        l_door_reach_back_right.y_loc('-Right_Depth',[Right_Depth])       
+        l_door_reach_back_right.z_loc('IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)+(Shelf_Thickness/2)',[Height,Panel_Height,Is_Hanging,Toe_Kick_Height,Shelf_Thickness])
+        l_door_reach_back_right.x_rot(value = 0)
+        l_door_reach_back_right.y_rot(value = -90)
+        l_door_reach_back_right.z_rot("radians(90)+IF(DT==0,IF(Pull_Location==1,IF(Open<=Half,radians((Open*2)*Rotation),radians(Rotation)),IF(Open>Half,radians((Open-Half)*2*Rotation),0)),0)",[Pull_Location,Open,Rotation,DT,Half])
+        l_door_reach_back_right.x_dim('Panel_Height-(Shelf_Thickness)',[Panel_Height,Shelf_Thickness])
+        l_door_reach_back_right.y_dim('Width-Left_Depth-(PT)-INCH(0.62)',[Width,Left_Depth,PT])
+        l_door_reach_back_right.z_dim('PT',[PT])
+        l_door_reach_back_right.prompt('Hide','IF(Angled_Shelves,True,IF(Door,IF(DT==0,False,True),True))',[Door,Angled_Shelves,DT])
 
-        l_door_r = common_parts.add_door(self)
-        l_door_r.set_name("L Door Right 2")
-        l_door_r.x_loc('Width-(PT/2)',[Width,PT])        
-        l_door_r.y_loc('-Right_Depth',[Right_Depth])       
-        l_door_r.z_loc('IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)+(Shelf_Thickness/2)',[Height,Panel_Height,Is_Hanging,Toe_Kick_Height,Shelf_Thickness])
-        l_door_r.x_rot(value = 0)
-        l_door_r.y_rot(value = -90)
-        l_door_r.z_rot(value = 90)
-        l_door_r.x_dim('Panel_Height-(Shelf_Thickness)',[Panel_Height,Shelf_Thickness])
-        l_door_r.y_dim('Width-Left_Depth-(PT*1.5)',[Width,Left_Depth,PT])
-        l_door_r.z_dim('PT',[PT])
-        l_door_r.prompt('Hide','IF(Use_Left_Swing,True,IF(Angled_Shelves,True,IF(Door,False,True)))',[Door,Use_Left_Swing,Angled_Shelves])
 
-        #Right L Pull
-        angled_door_r_pull = common_parts.add_drawer_pull(self)
-        angled_door_r_pull.set_name("Right Door Pull")
-        angled_door_r_pull.x_loc('Left_Depth+PT',[Left_Depth,PT])        
-        angled_door_r_pull.y_loc('Depth+0.0381',[Depth])       
-        angled_door_r_pull.z_loc('Door_Pull_Height',[Door_Pull_Height])
-        angled_door_r_pull.x_rot(value = 0)
-        angled_door_r_pull.y_rot(value = -90)
-        angled_door_r_pull.z_rot(value = 180)
-        angled_door_r_pull.prompt('Hide','IF(Use_Left_Swing,True,IF(Angled_Shelves,True,IF(Door,False,True)))',[Door,Use_Left_Swing,Angled_Shelves])
+        #L Doors Lazy Susan
+        l_door_lazy_susan_left = common_parts.add_door(self)
+        l_door_lazy_susan_left.set_name("Left Door")
+        l_door_lazy_susan_left.x_loc('IF(Pull_Location==0,Left_Depth+IF(Open<Half,(Open*((Width-Left_Depth)*(1+(Open*2))-PT-INCH(0.25))),Open*((Width-Left_Depth)*(1+(Open*(3-(Open*2))))-PT-INCH(0.25))-PT*((Open-Half)*2))+PT,Left_Depth)',[Depth,Left_Depth,PT,Width,Open,Half,Pull_Location])        
+        l_door_lazy_susan_left.y_loc('IF(Pull_Location==0,-Right_Depth-PT-(IF(Open<Half,Open*(Width-Left_Depth-(PT*2)-INCH(0.25))*2*(2-(2*Open)),Open*(Width-Left_Depth-(PT*2)-INCH(0.25))*2*(1-((Open-Half)*2))-PT*((Open-Half)*2))),Depth+(PT/2))',[Depth,PT,Open,Half,Width,Left_Depth,PT,Right_Depth,Pull_Location])       
+        l_door_lazy_susan_left.z_loc('IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)+(Shelf_Thickness/2)',[Height,Panel_Height,Is_Hanging,Toe_Kick_Height,Shelf_Thickness])
+        l_door_lazy_susan_left.x_rot(value = 0)
+        l_door_lazy_susan_left.y_rot(value = -90)
+        l_door_lazy_susan_left.z_rot('IF(Pull_Location==0,(IF(Open>Half,((Open-Half)*2)*radians(45),0)),radians(180)-(Open*radians(180)))',[Open,Half,Pull_Location])
+        l_door_lazy_susan_left.x_dim('Panel_Height-(Shelf_Thickness)',[Panel_Height,Shelf_Thickness])
+        l_door_lazy_susan_left.y_dim('Depth+Right_Depth+(PT)+INCH(0.25)',[Depth,Right_Depth,PT])
+        l_door_lazy_susan_left.z_dim('PT',[PT])
+        l_door_lazy_susan_left.prompt('Hide','IF(Angled_Shelves,True,IF(Door,IF(DT==1,False,True),True))',[Door,DT,Angled_Shelves])        
+
+        l_door_lazy_susan_right = common_parts.add_door(self)
+        l_door_lazy_susan_right.set_name("Right Door")
+        l_door_lazy_susan_right.x_loc('IF(Pull_Location==0,Width-(PT/2),Left_Depth+PT-(IF(Open<Half,Open*(Depth+Right_Depth+(PT*2))*2*(2-(2*Open)),Open*(Depth+Right_Depth+(PT*2))*2*(1-((Open-Half)*2))+PT*((Open-Half)*2))))',[Depth,PT,Open,Half,Width,Left_Depth,PT,Right_Depth,Pull_Location])
+        l_door_lazy_susan_right.y_loc('IF(Pull_Location==0,-Right_Depth,-Right_Depth-PT+IF(Open<Half,(Open*(Depth+Right_Depth+PT-INCH(0.25))*(1+(Open*2))),Open*((Depth+Right_Depth+PT-INCH(0.25))*(1+(Open*(3-(Open*2)))))))',[Depth,Left_Depth,PT,Width,Open,Half,Pull_Location,Right_Depth])        
+        l_door_lazy_susan_right.z_loc('IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)+(Shelf_Thickness/2)',[Height,Panel_Height,Is_Hanging,Toe_Kick_Height,Shelf_Thickness])
+        l_door_lazy_susan_right.x_rot(value = 0)
+        l_door_lazy_susan_right.y_rot(value = -90)
+        l_door_lazy_susan_right.z_rot('IF(Pull_Location==0,radians(90)+(Open*radians(180)),radians(-90)-IF(Open>Half,((Open-Half)*2)*radians(45),0))',[Open,Pull_Location,Half])
+        l_door_lazy_susan_right.x_dim('Panel_Height-(Shelf_Thickness)',[Panel_Height,Shelf_Thickness])
+        l_door_lazy_susan_right.y_dim('Width-Left_Depth-(PT)-INCH(0.25)',[Width,Left_Depth,PT])
+        l_door_lazy_susan_right.z_dim('PT',[PT])
+        l_door_lazy_susan_right.prompt('Hide','IF(Angled_Shelves,True,IF(Door,IF(DT==1,False,True),True))',[Door,DT,Angled_Shelves])
+
+
+        #Left L Reachback Pull
+        l_door_reachback_left_pull = common_parts.add_drawer_pull(self)
+        l_door_reachback_left_pull.set_name("Left Door Pull")
+        l_door_reachback_left_pull.x_loc('Left_Depth',[Left_Depth,PT,DT])      
+        l_door_reachback_left_pull.y_loc('Depth-(PT/2)',[Depth,Right_Depth,DT,PT])
+        l_door_reachback_left_pull.y_dim('Depth+Right_Depth+(PT)',[DT,Depth,Right_Depth,PT])
+        l_door_reachback_left_pull.z_dim('PT',[DT,PT])
+        l_door_reachback_left_pull.z_loc('IF(Pull_Type==0,IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)+(Shelf_Thickness/2)+Base_Pull_Location,IF(Pull_Type==1,Height-Tall_Pull_Location+World_Z,Height-Upper_Pull_Location))',[Door_Pull_Height,Pull_Type,Base_Pull_Location,Tall_Pull_Location,Upper_Pull_Location,Height,World_Z,Toe_Kick_Height,Shelf_Thickness,Is_Hanging,Panel_Height])
+        l_door_reachback_left_pull.x_rot(value = 0)
+        l_door_reachback_left_pull.y_rot(value = -90)
+        l_door_reachback_left_pull.z_rot("radians(180)-IF(DT==0,IF(Pull_Location==0,IF(Open<=Half,radians((Open*2)*Rotation),radians(Rotation)),IF(Open>Half,radians((Open-Half)*2*Rotation),0)),0)",[Pull_Location,Open,Rotation,DT,Half])
+        l_door_reachback_left_pull.prompt('Hide','IF(Pull_Location==1,True,IF(Angled_Shelves,True,IF(Door,IF(DT==0,False,True),True)))',[Door,Pull_Location,Angled_Shelves,DT])
+
+        #Right L Reachback Pull
+        l_door_reachback_right_pull = common_parts.add_drawer_pull(self)
+        l_door_reachback_right_pull.set_name("Right Door Pull")
+        l_door_reachback_right_pull.x_loc('Width',[Width,DT,Left_Depth,PT])        
+        l_door_reachback_right_pull.y_loc('-Right_Depth',[Right_Depth])       
+        l_door_reachback_right_pull.y_dim('Width-Left_Depth-(PT)-INCH(0.62)',[DT,Width,Left_Depth,PT])
+        l_door_reachback_right_pull.z_dim('PT',[DT,PT])
+        l_door_reachback_right_pull.z_loc('IF(Pull_Type==0,IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)+(Shelf_Thickness/2)+Base_Pull_Location,IF(Pull_Type==1,Height-Tall_Pull_Location+World_Z,Height-Upper_Pull_Location))',[Door_Pull_Height,Pull_Type,Base_Pull_Location,Tall_Pull_Location,Upper_Pull_Location,Height,World_Z,Toe_Kick_Height,Shelf_Thickness,Is_Hanging,Panel_Height])
+        l_door_reachback_right_pull.x_rot(value = 0)
+        l_door_reachback_right_pull.y_rot(value = -90)
+        l_door_reachback_right_pull.z_rot("radians(90)+IF(DT==0,IF(Pull_Location==1,IF(Open<=Half,radians((Open*2)*Rotation),radians(Rotation)),IF(Open>Half,radians((Open-Half)*2*Rotation),0)),0)",[Pull_Location,Open,Rotation,DT,Half])
+        l_door_reachback_right_pull.prompt('Hide','IF(Pull_Location==0,True,IF(Angled_Shelves,True,IF(Door,IF(DT==0,False,True),True)))',[Door,Pull_Location,Angled_Shelves,DT])
+
+        #L Lazy Susan Left Pull
+        l_door_lazy_susan_left_pull = common_parts.add_drawer_pull(self)
+        l_door_lazy_susan_left_pull.set_name("Left Door Pull")
+        l_door_lazy_susan_left_pull.x_loc('Left_Depth+IF(Open<Half,(Open*((Width-Left_Depth)*(1+(Open*2))-PT-INCH(0.25))),Open*((Width-Left_Depth)*(1+(Open*(3-(Open*2))))-PT-INCH(0.25))-PT*((Open-Half)*2))+PT',[Depth,Left_Depth,PT,Width,Open,Half,Pull_Location])        
+        l_door_lazy_susan_left_pull.y_loc('-Right_Depth+(PT/2)-(IF(Open<Half,Open*(Width-Left_Depth-(PT*2)-INCH(0.25))*2*(2-(2*Open)),Open*(Width-Left_Depth-(PT*2)-INCH(0.25))*2*(1-((Open-Half)*2))-PT*((Open-Half)*2)))',[Depth,PT,Open,Half,Width,Left_Depth,PT,Right_Depth,Pull_Location])       
+        l_door_lazy_susan_left_pull.y_dim('(Depth+Right_Depth+(PT)+INCH(0.25))*-1',[Depth,Right_Depth,PT])
+        l_door_lazy_susan_left_pull.z_dim('IF(Open>Half,-PT*((Open-Half)*2),0)',[PT,Open,Half])
+        l_door_lazy_susan_left_pull.z_loc('IF(Pull_Type==0,IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)+(Shelf_Thickness/2)+Base_Pull_Location,IF(Pull_Type==1,Height-Tall_Pull_Location+World_Z,Height-Upper_Pull_Location))',[Door_Pull_Height,Pull_Type,Base_Pull_Location,Tall_Pull_Location,Upper_Pull_Location,Height,World_Z,Toe_Kick_Height,Shelf_Thickness,Is_Hanging,Panel_Height])
+        l_door_lazy_susan_left_pull.x_rot(value = 0)
+        l_door_lazy_susan_left_pull.y_rot(value = -90)
+        l_door_lazy_susan_left_pull.z_rot('radians(180)+IF(Open>Half,((Open-Half)*2)*radians(45),0)',[Open,Half,Pull_Location])
+        l_door_lazy_susan_left_pull.prompt('Hide','IF(Pull_Location==1,True,IF(Angled_Shelves,True,IF(Door,IF(DT==1,False,True),True)))',[Door,Pull_Location,Angled_Shelves,DT])
+
+        #L Lazy Suasan Right Pull
+        l_door_lazy_susan_right_pull = common_parts.add_drawer_pull(self)
+        l_door_lazy_susan_right_pull.set_name("Right Door Pull")
+        l_door_lazy_susan_right_pull.x_loc('Left_Depth-(IF(Open<Half,Open*(Depth+Right_Depth+(PT*2))*2*(2-(2*Open)),Open*(Depth+Right_Depth+(PT*2))*2*(1-((Open-Half)*2))+PT*((Open-Half)*2)))',[Depth,PT,Open,Half,Width,Left_Depth,PT,Right_Depth,Pull_Location])
+        l_door_lazy_susan_right_pull.y_loc('-Right_Depth-PT+IF(Open<Half,(Open*(Depth+Right_Depth+PT-INCH(0.25))*(1+(Open*2))),Open*((Depth+Right_Depth+PT-INCH(0.25))*(1+(Open*(3-(Open*2))))))',[Depth,Left_Depth,PT,Width,Open,Half,Pull_Location,Right_Depth])        
+        l_door_lazy_susan_right_pull.y_dim('(Width-Left_Depth-(PT)-INCH(0.25))*-1',[Width,Left_Depth,PT])
+        l_door_lazy_susan_right_pull.z_dim('IF(Open>Half,-PT*((Open-Half)*1.5),0)',[PT,Open,Half])
+        l_door_lazy_susan_right_pull.z_loc('IF(Pull_Type==0,IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)+(Shelf_Thickness/2)+Base_Pull_Location,IF(Pull_Type==1,Height-Tall_Pull_Location+World_Z,Height-Upper_Pull_Location))',[Door_Pull_Height,Pull_Type,Base_Pull_Location,Tall_Pull_Location,Upper_Pull_Location,Height,World_Z,Toe_Kick_Height,Shelf_Thickness,Is_Hanging,Panel_Height])
+        l_door_lazy_susan_right_pull.x_rot(value = 0)
+        l_door_lazy_susan_right_pull.y_rot(value = -90)
+        l_door_lazy_susan_right_pull.z_rot('radians(90)-IF(Open>Half,((Open-Half)*2)*radians(45),0)',[Open,Pull_Location,Half])
+        l_door_lazy_susan_right_pull.prompt('Hide','IF(Pull_Location==0,True,IF(Angled_Shelves,True,IF(Door,IF(DT==1,False,True),True)))',[Door,Pull_Location,Angled_Shelves,DT])
+
+
+
+        #Shelves
+        #Angled Shelves
+        previous_angled_shelf = None
+        previous_l_shelf = None
+        for i in range(1,11):
+            Shelf_Height = self.get_var("Shelf " + str(i) + " Height",'Shelf_Height')
+
+            shelf_angled = common_parts.add_angle_shelf(self)
+
+            if previous_angled_shelf:
+                prev_shelf_z_loc = previous_angled_shelf.get_var('loc_z','prev_shelf_z_loc')
+                shelf_angled.z_loc('prev_shelf_z_loc+Shelf_Height',[prev_shelf_z_loc,Shelf_Height])
+            else:
+                shelf_angled.z_loc('IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)+Shelf_Height+Shelf_Thickness',
+                                    [Shelf_Height,Is_Hanging,Toe_Kick_Height,Shelf_Thickness,Panel_Height,Height])                           
+
+            shelf_angled.x_loc('IF(Add_Backing,IF(Backing_Thickness==0,INCH(0.25),INCH(0.75)),0)',[Add_Backing,Backing_Thickness])
+            shelf_angled.y_loc('IF(Add_Backing,IF(Backing_Thickness==0,-INCH(0.25),-INCH(0.75)),0)',[Add_Backing,Backing_Thickness])
+            shelf_angled.x_rot(value = 0)
+            shelf_angled.y_rot(value = 0)
+            shelf_angled.z_rot(value = 0)
+            shelf_angled.x_dim('Width-PT-IF(Add_Backing,IF(Backing_Thickness==0,INCH(0.25),INCH(0.75)),0)',[Width,PT,Add_Backing,Backing_Thickness])
+            shelf_angled.y_dim('Depth+PT+IF(Add_Backing,IF(Backing_Thickness==0,INCH(0.25),INCH(0.75)),0)',[Depth,PT,Add_Backing,Backing_Thickness])
+            shelf_angled.z_dim('Shelf_Thickness',[Shelf_Thickness])
+            shelf_angled.prompt('Left Depth','Left_Depth-IF(Add_Backing,IF(Backing_Thickness==0,INCH(0.25),INCH(0.75)),0)',[Left_Depth,Add_Backing,Backing_Thickness])
+            shelf_angled.prompt('Right Depth','Right_Depth-IF(Add_Backing,IF(Backing_Thickness==0,INCH(0.25),INCH(0.75)),0)',[Right_Depth,Add_Backing,Backing_Thickness])
+            shelf_angled.prompt('Hide','IF(Angled_Shelves,IF(Shelf_Quantity+1>'+str(i)+',False,True),True)',[Shelf_Quantity,Angled_Shelves])
+
+            previous_angled_shelf = shelf_angled
+
+            l_shelf = common_parts.add_l_shelf(self)
+            if previous_l_shelf:
+                prev_shelf_z_loc = previous_l_shelf.get_var('loc_z','prev_shelf_z_loc')
+                l_shelf.z_loc('prev_shelf_z_loc+Shelf_Height',[prev_shelf_z_loc,Shelf_Height])
+            else:
+                l_shelf.z_loc('IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)+Shelf_Height',
+                              [Shelf_Height,Is_Hanging,Toe_Kick_Height,Shelf_Thickness,Height,Panel_Height])
+
+            l_shelf.x_loc('IF(Add_Backing,IF(Backing_Thickness==0,INCH(0.25),INCH(0.75)),0)',[Add_Backing,Backing_Thickness])
+            l_shelf.y_loc('IF(Add_Backing,IF(Backing_Thickness==0,-INCH(0.25),-INCH(0.75)),0)',[Add_Backing,Backing_Thickness])
+            l_shelf.x_rot(value = 0)
+            l_shelf.y_rot(value = 0)
+            l_shelf.z_rot(value = 0)
+            l_shelf.x_dim('Width-PT-IF(Add_Backing,IF(Backing_Thickness==0,INCH(0.25),INCH(0.75)),0)',[Width,PT,Add_Backing,Backing_Thickness])
+            l_shelf.y_dim('Depth+PT+IF(Add_Backing,IF(Backing_Thickness==0,INCH(0.25),INCH(0.75)),0)',[Depth,PT,Add_Backing,Backing_Thickness])
+            l_shelf.z_dim('Shelf_Thickness',[Shelf_Thickness])
+            l_shelf.prompt('Left Depth','Left_Depth-IF(Add_Backing,IF(Backing_Thickness==0,INCH(0.25),INCH(0.75)),0)',[Left_Depth,Add_Backing,Backing_Thickness])
+            l_shelf.prompt('Right Depth','Right_Depth-IF(Add_Backing,IF(Backing_Thickness==0,INCH(0.25),INCH(0.75)),0)',[Right_Depth,Add_Backing,Backing_Thickness])
+            l_shelf.prompt('Hide','IF(Angled_Shelves,True,IF(Shelf_Quantity+1>'+str(i)+',False,True))',[Angled_Shelves,Shelf_Quantity])
+
+            previous_l_shelf = l_shelf               
 
         self.update()
 
@@ -1116,25 +1201,78 @@ class PROMPTS_Corner_Shelves(fd_types.Prompts_Interface):
     
     Product_Height = bpy.props.EnumProperty(name="Product Height",
                                             items=common_lists.PANEL_HEIGHTS,
-                                            update=update_product_height)        
+                                            update=update_product_height) 
+
+    Door_Type = bpy.props.EnumProperty(name="Door Type",
+                                       items=[("Reach Back","Reach Back","Reach Back"),
+                                              ("Lazy Susan","Lazy Susan","Lazy Susan")],
+                                       default='Reach Back')
+
+    Pull_Location = bpy.props.EnumProperty(name="Pull Location",
+                                           items=[("Pull on Left Door","Pull on Left Door","Pull on Left Door"),
+                                                  ("Pull on Right Door","Pull on Right Door","Pull on Right Door")],
+                                           default="Pull on Left Door")
+
+    Pull_Type = bpy.props.EnumProperty(name="Pull Type",
+                                       items=[("Base","Base","Base"),
+                                              ("Tall","Tall","Tall"),
+                                              ("Upper","Upper","Upper")],
+                                       default="Base")
+
+    Shelf_1_Height = bpy.props.EnumProperty(name="Shelf 1 Height",
+                                             items = common_lists.SHELF_IN_DOOR_HEIGHTS)
+    
+    Shelf_2_Height = bpy.props.EnumProperty(name="Shelf 2 Height",
+                                             items = common_lists.SHELF_IN_DOOR_HEIGHTS)
+
+    Shelf_3_Height = bpy.props.EnumProperty(name="Shelf 3 Height",
+                                             items = common_lists.SHELF_IN_DOOR_HEIGHTS)
+
+    Shelf_4_Height = bpy.props.EnumProperty(name="Shelf 4 Height",
+                                             items = common_lists.SHELF_IN_DOOR_HEIGHTS)
+    
+    Shelf_5_Height = bpy.props.EnumProperty(name="Shelf 5 Height",
+                                             items = common_lists.SHELF_IN_DOOR_HEIGHTS)
+
+    Shelf_6_Height = bpy.props.EnumProperty(name="Shelf 6 Height",
+                                             items = common_lists.SHELF_IN_DOOR_HEIGHTS)
+
+    Shelf_7_Height = bpy.props.EnumProperty(name="Shelf 7 Height",
+                                             items = common_lists.SHELF_IN_DOOR_HEIGHTS)
+    
+    Shelf_8_Height = bpy.props.EnumProperty(name="Shelf 8 Height",
+                                             items = common_lists.SHELF_IN_DOOR_HEIGHTS)
+
+    Shelf_9_Height = bpy.props.EnumProperty(name="Shelf 9 Height",
+                                             items = common_lists.SHELF_IN_DOOR_HEIGHTS)
+
+    Shelf_10_Height = bpy.props.EnumProperty(name="Shelf 10 Height",
+                                              items = common_lists.SHELF_IN_DOOR_HEIGHTS)
+
+    shelf_quantity = bpy.props.EnumProperty(name="Shelf Quantity",
+                                            items=[('0',"0",'0'),
+                                                   ('1',"1",'1'),
+                                                   ('2',"2",'2'),
+                                                   ('3',"3",'3'),
+                                                   ('4',"4",'4'),
+                                                   ('5',"5",'5'),
+                                                   ('6',"6",'6'),
+                                                   ('7',"7",'7'),
+                                                   ('8',"8",'8'),
+                                                   ('9',"9",'9'),
+                                                   ('10',"10",'10')],
+                                            default = '3')                                         
     
     product = None
 
     def check(self, context):
-        is_hanging = self.product.get_prompt("Is Hanging")
-        panel_height = self.product.get_prompt("Panel Height")
-        if is_hanging and panel_height:
-            if is_hanging.value():
-                panel_height.set_value(float(self.Product_Height) / 1000)
-            else:
-                panel_height.set_value(float(self.Product_Height) / 1000)
-                self.product.obj_z.location.z = float(self.Product_Height) / 1000
-            
-        self.product.obj_x.location.x = self.width
-        self.product.obj_y.location.y = -self.depth            
         """ This is called everytime a change is made in the UI """
+        self.set_prompts_from_properties()
+        self.product.obj_x.location.x = self.width
+        self.product.obj_y.location.y = -self.depth
+        props_closet.update_render_materials(self, context)
         # self.update_product_size()
-        return True
+        return True      
 
     def execute(self, context):
         """ This is called when the OK button is clicked """
@@ -1144,17 +1282,84 @@ class PROMPTS_Corner_Shelves(fd_types.Prompts_Interface):
     def invoke(self,context,event):
         """ This is called before the interface is displayed """
         self.product = self.get_product()
-        
-        panel_height = self.product.get_prompt("Panel Height")
-        
-        for index, height in enumerate(common_lists.PANEL_HEIGHTS):
-            if not round(panel_height.value()*1000,0) >= int(height[0]):
-                self.Product_Height = common_lists.PANEL_HEIGHTS[index - 1][0]
-                break
-        
+        self.set_properties_from_prompts()
         wm = context.window_manager
         return wm.invoke_props_dialog(self, width=utils.get_prop_dialog_width(400))
+
+    def set_prompts_from_properties(self):
+        ''' This should be called in the check function to set the prompts
+            to the same values as the class properties
+        '''
+        door_type = self.product.get_prompt('Door Type')
+        pull_location = self.product.get_prompt('Pull Location')
+        pull_type = self.product.get_prompt('Pull Type')
+        is_hanging = self.product.get_prompt("Is Hanging")
+        panel_height = self.product.get_prompt("Panel Height")
+        shelf_quantity = self.product.get_prompt("Shelf Quantity")
+        shelf_thickness = self.product.get_prompt("Shelf Thickness")
+        toe_kick_height = self.product.get_prompt("Toe Kick Height")
+
+        prompts = [door_type,pull_location,pull_type,is_hanging,panel_height,shelf_quantity,shelf_thickness,toe_kick_height]
+        if all(prompts):
+            door_type.set_value(self.Door_Type)
+            pull_location.set_value(self.Pull_Location)
+            pull_type.set_value(self.Pull_Type)
+            if is_hanging.value():
+                panel_height.set_value(float(self.Product_Height) / 1000)
+            else:
+                panel_height.set_value(float(self.Product_Height) / 1000)
+                self.product.obj_z.location.z = float(self.Product_Height) / 1000
+
         
+            shelf_quantity.set_value(int(self.shelf_quantity))
+            for i in range(1,int(self.shelf_quantity)+1):
+                shelf = self.product.get_prompt("Shelf " + str(i) + " Height")
+
+                hole_count = round(((panel_height.value())*1000)/32)
+                holes_per_shelf = round(hole_count/(int(self.shelf_quantity)+1))
+                remainder = hole_count - (holes_per_shelf * (int(self.shelf_quantity)))
+            
+                if(i <= remainder):
+                    holes_per_shelf = holes_per_shelf + 1
+                if(holes_per_shelf >=3):
+                    shelf.set_value(float(common_lists.SHELF_IN_DOOR_HEIGHTS[holes_per_shelf-3][0])/1000)
+                    exec("self.Shelf_" + str(i) + "_Height = common_lists.SHELF_IN_DOOR_HEIGHTS[holes_per_shelf-3][0]")
+                else:
+                    shelf.set_value(float(common_lists.SHELF_IN_DOOR_HEIGHTS[0][0])/1000)
+                    exec("self.Shelf_" + str(i) + "_Height = common_lists.SHELF_IN_DOOR_HEIGHTS[0][0]")
+        
+    def set_properties_from_prompts(self):
+        ''' This should be called in the invoke function to set the class properties
+            to the same values as the prompts
+        '''
+        panel_height = self.product.get_prompt("Panel Height")
+        door_type = self.product.get_prompt('Door Type')
+        pull_location = self.product.get_prompt('Pull Location')
+        pull_type = self.product.get_prompt('Pull Type')
+        shelf_quantity = self.product.get_prompt("Shelf Quantity")
+
+        prompts = [door_type,pull_location,pull_type,panel_height,shelf_quantity]
+        if all(prompts):
+            self.Door_Type = door_type.value()
+            self.Pull_Location = pull_location.value()
+            self.Pull_Type = pull_type.value()
+            for index, height in enumerate(common_lists.PANEL_HEIGHTS):
+                if not round(panel_height.value()*1000,0) >= int(height[0]):
+                    self.Product_Height = common_lists.PANEL_HEIGHTS[index - 1][0]
+                    break
+            
+            
+            self.shelf_quantity = str(shelf_quantity.value())
+            for i in range(1,11):
+                shelf = self.product.get_prompt("Shelf " + str(i) + " Height")
+                if shelf:
+                    value = round(shelf.value() * 1000,3)
+                    for index, height in enumerate(common_lists.SHELF_IN_DOOR_HEIGHTS):
+                        if not value >= float(height[0]):
+                            exec("self.Shelf_" + str(i) + "_Height = common_lists.SHELF_IN_DOOR_HEIGHTS[index - 1][0]")
+                            break
+            
+    
     def draw_product_size(self,layout):
         box = layout.box()
         row = box.row()
@@ -1220,14 +1425,18 @@ class PROMPTS_Corner_Shelves(fd_types.Prompts_Interface):
         Add_Backing = self.product.get_prompt("Add Backing")
         Backing_Thickness = self.product.get_prompt("Backing Thickness")
         Add_Top = self.product.get_prompt("Add Top")
-        Remove_Left_Side = self.product.get_prompt("Remove Left Side")
-        Remove_Right_Side = self.product.get_prompt("Remove Right Side")
-        Angled_Shelves = self.product.get_prompt("Angled Shelves")        
         Hide_Toe_Kick = self.product.get_prompt("Hide Toe Kick")
         Door = self.product.get_prompt("Door")
         Use_Left_Swing = self.product.get_prompt("Use Left Swing")
+        Pull_Location = self.product.get_prompt("Pull Location")
         Force_Double_Doors = self.product.get_prompt("Force Double Doors")
         Door_Pull_Height = self.product.get_prompt("Door Pull Height")
+        Door_Type = self.product.get_prompt("Door Type")
+        Angled_Shelves = self.product.get_prompt("Angled Shelves")
+        Open_Door = self.product.get_prompt("Open Door")
+        Base_Pull_Location = self.product.get_prompt("Base Pull Location")
+        Tall_Pull_Location = self.product.get_prompt("Tall Pull Location")
+        Upper_Pull_Location = self.product.get_prompt("Upper Pull Location")
          
         layout = self.layout
         self.draw_product_size(layout)        
@@ -1241,33 +1450,26 @@ class PROMPTS_Corner_Shelves(fd_types.Prompts_Interface):
             Right_Depth.draw_prompt(row)
             
         if Shelf_Quantity:
-            row = box.row()
-            Shelf_Quantity.draw_prompt(row)
+            col = box.column(align=True)
+            row = col.row()
+            row.label("Qty:")
+            row.prop(self,"shelf_quantity",expand=True)   
+            col.separator()
             
         if Add_Backing:
             row = box.row()
             Add_Backing.draw_prompt(row)
 
-        if Backing_Thickness:
-            if Add_Backing.value() == True:
-                row = box.row()
-                Backing_Thickness.draw_prompt(row)
+        #if Backing_Thickness:
+        #    if Add_Backing.value() == True:
+        #        row = box.row()
+        #        Backing_Thickness.draw_prompt(row)
             
-        if Angled_Shelves:
-            row = box.row()
-            Angled_Shelves.draw_prompt(row)
             
-        if Add_Top:
-            row = box.row()
-            Add_Top.draw_prompt(row)            
-            
-        if Remove_Left_Side:
-            row = box.row()
-            Remove_Left_Side.draw_prompt(row) 
-            
-        if Remove_Right_Side:
-            row = box.row()
-            Remove_Right_Side.draw_prompt(row)                  
+        #if Add_Top:
+        #    row = box.row()
+        #    Add_Top.draw_prompt(row)            
+                
                 
         # row = box.row()
         # Hide_Toe_Kick.draw_prompt(row)
@@ -1275,12 +1477,36 @@ class PROMPTS_Corner_Shelves(fd_types.Prompts_Interface):
         row = box.row()
         Door.draw_prompt(row)
         if Door.value():
+            if Angled_Shelves and Door_Type:
+                if Angled_Shelves.value() == False:
+                    row = box.row()
+                    row.prop(self,'Door_Type',text="Door Type")
+                    #Door_Type.draw_prompt(row)
+                    row = box.row()
+                    #Pull_Location.draw_prompt(row)
+                    row.prop(self,'Pull_Location',text="Pull Location")
+
             row = box.row()
-            Door_Pull_Height.draw_prompt(row)
+            #Door_Pull_Height.draw_prompt(row)
+            row.prop(self,'Pull_Type',text="Pull Type")
             row = box.row()
-            Use_Left_Swing.draw_prompt(row)
-            row = box.row() 
-            Force_Double_Doors.draw_prompt(row)
+            if self.Pull_Type == 'Base':
+                Base_Pull_Location.draw_prompt(row)
+            elif self.Pull_Type == 'Tall':
+                Tall_Pull_Location.draw_prompt(row)
+            else:
+                Upper_Pull_Location.draw_prompt(row)
+
+            if Open_Door: 
+                row = box.row()
+                Open_Door.draw_prompt(row)
+
+            if Angled_Shelves:
+                if Angled_Shelves.value():
+                    row = box.row()
+                    Use_Left_Swing.draw_prompt(row)
+                    row = box.row() 
+                    Force_Double_Doors.draw_prompt(row)
             
 
 class PROMPTS_Outside_Corner_Shelves(fd_types.Prompts_Interface):

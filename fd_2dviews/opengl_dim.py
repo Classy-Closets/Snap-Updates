@@ -143,6 +143,8 @@ def draw_dimensions(context, obj, i_props, region, rv3d):
  
     a_p1 = get_location(obj)
     b_p1 = None
+
+    rot = -obj.rotation_euler.y
     
     for child in obj.children:
         if child.mv.type == 'VISDIM_B':
@@ -190,7 +192,7 @@ def draw_dimensions(context, obj, i_props, region, rv3d):
                       fsize,
                       i_props,
                       screen_point_ap1,
-                      screen_point_bp1)
+                      screen_point_bp1, rot)
       
         bgl.glEnable(bgl.GL_BLEND)
         bgl.glColor4f(rgb[0], rgb[1], rgb[2], rgb[3])      
@@ -201,9 +203,13 @@ def draw_dimensions(context, obj, i_props, region, rv3d):
             
         draw_line(screen_point_ap1, screen_point_bp1)
                        
-def draw_text(x_pos, y_pos, display_text, rgb, fsize, i_props, anchor_co, endpoint_co):
-    font_id = 0
+def draw_text(x_pos, y_pos, display_text, rgb, fsize, i_props, anchor_co, endpoint_co, rot):        
+    font_path = os.path.join(
+                os.path.dirname(bpy.app.binary_path),"Fonts","calibri.ttf")
+    font_id = blf.load(font_path)
     blf.size(font_id, fsize, 72)
+    blf.enable(font_id, 1)
+
     #- height of one line
     mwidth, mheight = blf.dimensions(font_id, "Tp")  # uses high/low letters
 
@@ -241,12 +247,17 @@ def draw_text(x_pos, y_pos, display_text, rgb, fsize, i_props, anchor_co, endpoi
                          x_pos + i_props.gl_text_x,
                          y_pos + i_props.gl_text_y,
                          0)
+            # Determine text rotation with anchor and endpoint positions
+            dX = round((endpoint_co[0] - anchor_co[0]), 2)
+            dY = round((endpoint_co[1] - anchor_co[1]), 2)
+            rot = math.atan2(dY, dX)
         else:
             blf.position(font_id,
                          x_pos,
                          y_pos,
                          0)
         
+        blf.rotation(font_id, rot)        
         bgl.glColor4f(rgb[0], rgb[1], rgb[2], rgb[3])
         blf.draw(font_id, " " + line)
         

@@ -2,7 +2,7 @@
 bl_info = {
     "name": "SNaP",
     "author": "Ryan Montes",
-    "version": (1, 2, 4),
+    "version": (1, 2, 5),
     "blender": (2, 7, 8),
     "location": "Tools Shelf",
     "description": "SNaP",
@@ -209,11 +209,6 @@ class PREFS_Snap(bpy.types.AddonPreferences):
         default=CSV_PATH
     )
 
-    location_code = bpy.props.EnumProperty(
-        name="Location Code",
-        items=closet_materials.enum_location_code
-    )
-
     enable_lib_manager = bpy.props.BoolProperty(
         name="Enable Library Manager",
         description="If enabled, show library manager panel",
@@ -227,9 +222,6 @@ class PREFS_Snap(bpy.types.AddonPreferences):
         box = layout.box()
         row = box.row()
         split = row.split(percentage=0.5)
-        row = split.row()
-        row.label("Location Code:")
-        row.prop(self, "location_code", text="")
         row = split.row()
         row.label("Designer ID:")
         row.prop(project_prefs, "designer_id", text="")

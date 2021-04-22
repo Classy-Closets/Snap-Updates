@@ -1209,10 +1209,22 @@ class PROPERTIES_Object_Properties(PropertyGroup):
     is_panel_bp = BoolProperty(name="Is Panel Point",
                                description="Used to determine if the assembly is a vertical panel",
                                default=False)
+    
+    is_left_panel_bp = BoolProperty(name="Is Left Panel Base Point",
+                               description="Used to determine if the assembly is a vertical left side panel",
+                               default=False)
+    
+    is_right_panel_bp = BoolProperty(name="Is Right Panel Base Point",
+                               description="Used to determine if the assembly is a vertical right side panel",
+                               default=False)
 
     is_blind_corner_panel_bp = BoolProperty(name="Is Blind Corner Panel Point",
                                description="Used to determine if the part is a vertical blind corner panel",
-                               default=False)        
+                               default=False)      
+
+    is_mitered_pard_bp = BoolProperty(name="Is Mitered Partition Point",
+                               description="Used to determine if the part is a mitered partition base point",
+                               default=False)  
 
     is_slanted_shelf_bp = BoolProperty(name="Is Slanted Shelf Base Point",
                                description="Used to determine if the assembly is a slanted shelf base point",
@@ -1265,6 +1277,10 @@ class PROPERTIES_Object_Properties(PropertyGroup):
     is_cover_cleat_bp = BoolProperty(name="Is Cover Cleat Base Point",
                                description="Used to determine if the assembly is a cleat",
                                default=False)
+
+    is_wall_cleat_bp = BoolProperty(name="Is Wall Cleat Base Point",
+                               description="Used to determine if the assembly is a wall cleat",
+                               default=False)
     
     is_door_striker_bp = BoolProperty(name="Is Door Striker Base Point",
                                description="Used to determine if the assembly is a door striker",
@@ -1293,6 +1309,10 @@ class PROPERTIES_Object_Properties(PropertyGroup):
 
     is_toe_kick_stringer_bp = BoolProperty(name="Is Toe Kick Stringer Base Point",
                                   description="Used to determine if the assembly is a toe kick stringer",
+                                  default=False)
+
+    is_toe_kick_skin_bp = BoolProperty(name="Is Toe Kick Skin Base Point",
+                                  description="Used to determine if the assembly is a toe kick skin",
                                   default=False)
     
     is_shelf_lip_bp = BoolProperty(name="Is Shelf Lip Base Point",
@@ -1334,6 +1354,10 @@ class PROPERTIES_Object_Properties(PropertyGroup):
     
     is_hutch_back_bp = BoolProperty(name="Is Hutch Back Base Point",
                               description="Used to determine if the assembly is a hutch back",
+                              default=False)
+
+    is_corner_back_bp = BoolProperty(name="Is Corner Back Base Point",
+                              description="Used to determine if the assembly is a back apart of a corner shelf assembly",
                               default=False)
     
     is_drawer_stack_bp = BoolProperty(name="Is Drawer Stack Base Point",

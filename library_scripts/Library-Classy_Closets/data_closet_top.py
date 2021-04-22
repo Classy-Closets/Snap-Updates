@@ -1,6 +1,6 @@
+  
 '''
 Created on May 6, 2020
-
 @author: Ryan Montes
 '''
 import bpy
@@ -49,6 +49,9 @@ class Top(fd_types.Assembly):
         self.add_prompt(name="Max Panel Depth",prompt_type='DISTANCE',value=0,tab_index=0)
         self.add_prompt(name="Max Panel Front Chamfer",prompt_type='DISTANCE',value=0,tab_index=0)
         self.add_prompt(name="Max Rear Chamfer",prompt_type='DISTANCE',value=0,tab_index=0)
+        self.add_prompt(name="On Left Most Panel",prompt_type='CHECKBOX',value=False,tab_index=0)
+        self.add_prompt(name="On Right Most Panel",prompt_type='CHECKBOX',value=False,tab_index=0)
+        self.add_prompt(name="Hang Height",prompt_type='DISTANCE',value=0,tab_index=0)
 
         self.add_oversize_prompts()
         common_prompts.add_thickness_prompts(self)
@@ -64,7 +67,7 @@ class Top(fd_types.Assembly):
         Exposed_Left = self.get_var('Exposed Left')
         Exposed_Right = self.get_var('Exposed Right')
         Exposed_Back = self.get_var('Exposed Back')
-        
+        Hang_Height = self.get_var('Hang Height')
         top = common_parts.add_plant_on_top(self)
         constraint = top.obj_x.constraints.new(type='LIMIT_LOCATION')
         constraint.use_max_x = True
@@ -74,7 +77,7 @@ class Top(fd_types.Assembly):
         top.set_name("Topshelf")
         top.x_loc('IF(Extend_Left,0,Panel_Thickness/2)-Extend_Left_Amount',[Extend_Left,Extend_Left_Amount,Panel_Thickness])
 
-        top.z_loc(value = 0)
+        top.z_loc(value=0)
         top.x_rot(value = 180)
         top.y_rot(value = 0)
         top.z_rot(value = 0)
@@ -324,6 +327,7 @@ class DROP_OPERATOR_Place_Top(bpy.types.Operator):
                         if self.is_first_panel(self.selected_panel_1):
                             self.top_shelf.x_loc('P1_X_Loc',[P1_X_Loc])
                             self.top_shelf.x_dim('P2_X_Loc-P1_X_Loc',[P1_X_Loc,P2_X_Loc])
+
                         else:
                             self.top_shelf.x_loc('P1_X_Loc-Panel_Thickness',[P1_X_Loc,Panel_Thickness])
                             self.top_shelf.x_dim('P2_X_Loc-P1_X_Loc+Panel_Thickness',[P1_X_Loc,P2_X_Loc,Panel_Thickness])
@@ -355,13 +359,43 @@ class DROP_OPERATOR_Place_Top(bpy.types.Operator):
                         max_panel_formula += "))"
                         max_panel_fc_formula += max_panel_fc_tail
                         max_rc_formula += "))"
-
-                        self.top_shelf.prompt('Max Panel Depth',max_panel_formula,max_panel_vars)
+                        self.top_shelf.prompt('Max Panel Depth',max_panel_formula,max_panel_vars)                                                                                                                                                                                     
                         self.top_shelf.prompt('Max Rear Chamfer',max_rc_formula,max_rc_vars)
                         self.top_shelf.prompt('Max Panel Front Chamfer',max_panel_fc_formula,max_panel_fc_vars)
                         self.top_shelf.y_loc("-Max_Rear_Chamfer",[Max_Rear_Chamfer])
                         self.top_shelf.y_dim("MPD-Max_Rear_Chamfer-Max_Panel_Front_Chamfer",[MPD,Max_Rear_Chamfer,Max_Panel_Front_Chamfer])
-                        
+
+                        hang_height = self.top_shelf.get_prompt("Hang Height")
+                        if hang_height:
+                            hang_height.set_value(math.fabs(product.obj_z.location.z))
+
+                        extend_left_amount = self.top_shelf.get_prompt("Extend Left Amount")
+                        extend_right_amount = self.top_shelf.get_prompt("Extend Right Amount")
+                        on_left_most_panel = self.top_shelf.get_prompt("On Left Most Panel")
+                        on_right_most_panel = self.top_shelf.get_prompt("On Right Most Panel")
+
+                        parent_bp =  self.top_shelf.obj_bp.parent
+                        parent_assembly = fd_types.Assembly(parent_bp)
+                        add_left_filler = parent_assembly.get_prompt("Add Left Filler")
+                        left_filler_amount = parent_assembly.get_prompt("Left Side Wall Filler")
+                        add_right_filler = parent_assembly.get_prompt("Add Right Filler")
+                        right_filler_amount = parent_assembly.get_prompt("Right Side Wall Filler")
+                        right_filler_setback_amount = parent_assembly.get_prompt("Right Filler Setback Amount")
+                        left_filler_setback_amount = parent_assembly.get_prompt("Left Filler Setback Amount")
+
+                        filler_prompts = [extend_left_amount,extend_right_amount,add_left_filler,left_filler_amount,add_right_filler,right_filler_amount,left_filler_setback_amount,right_filler_setback_amount]
+                        left_props = props_closet.get_object_props(self.selected_panel_1.obj_bp)
+                        right_props = props_closet.get_object_props(self.selected_panel_2.obj_bp)
+                        if on_left_most_panel and on_right_most_panel:
+                            on_left_most_panel.set_value(left_props.is_left_panel_bp)
+                            on_right_most_panel.set_value(right_props.is_right_panel_bp)
+
+                        if all(filler_prompts):
+                            if add_left_filler.value() and left_props.is_left_panel_bp:
+                                extend_left_amount.set_value(left_filler_amount.value())
+                            if add_right_filler.value() and right_props.is_right_panel_bp:
+                                extend_right_amount.set_value(right_filler_amount.value())
+               
                         return {'FINISHED'}
             
         return {'RUNNING_MODAL'}

@@ -20,6 +20,9 @@ import psutil
 import time
 import os
 import math
+import mathutils
+import string
+import random
 from . import report_2d_drawings
 from . import operators
 from . import opengl_dim
@@ -39,7 +42,31 @@ bl_info = {
 }
 
 
+def spread(arg):
+    ret = []
+    for i in arg:
+        ret.extend(i) if isinstance(i, list) else ret.append(i)
+    return ret
+
+
+def get_dimension_props():
+    dimprops = None
+    if hasattr(bpy.context, 'scene'):
+        dimprops = eval("bpy.context.scene.mv_closet_dimensions")
+    return dimprops
+
+
 class WM_PROPERTIES_2d_views(bpy.types.PropertyGroup):
+
+    default_page_options = [('PLAN+1ELVS', "Plan and elevations",
+                             'Plan on top plus three elevations (U-Shaped)'),
+                            ('3ELVS', 'Three per page',
+                                'Three elevations per page'),
+                            ('2ELVS', "Two per page",
+                                'Two elevations per page'),
+                            ('SINGLE', "One per page",
+                                'One elevation per page'),
+                            ]
 
     expand_options = bpy.props.BoolProperty(name="Expand Dimension Options",
                                             description="Expands Dimension Options Box",
@@ -57,6 +84,24 @@ class WM_PROPERTIES_2d_views(bpy.types.PropertyGroup):
                                                'One elevation per page'),
                                        ],
                                        default='SINGLE')
+    
+    accordions_layout_setting = EnumProperty(name="Page Layout Settings",
+                                             items=[
+                                                 ('2_ACCORD', "Two Accordions per page",
+                                                  'Two accordions per page'),
+                                                 ('1_ACCORD', "One Accordion per page",
+                                                  'One accordion per page'),
+                                                 ('PLAN+1ACCORDS', "Plan and Accordions",
+                                                  'Plan on top plus accordions (U-Shaped)'),
+                                                 ('PLAN+1ELVS', "Plan and elevations",
+                                                  'Plan on top plus three elevations (U-Shaped)'),
+                                                 ('3ELVS', 'Three per page',
+                                                  'Three elevations per page'),
+                                                 ('2ELVS', "Two per page",
+                                                  'Two elevations per page'),
+                                                 ('SINGLE', "One per page",
+                                                  'One elevation per page'),
+                                                   ],default='2_ACCORD')
 
     paper_size = EnumProperty(name="Paper Size",
                               items=[
@@ -166,13 +211,13 @@ class PANEL_2d_views(bpy.types.Panel):
                      text='Dimension Options', icon='SCRIPTWIN')
         # ----
 
-#         options_box = panel_box.box()
-#         row = options_box.row(align=True)
-#         row.prop(props, 'expand_options', icon='TRIA_DOWN' if props.expand_options else 'TRIA_RIGHT', icon_only=True, emboss=False)
-#         row.label("Dimension Options", icon='SCRIPTWIN')
-#
-#         if props.expand_options:
-#             self.draw_dim_options(context, options_box)
+        # options_box = panel_box.box()
+        # row = options_box.row(align=True)
+        # row.prop(props, 'expand_options', icon='TRIA_DOWN' if props.expand_options else 'TRIA_RIGHT', icon_only=True, emboss=False)
+        # row.label("Dimension Options", icon='SCRIPTWIN')
+
+        # if props.expand_options:
+        #     self.draw_dim_options(context, options_box)
 
         row = panel_box.row(align=True)
         row.scale_y = 1.3
@@ -182,7 +227,18 @@ class PANEL_2d_views(bpy.types.Panel):
             if scene.mv.elevation_scene:
                 elv_scenes.append(scene)
 
+        # col = panel_box.column(align=True)
+        # col.prop(fd_wm, 'render_dimensions',
+        #          text='{} Dimensions'.format(
+        #              "Render" if fd_wm.render_dimensions else "Do not Render"),
+        #          icon='SCRIPTWIN',
+        #          toggle=False)
+
         if len(elv_scenes) < 1:
+            # TODO remove if it works on Closet 2D Setup
+            # row.label("Include Accordion Views: ")
+            # col = panel_box.column(align=True)
+            # row = col.row(align=True)
             row.operator("fd_2d_views.genereate_2d_views",
                          text="Prepare 2D Views", icon='RENDERLAYERS')
         else:
@@ -203,6 +259,7 @@ class PANEL_2d_views(bpy.types.Panel):
         image_views = context.window_manager.mv.image_views
 
         if len(image_views) > 0:
+            dimprops = get_dimension_props()
             panel_box.label("Image Views", icon='RENDERLAYERS')
             row = panel_box.row()
             row.template_list("LIST_2d_images", " ", context.window_manager.mv,
@@ -213,11 +270,14 @@ class PANEL_2d_views(bpy.types.Panel):
             col.operator('fd_2d_views.move_2d_image_item', text="",
                          icon='TRIA_DOWN').direction = 'DOWN'
             row = panel_box.row(align=True)
-            row.prop(props, 'page_layout_setting', "Elevations layout")
+            if dimprops.include_accordions:
+                row.prop(props, 'accordions_layout_setting', "Accordions layout")
+            elif not dimprops.include_accordions:
+                row.prop(props, 'page_layout_setting', "Elevations layout")
             paper_row = panel_box.row(align=True)
             paper_row.prop(props, 'paper_size', "Paper Size")
             panel_box.menu('MENU_2dview_reports', icon='FILE_BLANK')
-#             panel_box.operator('2dviews.create_pdf',text="Create PDF",icon='FILE_BLANK')
+            # panel_box.operator('2dviews.create_pdf',text="Create PDF",icon='FILE_BLANK')
 
 
 class MENU_2dview_reports(bpy.types.Menu):
@@ -256,11 +316,12 @@ class LIST_scenes(bpy.types.UIList):
 
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
 
-        if item.mv.plan_view_scene or item.mv.elevation_scene:
+        main_accordion = 'Z_Main Accordion' in item.mv.name_scene
+        if (item.mv.plan_view_scene or item.mv.elevation_scene) and not main_accordion:
             layout.label(item.mv.name_scene, icon='RENDER_REGION')
             layout.prop(item.mv, 'render_type_2d_view', text="")
             layout.prop(item.mv, 'elevation_selected', text="")
-        else:
+        elif not item.mv.plan_view_scene and not item.mv.elevation_scene:
             layout.label(item.name, icon='SCENE_DATA')
 
     def filter_items(self, context, data, propname):
@@ -565,7 +626,7 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
 
     ignore_obj_list = []
 
-    hashmarks = []
+    axes = ('X', 'Y', 'Z')
 
     use_single_scene = bpy.props.BoolProperty(name="Use for Creating Single View",
                                               default=False)
@@ -576,18 +637,21 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
                                                      name="Objects for Single Scene",
                                                      description="Objects to Include When Creating a Single View")
 
-#     orphan_products = []
+    # orphan_products = []
     def get_object_global_location(self, obj):
         return obj.matrix_world * obj.data.vertices[0].co
 
-    def to_inch(self, measure):
-        return round(measure / unit.inch(1), 2)
+    def to_inch(self, measure, prec=2):
+        if prec > 0:
+            return round(measure / unit.inch(1), prec)
+        else:
+            return round(measure / unit.inch(1))
 
-    def to_inch_str(self, measure):
-        return str(self.to_inch(measure))
+    def to_inch_str(self, measure, prec=2):
+        return str(self.to_inch(measure, prec))
 
-    def to_inch_lbl(self, measure):
-        return self.to_inch_str(measure) + "\""
+    def to_inch_lbl(self, measure, prec=2):
+        return self.to_inch_str(measure, prec) + "\""
 
     def list_mode(self, lst):
         return max(set(lst), key=lst.count)
@@ -599,6 +663,17 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
             world = bpy.data.worlds.new(self.ENV_2D_NAME)
             world.horizon_color = (1.0, 1.0, 1.0)
             return world
+
+    def copy_world_loc(self, source, target, offset=(0, 0, 0)):
+        off_mtx = mathutils.Matrix.Translation(mathutils.Vector(offset))
+        result_loc = (source.matrix_world * off_mtx).to_translation()
+        target.matrix_world.translation = result_loc
+
+    def copy_world_rot(self, source, target, offset=(0, 0, 0)):
+        off_rad = [math.radians(o) for o in offset]
+        off_mtx = mathutils.Euler(off_rad, source.rotation_mode).to_matrix()
+        result_rot = source.matrix_world.to_3x3().normalized() * off_mtx
+        target.matrix_world *= result_rot.to_4x4()
 
     def create_linestyles(self):
         linestyles = bpy.data.linestyles
@@ -614,6 +689,10 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
         hidden_linestyle.gap2 = self.HIDDEN_LINE_GAP_PX
         hidden_linestyle.gap3 = self.HIDDEN_LINE_GAP_PX
 
+        icons_linestyle = linestyles.new('Icons Linestyle')
+        icons_linestyle.use_chaining = False
+        icons_linestyle.color = (0.5, 0.5, 0.5)
+
     def create_linesets(self, scene):
         f_settings = scene.render.layers[0].freestyle_settings
         linestyles = bpy.data.linestyles
@@ -622,6 +701,21 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
             fs_hidden_exclude_grp = bpy.data.groups.new('FS Hidden Exclude')
         else:
             fs_hidden_exclude_grp = bpy.data.groups['FS Hidden Exclude']
+        if 'Icons' not in bpy.data.groups:
+            icons_grp = bpy.data.groups.new('Icons')
+        else:
+            icons_grp = bpy.data.groups['Icons']
+
+        icons_lineset = f_settings.linesets.new('Icons Lines')
+        icons_lineset.linestyle = linestyles['Icons Linestyle']
+
+        icons_lineset.select_by_visibility = False
+        icons_lineset.select_by_edge_types = False
+        icons_lineset.select_by_face_marks = False
+        icons_lineset.select_by_group = True
+        icons_lineset.select_by_image_border = True
+        icons_lineset.group = icons_grp
+        icons_lineset.group_negation = 'INCLUSIVE'
 
         f_settings.linesets.new(
             self.VISIBLE_LINESET_NAME).linestyle = linestyles[self.VISIBLE_LINESET_NAME]
@@ -634,9 +728,9 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
         hidden_lineset.select_by_edge_types = True
         hidden_lineset.select_by_face_marks = False
         hidden_lineset.select_by_group = True
-        hidden_lineset.select_by_image_border = False
+        hidden_lineset.select_by_image_border = True
 
-        hidden_lineset.select_silhouette = False
+        hidden_lineset.select_silhouette = True
         hidden_lineset.select_border = False
         hidden_lineset.select_contour = True
         hidden_lineset.select_suggestive_contour = False
@@ -671,17 +765,164 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
 
         return camera_obj
 
+    def draw_curve(self, name, points, curve_type, closed=False, fill=False):
+        # Create curve
+        curve = bpy.data.curves.new(name, 'CURVE')
+        curve.dimensions = '2D'
+        curve.extrude = 0.001
+        if fill:
+            curve.fill_mode = 'BOTH'
+        else:
+            curve.fill_mode = 'NONE'
+        # Create spline for curve
+        spline = curve.splines.new(type=curve_type)
+        spline.points.add(len(points)-1)
+        if curve_type == 'NURBS':
+            spline.use_bezier_u = True
+            spline.resolution_u = 8
+        if closed:
+            spline.use_cyclic_u = True
+        for i, p in enumerate(points):
+            spline.points[i].co = list(p) + [1]
+
+        # Create object
+        obj = bpy.data.objects.new(name, curve)
+        return obj
+
+    def move_curve(self, curve, vector):
+        loc_vec = mathutils.Vector(vector)
+        loc_mtx = mathutils.Matrix.Translation(loc_vec)
+        curve.data.transform(loc_mtx)
+
+    def flip_curve(self, curve, axis):
+        scale_vec = [a == axis for a in self.axes]
+        scale_mtx = mathutils.Matrix.Scale(-1, 4, scale_vec)
+        curve.data.transform(scale_mtx)
+
+    def draw_rectangle(self, name, width, height, off_x, off_y, fill=False):
+        rect_points = [(off_x, off_y, 0),
+                       (off_x, height + off_y, 0),
+                       (width + off_x, height + off_y, 0),
+                       (width + off_x, off_y, 0)]
+        rect_obj = self.draw_curve(name, rect_points, 'POLY', True, fill)
+        return rect_obj
+
+    def draw_door_swing_icon(self, width, depth):
+        door_n = 'ICON.CURVE.Door'
+        swing_n = 'ICON.CURVE.Swing'
+        door_crv = self.draw_rectangle(door_n, depth, width, 0, 0, True)
+        swing_crv_pts = [(depth, width, 0),
+                         (width * 0.9, width * 0.9, 0),
+                         (width, 0, 0)]
+        swing_crv = self.draw_curve(swing_n, swing_crv_pts, 'NURBS')
+        return [door_crv, swing_crv]
+
+    def pv_swing_door_icons(self, context, entry_door, wall):
+        if 'Icons' not in bpy.data.groups:
+            icons_grp = bpy.data.groups.new('Icons')
+        else:
+            icons_grp = bpy.data.groups['Icons']
+
+        depth = unit.inch(2)
+        wall_assy = fd_types.Assembly(wall)
+        entry_assy = fd_types.Assembly(entry_door)
+        entry_w = entry_assy.obj_x.location.x
+        wall_d = wall_assy.obj_y.location.y
+        pmt_rev = entry_assy.get_prompt('Reverse Swing')
+        pmt_side = entry_assy.get_prompt('Door Swing')
+
+        # Create the empty that will contain the icon shapes
+        icon_obj_n = 'ICON.{}'.format(entry_door.mv.class_name)
+        icon_obj = bpy.data.objects.new(icon_obj_n, None)
+        icon_obj.empty_draw_size = unit.inch(1)
+        icon_obj.empty_draw_type = 'SPHERE'
+        icon_obj.mv.type = 'VISDIM_A'
+        icon_obj.parent = entry_door
+        context.scene.objects.link(icon_obj)
+        sgl_entry = pmt_rev and pmt_side
+        dbl_entry = pmt_rev and not pmt_side
+        icon_crvs = []
+
+        if dbl_entry:
+            swing_rev = pmt_rev.value()
+            icon_crvs = self.draw_door_swing_icon(entry_w * 0.5, depth)
+            crvs_mirror = self.draw_door_swing_icon(entry_w * 0.5, depth)
+            for c in crvs_mirror:
+                self.flip_curve(c, 'X')
+                self.move_curve(c, (entry_w, 0, 0))
+                icon_crvs.append(c)
+            if swing_rev:
+                icon_obj.rotation_euler.x = math.radians(180)
+            else:
+                icon_obj.location.y = wall_d
+
+        elif sgl_entry:
+            swing_rev = pmt_rev.value()
+            swing_side = pmt_side.value()[0]
+            icon_crvs = self.draw_door_swing_icon(entry_w, depth)
+            if swing_side == 'R' and swing_rev:
+                icon_obj.location.x = entry_w
+                icon_obj.rotation_euler.z = math.radians(180)
+
+            elif swing_side == 'R' and not swing_rev:
+                icon_obj.location.x = entry_w
+                icon_obj.location.y = wall_d
+                icon_obj.rotation_euler.y = math.radians(180)
+
+            elif swing_side == 'L' and swing_rev:
+                icon_obj.rotation_euler.x = math.radians(180)
+
+            elif swing_side == 'L' and not swing_rev:
+                icon_obj.location.y = wall_d
+
+        for c in icon_crvs:
+            msh = c.to_mesh(context.scene, False, 'PREVIEW')
+            obj = bpy.data.objects.new(c.name, msh)
+            obj.mv.type = 'CAGE'
+            obj.parent = icon_obj
+            context.scene.objects.link(obj)
+            icons_grp.objects.link(obj)
+            bpy.data.curves.remove(c.data, do_unlink=True)
+            bpy.data.objects.remove(c, do_unlink=True)
+
     def link_dims_to_scene(self, scene, obj_bp):
         for child in obj_bp.children:
             if child not in self.ignore_obj_list:
+                self.has_render_comment(child)
                 if child.mv.type in ('VISDIM_A', 'VISDIM_B'):
                     scene.objects.link(child)
                 if len(child.children) > 0:
                     self.link_dims_to_scene(scene, child)
 
-    def link_desired_dims_to_scene(self, scene, obj_bp):
+    def has_render_comment(self, obj):
+        if obj.mv.comment == "render":
+            return True
+        return False
+
+    def get_hierarchy(self, obj):
+        yield obj
+        if len(obj.children) > 0:
+            for c in obj.children:
+                yield from self.get_hierarchy(c)
+
+    def add_text(self, context, assembly):
+        bpy.ops.object.text_add()
+        text = context.active_object
+        text.parent = assembly.obj_bp
+        text.location.x = unit.inch(-2)
+        text.location.z = unit.inch(-10)
+        text.rotation_euler.x = math.radians(90)
+        text.data.size = .1
+        text.data.body = assembly.obj_bp.mv.name_object
+        text.data.align_x = 'RIGHT'
+        text.data.font = self.font
+
+    def link_tagged_dims_to_scene(self, scene, obj_bp):
         for child in obj_bp.children:
-            if child not in self.ignore_obj_list:
+            comment = self.has_render_comment(child)
+            if 'hashmark' in child.name.lower():
+                scene.objects.link(child)
+            if child not in self.ignore_obj_list or comment:
                 if child.mv.type == 'VISDIM_A':
                     obj_parent = child.parent
                     if 'hanging' not in obj_parent.name.lower():
@@ -691,10 +932,47 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
                     if 'hanging' not in obj_grandpa.name.lower():
                         scene.objects.link(child)
                 if len(child.children) > 0:
-                    self.link_desired_dims_to_scene(scene, child)
+                    self.link_tagged_dims_to_scene(scene, child)
+            if 'LABEL' in child.name:
+                scene.objects.link(child)
+                
+    def link_desired_dims_to_scene(self, scene, obj_bp):
+        for child in obj_bp.children:
+            comment = self.has_render_comment(child)
+            if 'hashmark' in child.name.lower():
+                scene.objects.link(child)
+            if child not in self.ignore_obj_list or comment:
+                if child.mv.type == 'VISDIM_A':
+                    obj_parent = child.parent
+                    if 'hanging' not in obj_parent.name.lower():
+                        scene.objects.link(child)
+                if child.mv.type == 'VISDIM_B':
+                    obj_grandpa = child.parent.parent
+                    if 'hanging' not in obj_grandpa.name.lower():
+                        scene.objects.link(child)
+                if len(child.children) > 0:
+                    self.link_tagged_dims_to_scene(scene, child)
+            if 'LABEL' in child.name:
+                scene.objects.link(child)
+
+    def link_custom_entities_to_scene(self, scene, obj_bp):
+        for child in obj_bp.children:
+            if 'PARTHGT' in child.name:
+                if child.name not in scene.objects:
+                    scene.objects.link(child)
+            # if 'DBJWLR' in child.name:
+            #     scene.objects.link(child)
+            # if 'LOCK' in child.name:
+            #     scene.objects.link(child)
+            if len(child.children) > 0:
+                self.link_custom_entities_to_scene(scene, child)
 
     def group_children(self, grp, obj):
-        if obj.mv.type != 'CAGE' and obj not in self.ignore_obj_list:
+        is_cage = obj.mv.type != 'CAGE'
+        ignore = self.ignore_obj_list
+        group_list = [item for item in grp.objects]
+        not_empty_group = len(group_list) > 0
+        if is_cage and obj not in ignore and not_empty_group and obj not in group_list:
             grp.objects.link(obj)
         for child in obj.children:
             if len(child.children) > 0:
@@ -711,6 +989,14 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
                     grp.objects.link(child)
         return grp
 
+    def add_children_to_ignore(self, obj):
+        if obj not in self.ignore_obj_list:
+            self.ignore_obj_list.append(obj)
+        if (len(obj.children) > 0):
+            for child in obj.children:
+                if child not in self.ignore_obj_list:
+                    self.add_children_to_ignore(child)
+
     def create_new_scene(self, context, grp, obj_bp):
         bpy.ops.scene.new('INVOKE_DEFAULT', type='EMPTY')
         new_scene = context.scene
@@ -721,49 +1007,86 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
         new_scene.mv.plan_view_scene = False
         new_scene.mv.elevation_scene = True
         self.create_linesets(new_scene)
-
         return new_scene
 
-    def add_text(self, context, assembly):
+    def random_string(self, length):
+        letters = string.ascii_lowercase
+        result_str = ''.join(random.sample(letters, length))
+        return result_str
+
+    def apply_build_height_label(self, context, wall_bp, 
+                                 position, multiplier, wall_offset):
+        offset = unit.inch(-7) + (unit.inch(-4) * multiplier)
+        dim = fd_types.Dimension()
+        dim.parent = wall_bp
+        dim.start_x(value=offset + wall_offset)
+        dim.start_y(value=offset + wall_offset)
+        dim.start_z(value=0)
+        dim.end_z(value=position)
+        label = self.to_inch_lbl(position)
+        dim.set_label(" ")
         bpy.ops.object.text_add()
         text = context.active_object
-        text.parent = assembly.obj_bp
-        text.location.x = unit.inch(-2)
-        text.location.z = unit.inch(-10)
-        text.rotation_euler.x = math.radians(90)
+        text.parent = wall_bp
+        text.rotation_euler.x = math.radians(0)
+        text.rotation_euler.y = math.radians(-90)
+        text.rotation_euler.z = math.radians(90)
+        text.location.x = offset - unit.inch(1)
+        text.location.y = 0
+        text.location.z = ((position / 2))
+        text.data.align_x = 'CENTER'
         text.data.size = .1
-        text.data.body = assembly.obj_bp.mv.name_object
-        text.data.align_x = 'RIGHT'
+        text.data.body = label
         text.data.font = self.font
 
-    # Its to figure out if has variable children
-    variable_sections_list = []
+    def build_height_accordion_view(self, context, wall_bp, offset):
+        build_height_dims_list = []
+        for item in wall_bp.children:
+            if 'hanging' in item.name.lower():
+                build_height_dim = 0
+                countertop_height = 0
+                ctop_thickness = 0
+                topshelf_thickness = 0
+                hanging_height = fd_types.Assembly(item).obj_z.location.z
+                for n_item in item.children:
+                    if n_item.lm_closets.is_counter_top_insert_bp:
+                        countertop_height = n_item.location[2]
+                        for k_item in n_item.children:
+                            for x_item in k_item.children:
+                                if not x_item.hide:
+                                    ctop_thickness = abs(x_item.dimensions[2])
 
-    def has_variable_descendants(self, item):
-        if item.mv.opening_name:
-            carcass_bp = utils.get_parent_assembly_bp(item)
-            carcass_assembly = fd_types.Assembly(carcass_bp)
-            variable_section = carcass_assembly.get_prompt(
-                "CTF Opening {}".format(item.mv.opening_name)).value()
-            if variable_section:
-                self.variable_sections_list.append(item.mv.opening_name)
-        if len(item.children) > 0:
-            for i in item.children:
-                self.has_variable_descendants(i)
+                    if n_item.lm_closets.is_closet_top_bp:
+                        for k_item in n_item.children:
+                            if k_item.mv.type == 'BPASSEMBLY':
+                                for f_item in k_item.children:
+                                    if f_item.mv.type == 'VPDIMZ':
+                                        topshelf_thickness = abs(
+                                            f_item.location[2])
+                hanging = hanging_height > 0
+                ctop = ctop_thickness == 0
+                tshelf = topshelf_thickness == 0
+                if hanging and ctop and tshelf:
+                    build_height_dim = hanging_height
+                elif ctop_thickness > 0:
+                    build_height_dim = (countertop_height + ctop_thickness)
+                elif topshelf_thickness > 0:
+                    build_height_dim = (hanging_height + topshelf_thickness)
+                build_height_dims_list.append(build_height_dim)
+        build_height_dims_list = list(set(build_height_dims_list))
+        build_height_dims_list = sorted(build_height_dims_list)
+        for i, value in enumerate(build_height_dims_list):
+            self.apply_build_height_label(context, wall_bp, value, i, offset)
+        dims_offset = (unit.inch(-4) * len(build_height_dims_list))
+        max_offset = unit.inch(-7) + dims_offset
+        return max_offset
 
-    def wall_width_dimension(self, assembly):
+    def ceiling_height_accordion_view(self, context, item, 
+                                 bheight_offset, dim_offset):
         dim = fd_types.Dimension()
-        dim.parent(assembly.obj_bp)
-        dim.start_y(value=assembly.obj_y.location.y)
-        dim.start_z(value=assembly.obj_z.location.z + unit.inch(4))
-        dim.end_x(value=assembly.obj_x.location.x)
-        dim.set_label(self.to_inch_str(assembly.obj_x.location.x) + "\"")
-
-    def wall_height_dimension(self, context, item):
-        dim = fd_types.Dimension()
-        dim.parent(item.parent)
-        dim.start_x(value=0 - unit.inch(9))
-        dim.start_y(value=0 - unit.inch(9))
+        dim.parent = item.parent
+        dim.start_x(value=unit.inch(-1) + bheight_offset + dim_offset)
+        dim.start_y(value=unit.inch(-1) + bheight_offset + dim_offset)
         dim.start_z(value=0)
         dim.end_z(value=item.dimensions[2])
         wall_height = self.to_inch_lbl(item.dimensions[2])
@@ -774,7 +1097,7 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
         text.rotation_euler.x = math.radians(0)
         text.rotation_euler.y = math.radians(-90)
         text.rotation_euler.z = math.radians(90)
-        text.location.x = unit.inch(-10)
+        text.location.x = unit.inch(-2) + bheight_offset
         text.location.y = 0
         text.location.z = (item.dimensions[2] / 2)
         text.data.align_x = 'CENTER'
@@ -782,142 +1105,401 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
         text.data.body = wall_height
         text.data.font = self.font
 
-    def variable_opening_label(self, context, item):
-        for n_item in item.children:
-            if 'OPENING' in n_item.name:
-                self.has_variable_descendants(n_item)
-                variable_sections = set(self.variable_sections_list)
-                self.variable_sections_list = []
-                if len(variable_sections) > 0:
-                    section_width = 0
-                    for k_item in n_item.children:
-                        if k_item.mv.type == 'VPDIMX':
-                            section_width = k_item.location[0]
-                    dim = fd_types.Dimension()
-                    dim.parent(n_item)
-                    dim.start_x(value=section_width / 2)
-                    dim.start_y(value=section_width / 2)
-                    dim.start_z(value=unit.inch(-7) +
-                                (n_item.location[2] / -1))
-                    dim.set_label("Var.")
+    def wall_width_dimension_accordion_view(self, wall_bp):
+        assembly = fd_types.Assembly(wall_bp)
+        # has_entry = any('Entry' in c.mv.class_name for c in wall_bp.children)
+        # if not has_entry:
+        random_str = self.random_string(4)
+        dim = fd_types.Dimension()
+        dim.anchor.name = "WallDimAnchor_" + random_str
+        dim.end_point.name = "WallDimEndPoint_" + random_str
+        label = self.to_inch_lbl(assembly.obj_x.location.x)
+        dim.parent(wall_bp)
+        dim.start_y(value=assembly.obj_y.location.y)
+        dim.start_z(value=assembly.obj_z.location.z + unit.inch(4))
+        dim.end_x(value=assembly.obj_x.location.x)
+        dim.set_label(label)
+        return dim
 
-    def parallel_partition_dimension(self, context, item):
-        for n_item in item.children:
-            if n_item.lm_closets.is_panel_bp:
-                for k_item in n_item.children:
-                    if "cutpart" in k_item.name.lower() and not k_item.hide:
-                        line_offset = 1.5
-                        label = self.to_inch_str(k_item.dimensions[0])
-                        bpy.ops.object.text_add()
-                        text = context.active_object
-                        text.parent = k_item
-                        text.rotation_euler.x = math.radians(90)
-                        text.rotation_euler.y = math.radians(0)
-                        text.rotation_euler.z = math.radians(0)
-                        text.location.x = ((k_item.dimensions[0] / 2))
-                        text.location.y = 0
-                        text.location.z = unit.inch(line_offset)
-                        text.data.align_x = 'CENTER'
-                        text.data.size = .07
-                        text.data.body = label
-                        text.data.font = self.font_bold
+    def max_object_width(self, measures):
+        if len(measures) > 0:
+            return max(measures, key=lambda tup: tup[0])
+        return None
 
-    def toe_kick_dimension(self, context, item, assembly):
-        for n_item in item.children:
-            if 'toe' in n_item.name.lower():
-                for k_item in n_item.children:
-                    if k_item.mv.type == 'VPDIMZ':
-                        label = str(
-                            round(k_item.location[2] / unit.inch(1), 2)) + "\""
-                        dim = fd_types.Dimension()
-                        dim.parent(assembly.obj_bp)
-                        dim.start_x(value=0 - unit.inch(2))
-                        dim.start_y(value=0)
-                        dim.start_z(value=0)
-                        dim.end_z(value=k_item.location[2])
-                        dim.set_label(" ")
-                        bpy.ops.object.text_add()
-                        text = context.active_object
-                        text.parent = assembly.obj_bp
-                        text.rotation_euler.x = math.radians(90)
-                        text.rotation_euler.y = math.radians(0)
-                        text.rotation_euler.z = math.radians(0)
-                        text.location.x = 0 - unit.inch(5)
-                        text.location.y = 0
-                        text.location.z = k_item.location[2] / \
-                            2 - unit.inch(0.5)
-                        text.data.align_x = 'CENTER'
-                        text.data.size = .07
-                        text.data.body = label
-                        text.data.font = self.font
+    def obj_at_min_loc_x(self, measures):
+        return min(measures, key=lambda tup: tup[2])
 
-    def fullback_labeling(self, context, item):
-        for n_item in item.children:
-            if 'backing' in n_item.name.lower():
-                show_fullback = False
-                label = ""
-                fullback_dimensions = object
-                offset = -2
-                for k_item in n_item.children:
-                    if 'cutpart' in k_item.name.lower() and not k_item.hide:
-                        show_fullback = True
-                        fullback_dimensions = k_item.dimensions
-                if show_fullback:
-                    full_back_size = abs(self.to_inch(fullback_dimensions[2]))
-                    if full_back_size == 0.25:
-                        label = ["F/B", "1/4"]
-                    if full_back_size == 0.75:
-                        label = ["F/B", "3/4"]
-                    for lbl in label:
-                        offset += 1
-                        bpy.ops.object.text_add()
-                        text = context.active_object
-                        text.parent = n_item
-                        text.rotation_euler.x = math.radians(180)
-                        text.rotation_euler.y = math.radians(0)
-                        text.rotation_euler.z = math.radians(90)
-                        text.location.x = (
-                            (fullback_dimensions[0] / 2) + (unit.inch(2) * offset))
-                        text.location.y = ((fullback_dimensions[1] / 2))
-                        text.location.z = 0
-                        text.data.align_x = 'CENTER'
-                        text.data.size = .07
-                        text.data.body = lbl
-                        text.data.font = self.font_bold
+    def create_acordion_scene(self, context, grp):
+        bpy.ops.scene.new('INVOKE_DEFAULT', type='EMPTY')
+        new_scene = context.scene
+        new_scene.name = grp.name
+        new_scene.mv.name_scene = grp.name
+        new_scene.mv.elevation_img_name = grp.name
+        new_scene.mv.plan_view_scene = False
+        new_scene.mv.elevation_scene = True
+        self.create_linesets(new_scene)
 
-    def arrayed_shelf_dimension(self, context, cutpart, shelf_bp):
-        setback = 0.25
-        shelves_qtt = cutpart.modifiers["ZQuantity"].count
-        shelves_offset = cutpart.modifiers[
-            "ZQuantity"].constant_offset_displace[2]
-        section_depth = self.to_inch(
-            shelf_bp.location[1])
-        shelf_depth = self.to_inch(
-            cutpart.dimensions[1])
-        depth_part_diff = abs(
-            section_depth - shelf_depth)
-        label = self.to_inch_lbl(
-            cutpart.dimensions[1])
-        rotation = (0, math.radians(45), 0)
-        width = cutpart.dimensions[0]
-        if depth_part_diff != setback and depth_part_diff != 0.0:
-            for i in range(shelves_qtt):
-                z_offset = shelves_offset + (shelves_offset *
-                                             (i - 1))
-                location = (width/2,
-                            0,
-                            unit.inch(2.12) + z_offset)
-                hashmark = self.draw_hashmark(context,
-                                              cutpart,
-                                              location=location,
-                                              rotation=rotation,
-                                              length=unit.inch(6))
-                dim = fd_types.Dimension()
-                dim.parent(hashmark)
-                dim.start_x(value=0)
-                dim.start_y(value=0)
-                dim.start_z(value=unit.inch(5))
-                dim.set_label(label)
+        return new_scene
+
+    def divide_walls_to_acordions(self, walls, wall_break=330):
+        walls_data = []
+        wall_length_sum = 0
+        for wall in walls:
+            curr_wall_length = fd_types.Assembly(wall).obj_x.location.x
+            wall_length_sum += self.to_inch(curr_wall_length)
+            walls_data.append((self.to_inch(curr_wall_length), wall))
+        acordions = []
+        if wall_break >= wall_length_sum:
+            acordions.append(walls)
+        elif wall_break < wall_length_sum:
+            current_break = wall_break
+            division = []
+            for wall in walls_data:
+                wall_length, actual_wall = wall
+                if wall_length <= current_break:
+                    division.append(actual_wall)
+                    current_break -= wall_length
+                elif wall_length > current_break:
+                    current_break = wall_break
+                    acordions.append(division)
+                    division = []
+                    division.append(actual_wall)
+                    current_break -= wall_length
+            if len(division) > 0:
+                acordions.append(division)
+        return acordions
+
+    def get_acordion_indexes(self, walls, acordions):
+        indexed_acordions = []
+        for acordion in acordions:
+            indexed_acordion = []
+            for item in acordion:
+                index = walls.index(item)
+                indexed_acordion.append(index)
+            indexed_acordions.append(indexed_acordion)
+        return indexed_acordions
+
+    def corner_formation(self, context, cross_sections, 
+                         strict_corner_objects, walls):
+        # Check for colisions only if we have Corner Shelves or L-shelves
+        cross_idx_exclusions = []
+        if len(strict_corner_objects) > 0:
+            first_wall = walls[1]
+            last_wall = walls[-1]
+            for corner, corner_obj in enumerate(strict_corner_objects):
+                corner_pos, corner_orgn_wall, corner_tgt_wall, cn_parts, is_cross = corner_obj
+                for cross, cs_section in enumerate(cross_sections):
+                    cs_pos, cs_orgn_wall, cs_tgt_wall, cs_parts, is_cross = cs_section
+                    if cs_pos == corner_pos and cs_tgt_wall == corner_tgt_wall:
+                        cross_idx_exclusions.append(cross)
+                    elif cs_tgt_wall == last_wall and corner_orgn_wall == first_wall:
+                        cross_idx_exclusions.append(cross)
+            cross_idx_exclusions = sorted(list(set(cross_idx_exclusions)))
+            for corner in strict_corner_objects:
+                cross_sections.append(corner)
+
+        for i, cross_section in enumerate(cross_sections):
+            if i in cross_idx_exclusions:
+                continue
+            position, origin_wall, target_wall, parts_list, is_cross = cross_section
+            partitions = []
+            inserts = []
+            grp = bpy.data.groups.new("Joint_Grp")
+            empty_obj_location = (0, 0, 0)
+            empty_obj_rotation = (0, 0, math.radians(-90))
+            target_wall_assy = fd_types.Assembly(target_wall)
+            target_wall_width = target_wall_assy.obj_x.location.x
+            # Colect parts objects into a group to add to joint object
+            for part in parts_list:
+                part_assy = fd_types.Assembly(part)
+                partition_qry = 'partition' in part.name.lower()
+                insert_qry = 'insert' in part.name.lower()
+                if partition_qry:
+                    partition_width = abs(part_assy.obj_y.location.y)
+                    part_height = abs(part_assy.obj_x.location.x)
+                    loc_x = part.location[0]
+                    partition = (partition_width, part_height, loc_x, part)
+                    partitions.append(partition)
+                if insert_qry:
+                    insert_width = abs(part_assy.obj_x.location.x)
+                    insert_height = abs(part_assy.obj_y.location.y)
+                    loc_x = part.location[0]
+                    insert = (insert_width, insert_height, loc_x, part)
+                    inserts.append(insert)
+                self.group_children(grp, part)
+                # self.add_children_to_ignore(part)
+            # set the object target location based on origin cross section
+            # positioning
+            if position == "last":
+                max_partition_width = self.max_object_width(partitions)[0]
+                if max_partition_width is None:
+                    continue
+                empty_obj_location = (max_partition_width, 0, 0)
+            elif position == "first" and not is_cross:
+                for part in parts_list:
+                    grp.objects.link(part)
+                    for obj in part.children:
+                        if obj.name not in grp.objects:
+                            grp.objects.link(obj)
+                empty_obj_location = (target_wall_width, 0, 0)
+            elif position == "first" and is_cross:
+                min_loc_x_obj = self.obj_at_min_loc_x(partitions)[3]
+                min_loc_x_assy = fd_types.Assembly(min_loc_x_obj)
+                partition_width = abs(min_loc_x_assy.obj_y.location.y)
+                partition_height = abs(min_loc_x_assy.obj_x.location.x)
+                empty_obj_location = (partition_width, 0, 0)
+                dimensions = (partition_height,
+                              partition_width,
+                              unit.inch(0.75))
+                # Add Occlusion only for
+                # Cross Sections at last opening position
+                largest_insert = self.max_object_width(inserts)
+                if largest_insert is None:
+                    continue
+                oclusion_offset = largest_insert[0] + unit.inch(2)
+                largest_insert_obj = largest_insert[3]
+                location = (oclusion_offset,
+                            (partition_width * -1),
+                            (partition_height * -1)
+                            )
+                rotation = (0, math.radians(-90), 0)
+                oclusion = self.add_oclusion_partition(
+                    context, dimensions, location,
+                    rotation, largest_insert_obj
+                )
+                self.group_children(grp, oclusion)
+                # self.add_children_to_ignore(oclusion)
+                empty_obj_location = (target_wall_width, 0, 0)
+            for obj in grp.objects:
+                if 'hashmark' in obj.name.lower():
+                    grp.objects.unlink(obj)
+            instance_name = "Joint " + str(i) + " Instance"
+            instance = bpy.data.objects.new(instance_name, None)
+            instance.dupli_type = 'GROUP'
+            instance.dupli_group = grp
+            instance.parent = target_wall
+            instance.location = empty_obj_location
+            instance.rotation_euler = empty_obj_rotation
+            bpy.context.scene.objects.link(instance)
+
+    def create_main_acordion_scene(self, context,
+                                   mesh_data_dict, cross_sections):
+        walls_length = 0
+        walls_heights = []
+        bpy.ops.scene.new('INVOKE_DEFAULT', type='LINK_OBJECT_DATA')
+        new_scene = context.scene
+        new_objects_dict = {}
+        translated_cs_parts = []
+        strict_corner_objects = []
+        # Build the Dictionary of objects/meshes
+        for obj in new_scene.objects:
+            if obj.data is not None:
+                new_objects_dict[obj.data.name] = obj
+        new_scene_walls = [
+            obj for obj in new_scene.objects if obj.mv.type == "BPWALL"]
+        # Get corner/l-shelves
+        for wall_idx, wall in enumerate(new_scene_walls):
+            for child in wall.children:
+                is_cross = False
+                corner_shelves = 'corner shelves' in child.name.lower()
+                l_shelves = 'l shelves' in child.name.lower()
+                if corner_shelves or l_shelves:
+                    corner_parts = []
+                    corner_parts.append(child)
+                    current_wall = new_scene_walls[wall_idx]
+                    previous_wall = new_scene_walls[wall_idx-1]
+                    strict_corner_objects.append(
+                        ("first", current_wall, 
+                         previous_wall, corner_parts, is_cross)
+                    )
+        for section in cross_sections:
+            position, origin_wall, target_wall, parts_list = section
+            is_cross = True
+            trslt_parts_list = []
+            origin_mesh = mesh_data_dict[origin_wall.name]
+            trslt_origin_wall = new_objects_dict[origin_mesh]
+            target_mesh = mesh_data_dict[target_wall.name]
+            trslt_target_wall = new_objects_dict[target_mesh]
+            for part in parts_list:
+                if not hasattr(part, 'name'):
+                    continue
+                oclusion = 'oclusion' in part.name.lower()
+                mesh = mesh_data_dict.get(part.name)
+                if mesh is not None and not oclusion:
+                    trslt_part = new_objects_dict[mesh]
+                    trslt_parts_list.append(trslt_part)
+            translated_section = (position,
+                                  trslt_origin_wall,
+                                  trslt_target_wall,
+                                  trslt_parts_list,
+                                  is_cross)
+            translated_cs_parts.append(translated_section)
+        self.corner_formation(context, translated_cs_parts,
+                              strict_corner_objects, new_scene_walls)
+        for obj in new_scene_walls:
+            obj.rotation_euler.z = 0
+            wall_assy = fd_types.Assembly(obj)
+            walls_length += wall_assy.obj_x.location.x
+            walls_heights.append(wall_assy.obj_z.location.z)
+        new_scene.name = "Z_Main Accordion"
+        new_scene.mv.name_scene = "Z_Main Accordion"
+        new_scene.mv.elevation_img_name = "Z_Main Accordion"
+        new_scene.mv.plan_view_scene = False
+        new_scene.mv.elevation_scene = True
+        self.create_linesets(new_scene)
+        camera = self.create_camera(new_scene)
+        camera.rotation_euler.x = math.radians(90.0)
+        camera.rotation_euler.z = 0
+        new_scene.mv.opengl_dim.gl_font_size = 18
+        new_scene.render.pixel_aspect_x = 1.0
+        new_scene.render.pixel_aspect_y = 1.0
+        new_scene.render.resolution_x = 900
+        new_scene.render.resolution_y = 450
+        new_scene.render.resolution_percentage = 100
+        bpy.ops.object.select_all(action='SELECT')
+        bpy.ops.view3d.camera_to_view_selected()
+        max_height = max(walls_heights)
+        proportion = round((walls_length / max_height), 2)
+        camera.data.ortho_scale += proportion
+        bpy.ops.object.select_all(action='DESELECT')
+        return new_scene
+
+    def create_acordion_scenes(self, context, mesh_data_dict, cross_sections):
+        acordion_counter = 1
+        scene_objects = context.scene.objects
+        walls = [
+            obj for obj in scene_objects if obj.mv.type == "BPWALL"]
+        acordions = self.divide_walls_to_acordions(walls, wall_break=330)
+        indexes = self.get_acordion_indexes(walls, acordions)
+        main_acordion_scene = self.create_main_acordion_scene(
+            context, mesh_data_dict, cross_sections)
+        new_scene_walls = [
+            obj for obj in main_acordion_scene.objects if obj.mv.type == "BPWALL"]
+        new_scene_walls_widths = []
+        for new_wall in new_scene_walls:
+            wall_assy = fd_types.Assembly(new_wall)
+            width = wall_assy.obj_x.location.x
+            new_scene_walls_widths.append(width)
+        bpy.context.screen.scene = bpy.data.scenes['Z_Main Accordion']
+        for i in range(len(acordions)):
+            walls_length = 0
+            walls_heights = []
+            grp_name = "Accordion " + str(acordion_counter)
+            grp = bpy.data.groups.new(grp_name)
+            new_scene = self.create_acordion_scene(context, grp)
+            for j, wall in enumerate(new_scene_walls):
+                desired_indexes = indexes[i]
+                wall.rotation_euler.z = 0
+                if j in desired_indexes:
+                    wall_assy = fd_types.Assembly(wall)
+                    walls_length += wall_assy.obj_x.location.x
+                    walls_heights.append(wall_assy.obj_z.location.z)
+                    self.group_children(grp, wall)
+                    for obj in grp.objects:
+                        # CS Oclusion
+                        hashmark = 'hashmark' in obj.name.lower()
+                        cs_olcusion = 'cs oclusion' in obj.name.lower()
+                        if hashmark or cs_olcusion:
+                            grp.objects.unlink(obj)
+                    # Remove wall width, height and build dimensions
+                    for obj in wall.children:
+                        dim_anchor = obj.mv.type == "VISDIM_A"
+                        build_height = obj.type == 'FONT'
+                        hashmark = 'hashmark' in obj.name.lower()
+                        wall_mesh = 'mesh' in obj.name.lower()
+                        if dim_anchor or build_height or hashmark:
+                            bpy.data.objects.remove(obj, do_unlink=True)
+                        if wall_mesh:
+                            for n_obj in obj.children:
+                                wall_height = n_obj.type == 'FONT'
+                                if wall_height:
+                                    bpy.data.objects.remove(n_obj,
+                                                            do_unlink=True)
+            instance_name = "Accordion Instance " + str(acordion_counter)
+            instance = bpy.data.objects.new(instance_name, None)
+            new_scene.objects.link(instance)
+            instance.dupli_type = 'GROUP'
+            instance.dupli_group = grp
+            camera = self.create_camera(new_scene)
+            camera.rotation_euler.x = math.radians(90.0)
+            camera.rotation_euler.z = 0
+            new_scene.mv.opengl_dim.gl_font_size = 16
+            new_scene.render.pixel_aspect_x = 1.0
+            new_scene.render.pixel_aspect_y = 1.0
+            new_scene.render.resolution_x = 1800
+            new_scene.render.resolution_y = 900
+            new_scene.render.resolution_percentage = 100
+            bpy.ops.object.select_all(action='SELECT')
+            bpy.ops.view3d.camera_to_view_selected()
+            max_height = max(walls_heights)
+            proportion = round((walls_length / max_height), 2)
+            camera.data.ortho_scale += proportion
+            instance.hide_select = True
+            bpy.ops.object.select_all(action='DESELECT')
+            acordion_counter += 1
+        bpy.context.screen.scene = bpy.data.scenes['_Main']
+
+    def blind_corner_panel_labels(self, context, item):
+        bcps = []
+        opns = []
+
+        for n_item in item.children:
+            assy = fd_types.Assembly(n_item)
+            hide = assy.get_prompt('Hide')
+            is_bcp = n_item.lm_closets.is_blind_corner_panel_bp
+            if is_bcp and hide and not hide.value():
+                bcps.append(assy)
+            elif n_item.mv.type_group == 'OPENING':
+                opns.append(assy)
+
+        for bcp in bcps:
+            is_l_bcp = bcp.get_prompt('Is Left Blind Corner Panel')
+            is_r_bcp = bcp.get_prompt('Is Right Blind Corner Panel')
+            bcp_x = bcp.obj_bp.location[0]
+            bcp_y = bcp.obj_bp.location[1]
+            bcp_z = bcp.obj_bp.location[2]
+            bcp_w = bcp.obj_y.location[1]
+            bcp_h = bcp.obj_x.location[0]
+            bcp_d = bcp.obj_z.location[2]
+
+            bcp_str = '%s BCP' % self.to_inch_lbl(bcp_w)
+            bcp_lbl_x = bcp_h * 0.55
+            bcp_lbl_y = bcp_w * 0.5
+            bcp_lbl_loc = (bcp_lbl_x, bcp_lbl_y, 0)
+            bcp_lbl = fd_types.Dimension()
+            bcp_lbl.set_label(bcp_str)
+            self.copy_world_loc(bcp.obj_bp, bcp_lbl.anchor, bcp_lbl_loc)
+
+            for opn in opns:
+                opn_y = opn.obj_bp.location[1]
+                opn_z = opn.obj_bp.location[2]
+                opn_w = opn.obj_x.location[0]
+                opn_h = opn.obj_z.location[2]
+                opn_x = opn.obj_bp.location[0]
+
+                match_x, match_y, match_z = False, False, False
+
+                if is_l_bcp and is_l_bcp.value():
+                    match_x = math.isclose(bcp_x + bcp_d, opn_x, abs_tol = 1e-3)
+                    match_y = math.isclose(bcp_y + bcp_d, opn_y, abs_tol = 1e-3)
+                    match_z = math.isclose(bcp_z + (bcp_h - opn_h) * 0.5,
+                                           opn_z, abs_tol = 1e-3)
+
+                elif is_r_bcp and is_r_bcp.value():
+                    match_x = math.isclose(bcp_x, opn_x + opn_w + bcp_d, abs_tol = 1e-3)
+                    match_y = math.isclose(bcp_y, opn_y, abs_tol = 1e-3)
+                    match_z = math.isclose(bcp_z + (bcp_h - opn_h) * 0.5,
+                                           opn_z, abs_tol = 1e-3)
+
+                if match_x and match_y and match_z:
+                    gap_w = opn_w - bcp_w
+                    gap_str = '%s Open' % self.to_inch_lbl(gap_w + bcp_d)
+                    gap_lbl_x = -unit.inch(3)
+                    gap_lbl_y = opn_w - gap_w * 0.5
+                    gap_lbl_loc = (gap_lbl_x, gap_lbl_y, 0)
+                    gap_lbl = fd_types.Dimension()
+                    gap_lbl.set_label(gap_str)
+                    self.copy_world_loc(bcp.obj_bp, gap_lbl.anchor, gap_lbl_loc)
 
     def arrayed_shelves_door_inserts(self, context, item):
         if 'INSERT' in item.name and 'doors' in item.name.lower():
@@ -958,430 +1540,40 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
                 self.arrayed_hangs_inserts(context, n_item)
                 self.arrayed_hamper_doors_inserts(context, n_item)
 
-    def topshelf_exposed_dim(self, context, parent, location, rotation):
-        mark = self.draw_hashmark(context, parent,
-                                  location=location,
-                                  rotation=rotation,
-                                  length=unit.inch(3))
-        dim = fd_types.Dimension()
-        dim.parent(mark)
-        dim.start_x(value=0)
-        dim.start_y(value=0)
-        dim.start_z(value=unit.inch(-4))
-        dim.set_label("Exp.")
+    # def flat_crown(self, context, item):
+    #     wall = fd_types.Assembly(item.parent)
+    #     assy = fd_types.Assembly(item)
+    #     hang_h = assy.obj_z.location.z
+    #     tkd_vo = assy.get_prompt('Top KD 1 Vertical Offset')
+    #     labels = []
+    #     tkh_str = ''
+    #     for p in item.children:
+    #         if p.lm_closets.is_flat_crown_bp and p.mv.type_group == 'INSERT':
+    #             fc_prod = fd_types.Assembly(p)
+    #             ext_ceil = fc_prod.get_prompt('Extend To Ceiling')
+    #             tkh = fc_prod.get_prompt('Top KD Holes Down')
+    #             if ext_ceil and ext_ceil.value() and tkh and tkd_vo:
+    #                 if tkh.value() == 'One':
+    #                     tkh_str = 'Top KD|Down 1 Hole'
+    #                 elif tkh.value() == 'Two':
+    #                     tkh_str = 'Top KD|Down 2 Holes'
+    #                 hang_h -= tkd_vo.value()
+    #             for a in p.children:
+    #                 if a.mv.type == 'BPASSEMBLY' and 'Flat Crown' in a.name:
+    #                     fc_assy = fd_types.Assembly(a)
+    #                     fc_h = fc_assy.obj_y.location.y
+    #                     fc_str = 'Flat Crown %s' % self.to_inch_lbl(fc_h)
+    #                     labels.append((fc_str, fc_h))
 
-    def ctop_exposed_dim(self, context, parent, location, rotation):
-        mark = self.draw_hashmark(context, parent,
-                                  location=location,
-                                  rotation=rotation,
-                                  length=unit.inch(3))
-        dim = fd_types.Dimension()
-        dim.parent(mark)
-        dim.start_x(value=0)
-        dim.start_y(value=0)
-        dim.start_z(value=unit.inch(4))
-        dim.set_label("Exp.")
+    #     labels = list(dict.fromkeys(labels))
+    #     if tkh_str:
+    #         labels.append((tkh_str, -unit.inch(3)))
 
-    def topshelf_exposed_label(self, context, item):
-        for n_item in item.children:
-            if n_item.lm_closets.is_closet_top_bp:
-                for k_item in n_item.children:
-                    for x_item in k_item.children:
-                        if 'cutpart' in x_item.name.lower():
-                            z_offset = (
-                                x_item.dimensions[2] + unit.inch(1.06)) * -1
-                            # Left Edgeband
-                            if x_item.mv.edge_w1 != '':
-                                location = (unit.inch(-1.06), 0, z_offset)
-                                rotation = (0, math.radians(45), 0)
-                                self.topshelf_exposed_dim(context,
-                                                          x_item,
-                                                          location,
-                                                          rotation)
-                            # Right Edgeband
-                            if x_item.mv.edge_w2 != '':
-                                offset = x_item.dimensions[0]
-                                location = (unit.inch(1.06) + offset,
-                                            0, z_offset)
-                                rotation = (0, math.radians(-45), 0)
-                                self.topshelf_exposed_dim(context,
-                                                          x_item,
-                                                          location,
-                                                          rotation)
-                            # Back Edgeband
-                            if x_item.mv.edge_l2 != '':
-                                offset = x_item.dimensions[0] / 2
-                                location = (unit.inch(-1.06) + offset,
-                                            0, z_offset)
-                                rotation = (0, math.radians(45), 0)
-                                self.topshelf_exposed_dim(context,
-                                                          x_item,
-                                                          location,
-                                                          rotation)
-
-    def topshelf_hashmark(self, context, item):
-        for n_item in item.children:
-            if n_item.lm_closets.is_closet_top_bp:
-                for k_item in n_item.children:
-                    if k_item.mv.type == 'BPASSEMBLY':
-                        ts_assembly = fd_types.Assembly(k_item)
-                        ts_width = ts_assembly.obj_x.location.x
-                        ts_depth = ts_assembly.obj_y.location.y
-                        ts_height = ts_assembly.obj_z.location.z
-                        offset = ts_width / 2
-                        location = (unit.inch(
-                            1.06) + offset, 0, unit.inch(-1.06) + ts_height)
-                        rotation = (0, math.radians(-45), 0)
-                        hashmark = self.draw_hashmark(context, k_item,
-                                                      location=location,
-                                                      rotation=rotation,
-                                                      length=unit.inch(3))
-                        dim = fd_types.Dimension()
-                        dim.parent(hashmark)
-                        dim.start_x(value=0)
-                        dim.start_y(value=0)
-                        dim.start_z(value=unit.inch(-4))
-                        dim.set_label(self.to_inch_lbl(ts_depth))
-
-    def chk_shelf_cutpart(self, context, cutpart, shelf_bp):
-        setback = 0.25
-        shelf_depth = self.to_inch(
-            shelf_bp.location[1])
-        shelf_cutpart = self.to_inch(
-            cutpart.dimensions[1])
-        depth_part_diff = abs(
-            shelf_depth - shelf_cutpart)
-        if depth_part_diff != setback and depth_part_diff != 0.0:
-            return True
-        else:
-            return False
-
-    def shelf_non_std_dimension(self, context, cutpart, shelf_bp):
-        setback = 0.25
-        shelf_depth = self.to_inch(shelf_bp.location[1])
-        shelf_cutpart = self.to_inch(cutpart.dimensions[1])
-        width = cutpart.dimensions[0]
-        depth_part_diff = abs(shelf_depth - shelf_cutpart)
-        location = ((width / 2),
-                    0,
-                    unit.inch(2.12))
-        rotation = (0, math.radians(45), 0)
-        label = ""
-        if depth_part_diff != setback and depth_part_diff != 0.0:
-            label = self.to_inch_lbl(cutpart.dimensions[1])
-        else:
-            label = self.to_inch_lbl(shelf_bp.location[1])
-        hashmark = self.draw_hashmark(context,
-                                      cutpart,
-                                      location=location,
-                                      rotation=rotation,
-                                      length=unit.inch(6))
-        dim = fd_types.Dimension()
-        dim.parent(hashmark)
-        dim.start_x(value=0)
-        dim.start_y(value=0)
-        dim.start_z(value=unit.inch(5))
-        dim.set_label(label)
-
-    def valances(self, context, item):
-        for candidate in item.children:
-            product = 'product' in candidate.name.lower()
-            valance = 'valance' in candidate.name.lower()
-            if product and valance:
-                valance_assembly = fd_types.Assembly(candidate)
-                width = valance_assembly.obj_x.location.x
-                height = valance_assembly.get_prompt(
-                    "Molding Height").value()
-                location = valance_assembly.get_prompt(
-                    "Molding Location").value()
-                x_offset = width / 2 + unit.inch(0.68)
-                z_offset = (abs(height) + abs(location) + unit.inch(0.68)) * -1
-                hashmark_location = (x_offset,
-                                     0,
-                                     z_offset)
-                rotation = (math.radians(135), 0, math.radians(90))
-                label = "Valance " + self.to_inch_lbl(abs(height))
-                hashmark = self.draw_hashmark(context,
-                                              candidate,
-                                              location=hashmark_location,
-                                              rotation=rotation,
-                                              length=unit.inch(2))
-                dim = fd_types.Dimension()
-                dim.parent(hashmark)
-                dim.start_x(value=0)
-                dim.start_y(value=0)
-                dim.start_z(value=unit.inch(4))
-                dim.set_label(label)
-
-    def light_rails(self, context, item):
-        for candidate in item.children:
-            product = 'product' in candidate.name.lower()
-            light = 'light' in candidate.name.lower()
-            rail = 'rail' in candidate.name.lower()
-            if product and light and rail:
-                light_rail_assembly = fd_types.Assembly(candidate)
-                width = light_rail_assembly.obj_x.location.x
-                height = light_rail_assembly.get_prompt(
-                    "Molding Height").value()
-                location = light_rail_assembly.get_prompt(
-                    "Molding Location").value()
-                x_offset = width / 2 + unit.inch(0.68)
-                z_offset = (abs(height) + abs(location) + unit.inch(0.68)) * -1
-                hashmark_location = (x_offset,
-                                     0,
-                                     z_offset)
-                rotation = (math.radians(135), 0, math.radians(90))
-                label = "Light Rails " + self.to_inch_lbl(abs(height))
-                hashmark = self.draw_hashmark(context,
-                                              candidate,
-                                              location=hashmark_location,
-                                              rotation=rotation,
-                                              length=unit.inch(2))
-                dim = fd_types.Dimension()
-                dim.parent(hashmark)
-                dim.start_x(value=0)
-                dim.start_y(value=0)
-                dim.start_z(value=unit.inch(4))
-                dim.set_label(label)
-
-    def flat_crown(self, context, item):
-        for candidate in item.children:
-            candidate_name = candidate.name.lower()
-            product = 'product' in candidate_name
-            flat = 'flat' in candidate_name
-            crown = 'crown' in candidate_name
-            if product and flat and crown:
-                crown_assembly = fd_types.Assembly(candidate)
-                width = crown_assembly.obj_x.location.x
-                crown_m_height = crown_assembly.get_prompt("Molding Height")
-                crown_height = crown_m_height.value()
-                y_offset = crown_height
-                x_offset = width / 2
-                location = (unit.inch(2.12) + x_offset,
-                            0,
-                            unit.inch(2.12) + y_offset)
-                rotation = (0, math.radians(45), 0)
-                label = "Flat Crown " + self.to_inch_lbl(crown_height)
-                hashmark = self.draw_hashmark(context,
-                                              candidate,
-                                              location=location,
-                                              rotation=rotation,
-                                              length=unit.inch(6))
-                dim = fd_types.Dimension()
-                dim.parent(hashmark)
-                dim.start_x(value=0)
-                dim.start_y(value=0)
-                dim.start_z(value=unit.inch(5))
-                dim.set_label(label)
-
-    def slanted_shoes_shelf(self, context, item):
-        for candidate in item.children:
-            candidate_name = candidate.name.lower()
-            insert = 'insert' in candidate_name
-            slanted = 'slanted' in candidate_name
-            shoe = 'shoe' in candidate_name
-            shelf = 'shelf' in candidate_name
-            if insert and slanted and shoe and shelf:
-                sss_assembly = fd_types.Assembly(candidate)
-                #
-                shelf_lip_prompt = sss_assembly.get_prompt("Shelf Lip Type")
-                shelf_qty_prompt = sss_assembly.get_prompt("Adj Shelf Qty")
-                shelf_offset_prompt = sss_assembly.get_prompt(
-                    "Distance Between Shelves")
-                shelf_lip = shelf_lip_prompt.value()
-                shelf_offset = float(shelf_offset_prompt.value())
-                shelf_qty = int(shelf_qty_prompt.value())
-                #
-                z_offset = (shelf_qty - 1) * shelf_offset
-                width = sss_assembly.obj_x.location.x
-                x_offset = width / 2
-                label = "SSS " + shelf_lip + " Lip"
-                location = (unit.inch(2.12) + x_offset,
-                            0,
-                            unit.inch(2.12) + z_offset)
-                rotation = (0, math.radians(45), 0)
-                hashmark = self.draw_hashmark(context,
-                                              candidate,
-                                              location=location,
-                                              rotation=rotation,
-                                              length=unit.inch(6))
-                dim = fd_types.Dimension()
-                dim.parent(hashmark)
-                dim.start_x(value=0)
-                dim.start_y(value=0)
-                dim.start_z(value=unit.inch(5))
-                dim.set_label(label)
-
-    def add_glass_cutpart_dim(self, context, assembly, cutpart, thickness):
-        setback = 0.25
-        section_depth = self.to_inch(
-            assembly.location[1])
-        shelf_depth = self.to_inch(
-            cutpart.dimensions[1])
-        depth_part_diff = abs(
-            section_depth - shelf_depth)
-        shelves_qtt = cutpart.modifiers["ZQuantity"].count
-        shelves_offset = cutpart.modifiers[
-            "ZQuantity"].constant_offset_displace[2]
-        width = cutpart.dimensions[0]
-        # For cutparts that differs from the section depth minus setback (0.25)
-        if depth_part_diff != setback and depth_part_diff != 0.0:
-            label = self.to_inch_lbl(
-                cutpart.dimensions[1])
-        else:
-            label = self.to_inch_lbl(
-                assembly.location[1])
-        label += " Glass "
-        label += thickness
-        for i in range(shelves_qtt):
-            z_offset = shelves_offset + (shelves_offset *
-                                         (i - 1))
-            location = (width/2,
-                        0,
-                        unit.inch(2.12) + z_offset)
-            rotation = (0, math.radians(45), 0)
-            hashmark = self.draw_hashmark(context,
-                                          cutpart,
-                                          location=location,
-                                          rotation=rotation,
-                                          length=unit.inch(6))
-            dim = fd_types.Dimension()
-            dim.parent(hashmark)
-            dim.start_x(value=0)
-            dim.start_y(value=0)
-            dim.start_z(value=unit.inch(5))
-            dim.set_label(label)
-
-    def glass_shelves(self, context, item):
-        for candidate in item.children:
-            candidate_lowername = candidate.name.lower()
-            insert = 'insert' in candidate_lowername
-            shelves = 'shelves' in candidate_lowername
-            glass = 'glass' in candidate_lowername
-            if insert and shelves and glass:
-                insert_assembly = fd_types.Assembly(candidate)
-                glass_prompt = insert_assembly.get_prompt(
-                    "Glass Shelf Thickness")
-                glass_thickness = glass_prompt.value()
-                for assem_candidate in candidate.children:
-                    if assem_candidate.lm_closets.is_glass_shelf_bp:
-                        for cutpart_candidate in assem_candidate.children:
-                            if 'cutpart' in cutpart_candidate.name.lower():
-                                self.add_glass_cutpart_dim(context,
-                                                           assem_candidate,
-                                                           cutpart_candidate,
-                                                           glass_thickness)
-
-    def non_standard_shelves_dimensions(self, context, item):
-        # We add dimensions for shelves that differs
-        # from the section depth + default cutpart (1/4")
-        for n_item in item.children:
-            item_is_top_bp = n_item.lm_closets.is_closet_top_bp
-            item_is_shelf = 'shelf' in n_item.name.lower()
-            item_is_insert = 'INSERT' in n_item.name
-
-            if item_is_insert and item_is_shelf and not item_is_top_bp:
-                shelves = []
-                for k_item in n_item.children:
-                    if k_item.lm_closets.is_shelf_bp:
-                        for x_item in k_item.children:
-                            if 'cutpart' in x_item.name.lower():
-                                shelves.append(self.chk_shelf_cutpart(context,
-                                                                      x_item,
-                                                                      k_item))
-                if any(shelves):
-                    for k_item in n_item.children:
-                        if k_item.lm_closets.is_shelf_bp:
-                            for x_item in k_item.children:
-                                if 'cutpart' in x_item.name.lower():
-                                    self.shelf_non_std_dimension(context,
-                                                                 x_item,
-                                                                 k_item)
-
-    def section_depths(self, context, assembly):
-        wall = assembly.obj_bp.children
-        candidates = [item for item in wall if item.mv.type == 'BPASSEMBLY']
-        n_openings = [[item for item in obj.children if 'OPENING' in item.name]
-                      for obj in candidates]
-        for openings in n_openings:
-            for opening in openings:
-                opening_assembly = fd_types.Assembly(opening)
-                depth = opening_assembly.obj_y.location.y
-                hashmark = self.draw_hashmark(context, opening,
-                                              location=(
-                                                  unit.inch(2.12),
-                                                  0,
-                                                  unit.inch(2.12)),
-                                              rotation=(
-                                                  0, math.radians(45), 0),
-                                              length=unit.inch(6))
-                dim = fd_types.Dimension()
-                dim.parent(hashmark)
-                dim.start_x(value=0)
-                dim.start_y(value=0)
-                dim.start_z(value=unit.inch(5))
-                dim.set_label(self.to_inch_str(depth) + "\"")
-
-    def widths_uppers_and_lowers(self, context, assembly):
-        lower_offset = unit.inch(-3)
-        upper_offset = unit.inch(15)
-        #
-        wall = assembly.obj_bp.children
-        hanging_openings_lengths = []
-        restricted_openings = []
-        offset_openings = []
-        # Selecting the openings at the wall, using a nested list - n_openings
-        candidates = [item for item in wall if item.mv.type == 'BPASSEMBLY']
-        n_openings = [[item for item in obj.children if 'OPENING' in item.name]
-                      for obj in candidates]
-        hanging_openings_lengths.append(len(n_openings))
-        if len(n_openings) > 1 and len(set(hanging_openings_lengths)) == 1:
-            column_openings = zip(*n_openings)
-            for column in column_openings:
-                opening_widths = []
-                opening_heights = []
-                global_heights = []
-                if len(column) == 2:
-                    for item in column:
-                        item_assembly = fd_types.Assembly(item)
-                        opening_widths.append(self.to_inch(
-                            item_assembly.obj_x.location.x))
-                        opening_heights.append(self.to_inch(
-                            item_assembly.obj_z.location.z))
-                        gl_height = self.get_object_global_location(item)[2]
-                        global_heights.append(self.to_inch(gl_height))
-                        offset_openings.append(item)
-                width_query = len(set(opening_widths)) == 1
-                global_heights_query = len(set(global_heights)) != 1
-                if width_query and global_heights_query:
-                    restricted_openings.append(column[1])
-
-        for openings in n_openings:
-            for opening in openings:
-                depth = 0
-                opening_assembly = fd_types.Assembly(opening)
-                # skip unwanted dimensions
-                if opening in restricted_openings:
-                    continue
-                if opening not in offset_openings:
-                    depth += opening_assembly.obj_y.location.y
-                width = opening_assembly.obj_x.location.x
-                width_str = str(round(width / unit.inch(1), 2)) + "\""
-                global_opening_height = self.get_object_global_location(
-                    opening)[2]
-                parent_assembly = fd_types.Assembly(opening.parent)
-                parent_height = parent_assembly.obj_z.location.z
-                vertical_placement = (opening.location[2] / -1) + lower_offset
-                if global_opening_height >= parent_height / 2:
-                    vertical_placement += (parent_height + upper_offset)
-                dim = fd_types.Dimension()
-                dim.parent(opening)
-                dim.start_x(value=width/2)
-                dim.start_y(value=depth)
-                dim.start_z(value=vertical_placement)
-                dim.set_label(width_str)
-                self.ignore_obj_list.append(dim.anchor)
-                self.ignore_obj_list.append(dim.end_point)
+    #     for l in labels:
+    #         lbl = fd_types.Dimension()
+    #         lbl.set_label(l[0])
+    #         lbl_y = hang_h + (l[1] * 0.5)
+    #         self.copy_world_loc(wall.obj_bp, lbl.anchor, (-0.5, 0, lbl_y))
 
     def apply_planview_opening_tag(self, wall_assembly,
                                    context, opening, tags, parent):
@@ -1413,6 +1605,94 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
             text.data.size = text_height
             text.data.body = tag[0]
             text.data.font = self.font
+
+    def apply_l_shelves_tag(self, wall_assembly, context, assembly, l_shelf):
+        door_type = None
+        tags = []
+        text_height = .1
+        text_rotation = math.radians(0)
+        wall_assembly_bp = fd_types.Assembly(wall_assembly.obj_bp)
+        wall_angle = round(math.degrees(
+            wall_assembly_bp.obj_bp.rotation_euler[2]))
+        if len(assembly.prompts) > 0:
+            shelves_qty = assembly.get_prompt("Shelf Quantity").value()
+            # Add the bottom shelf to the calculation if has shelves
+            if shelves_qty > 0:
+                shelves_qty += 1
+            tags.append(("L-Shelf", 0.0))
+            shelves_tag = str(shelves_qty) + ' Shlvs.'
+            tags.append((shelves_tag, 0.0))
+            has_door = assembly.get_prompt("Door").value()
+            pos_x = assembly.obj_x.location.x
+            pos_y = assembly.obj_y.location.y
+            parent_height = l_shelf.location[2]
+            if has_door:
+                door_type = assembly.get_prompt("Door Type").value()
+                door_tag = door_type + ' Doors'
+                tags.append((door_tag, 0.0))
+            if wall_angle == 180:
+                text_rotation = math.radians(180)
+                tags.reverse()
+            for index, tag in enumerate(tags):
+                loc_y = ((index + 1) * (pos_y / (len(tags) + 1)))
+                bpy.ops.object.text_add()
+                text = context.active_object
+                text.parent = l_shelf
+                text.rotation_euler.x = math.radians(0)
+                text.rotation_euler.y = math.radians(0)
+                text.rotation_euler.z = text_rotation
+                text.location.x = pos_x / 2
+                text.location.y = loc_y - unit.inch(1)
+                text.location.z = 0 - parent_height
+                text.data.align_x = 'CENTER'
+                text.data.size = text_height
+                text.data.body = tag[0]
+                text.data.font = self.font
+
+    def apply_corner_shelves_tag(self, wall_assembly, context, assembly, corner_shelf):
+        double_doors = None
+        tags = []
+        text_height = .1
+        text_rotation = math.radians(0)
+        wall_assembly_bp = fd_types.Assembly(wall_assembly.obj_bp)
+        wall_angle = round(math.degrees(
+            wall_assembly_bp.obj_bp.rotation_euler[2]))
+        if len(assembly.prompts) > 0:
+            shelves_qty = assembly.get_prompt("Shelf Quantity").value()
+            # Add the bottom shelf to the calculation if has shelves
+            if shelves_qty > 0:
+                shelves_qty += 1
+            tags.append(("Corner Shelf", 0.0))
+            shelves_tag = str(shelves_qty) + ' Shlvs.'
+            tags.append((shelves_tag, 0.0))
+            has_door = assembly.get_prompt("Door").value()
+            pos_x = assembly.obj_x.location.x
+            pos_y = assembly.obj_y.location.y
+            parent_height = corner_shelf.location[2]
+            if has_door:
+                door_tag = "1 Door"
+                double_doors = assembly.get_prompt("Force Double Doors").value()
+                if double_doors is not None:
+                    door_tag = "Dbl. Doors"
+                tags.append((door_tag, 0.0))
+            if wall_angle == 180:
+                text_rotation = math.radians(180)
+                tags.reverse()
+            for index, tag in enumerate(tags):
+                loc_y = ((index + 1) * (pos_y / (len(tags) + 1)))
+                bpy.ops.object.text_add()
+                text = context.active_object
+                text.parent = corner_shelf
+                text.rotation_euler.x = math.radians(0)
+                text.rotation_euler.y = math.radians(0)
+                text.rotation_euler.z = text_rotation
+                text.location.x = pos_x / 2
+                text.location.y = loc_y - unit.inch(1)
+                text.location.z = 0 - parent_height
+                text.data.align_x = 'CENTER'
+                text.data.size = text_height
+                text.data.body = tag[0]
+                text.data.font = self.font
 
     def get_hang_shelves_count(self, assembly):
         shelves_dict = {}
@@ -1466,13 +1746,10 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
     def get_door_count(self, assembly):
         door_count = 0
         for obj in assembly.children:
-            if 'left' in obj.name.lower():
-                for d_obj in obj.children:
-                    if 'cutpart' in d_obj.name.lower() and not d_obj.hide:
-                        door_count += 1
-            if 'right' in obj.name.lower():
-                for d_obj in obj.children:
-                    if 'cutpart' in d_obj.name.lower() and not d_obj.hide:
+            if obj.lm_closets.is_door_bp:
+                for o in obj.children:
+                    if ((o.cabinetlib.type_mesh == 'CUTPART' or
+                         o.cabinetlib.type_mesh == 'BUYOUT') and not o.hide):
                         door_count += 1
         return door_count
 
@@ -1649,6 +1926,14 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
         wall_angle = round(math.degrees(
             wall_assembly.obj_bp.rotation_euler[2]))
         for item in wall:
+            if 'corner shelves' in item.name.lower():
+                corner_assy = fd_types.Assembly(item)
+                self.apply_corner_shelves_tag(
+                    wall_assembly, context, corner_assy, item)
+            if 'l shelves' in item.name.lower():
+                l_shelf_assy = fd_types.Assembly(item)
+                self.apply_l_shelves_tag(
+                    wall_assembly, context, l_shelf_assy, item)
             if item.mv.type == 'BPASSEMBLY':
                 for opening in item.children:
                     if 'OPENING' in opening.name:
@@ -1668,417 +1953,99 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
                                             tags,
                                             parent)
 
-    def countertop_hashmark(self, context, item):
-        material_name = ""
-        for n_item in item.children:
-            if n_item.lm_closets.is_counter_top_insert_bp:
-                ctop_assembly = fd_types.Assembly(n_item)
-                width = abs(ctop_assembly.obj_x.location.x)
-                counter_top_width = 0
-                counter_top_depth = 0
-                counter_top_height = 0
-                # n_item is at CTOP INSERT level
-                for k_item in n_item.children:
-                    for x_item in k_item.children:
-                        if not x_item.hide and 'hashmark' not in x_item.name.lower():
-                            # HACK to display the material correctly
-                            # Until the context materials get fixed
-                            if 'hpl' in x_item.name.lower():
-                                material_name = "HPL"
-                            elif 'melamine' in x_item.name.lower():
-                                material_name = "Mel."
-                            elif 'granite' in x_item.name.lower():
-                                material_name = "Gran."
-                            for sibling in x_item.parent.children:
-                                if sibling.mv.type == 'VPDIMX':
-                                    counter_top_width = abs(
-                                        sibling.location[0])
-                                if sibling.mv.type == 'VPDIMY':
-                                    counter_top_depth = abs(
-                                        sibling.location[1])
-                                if sibling.mv.type == 'VPDIMZ':
-                                    counter_top_height = abs(
-                                        sibling.location[2])
-                context_material = material_name
-                material = ""
-                if not None:
-                    material += context_material
-                material += " "
-                for spec_group in context.scene.mv.spec_groups:
-                    material += spec_group.materials["Countertop_Surface"].item_name
-                x_offset = width / 2
-                z_offset = counter_top_height + unit.inch(1.06)
-                location = (unit.inch(1.06) + x_offset, 0, z_offset)
-                rotation = (0, math.radians(45), 0)
-                hashmark = self.draw_hashmark(context, n_item, location,
-                                              rotation,
-                                              length=unit.inch(3))
-                counter_top_width_str = self.to_inch_lbl(counter_top_width)
-                counter_top_depth_str = self.to_inch_lbl(counter_top_depth)
-                counter_top_height_str = self.to_inch_lbl(
-                    counter_top_height)
-                # Countertop Dimensions
-                label = (material + " C.T. " + counter_top_width_str +
-                         " x " + counter_top_depth_str)
-                ctop_dim = fd_types.Dimension()
-                ctop_dim.parent(hashmark)
-                ctop_dim.start_x(value=unit.inch(-2.12))
-                ctop_dim.start_y(value=0)
-                ctop_dim.start_z(value=unit.inch(3))
-                ctop_dim.set_label(label)
+    def draw_hashmark(self, length, axis, line_width=2):
+        # Use opengl_dims to create hashmarks
+        hashmark = fd_types.Dimension(True)
+        hashmark.opengl_dim.gl_width = line_width
+        hashmark.anchor.name = 'Hashmark'
+        hashmark.end_point.location = [length * (a == axis) for a in self.axes]
+        return hashmark.anchor
 
-    def countertop_exposed_label(self, context, item):
-        for n_item in item.children:
-            if n_item.lm_closets.is_counter_top_insert_bp:
-                ctop_assembly = fd_types.Assembly(n_item)
-                ctop_exposed_left = ctop_assembly.get_prompt("Exposed Left")
-                ctop_exposed_right = ctop_assembly.get_prompt("Exposed Right")
-                ctop_exposed_back = ctop_assembly.get_prompt("Exposed Back")
-                extended_left = ctop_assembly.get_prompt("Extend Left Amount")
-                extended_right = ctop_assembly.get_prompt(
-                    "Extend Right Amount")
-                width = abs(ctop_assembly.obj_x.location.x)
-                counter_top_height = 0
-                # n_item is at CTOP INSERT level
-                for k_item in n_item.children:
-                    for x_item in k_item.children:
-                        if not x_item.hide and 'hashmark' not in x_item.name.lower():
-                            for sibling in x_item.parent.children:
-                                if sibling.mv.type == 'VPDIMZ':
-                                    counter_top_height = abs(
-                                        sibling.location[2])
-                z_offset = counter_top_height + unit.inch(1.06)
-                if ctop_exposed_left.value() is True:
-                    extension = 0
-                    if extended_left is not None:
-                        extension = extended_left.value()
-                    offset = 0 - extension
-                    location = (unit.inch(-1.06) + offset, 0, z_offset)
-                    rotation = (0, math.radians(-45), 0)
-                    self.ctop_exposed_dim(context, n_item, location, rotation)
-                if ctop_exposed_right.value() is True:
-                    extension = 0
-                    if extended_right is not None:
-                        extension = extended_right.value()
-                    offset = width + extension
-                    location = (unit.inch(1.06) + offset, 0, z_offset)
-                    rotation = (0, math.radians(45), 0)
-                    self.ctop_exposed_dim(context, n_item, location, rotation)
-                if ctop_exposed_back.value() is True:
-                    offset = width / 4
-                    location = (unit.inch(-1.06) + offset, 0, z_offset)
-                    rotation = (0, math.radians(-45), 0)
-                    self.ctop_exposed_dim(context, n_item, location, rotation)
+    def plan_view_hashmarks(self, context, obj):
+        wall_mesh = [i for i in obj.children if i.mv.is_wall_mesh][0]
+        width = wall_mesh.dimensions.x
+        depth = wall_mesh.dimensions.y
+        height = wall_mesh.dimensions.z
+        wall_angle = round(obj.rotation_euler.z, 4)
 
-    def file_drawer_labeling(self, context, item):
-        for n_item in item.children:
-            if n_item.lm_closets.is_drawer_stack_bp:
-                for k_item in n_item.children:
-                    if k_item.lm_closets.is_drawer_box_bp:
-                        rails = {}
-                        drawer_width = 0
-                        for f_item in k_item.children:
-                            if f_item.mv.type == 'VPDIMX':
-                                drawer_width = f_item.location[0]
-                            if 'rail' in f_item.name.lower():
-                                for v_item in f_item.children:
-                                    if 'cutpart' in v_item.name.lower() and not v_item.hide:
-                                        if 'left' in v_item.name.lower():
-                                            rails["left"] = self.to_inch(
-                                                f_item.location[0])
-                                            rails["type"] = "front_back"
-                                            rails["dim_parent"] = f_item
-                                        if 'right' in v_item.name.lower():
-                                            rails["right"] = self.to_inch(
-                                                f_item.location[0])
-                                            rails["type"] = "front_back"
-                                        if 'front' in v_item.name.lower():
-                                            rails["front"] = self.to_inch(
-                                                f_item.location[1])
-                                            rails["type"] = "lateral"
-                                            rails["dim_parent"] = f_item
-                                        if 'back' in v_item.name.lower():
-                                            rails["back"] = self.to_inch(
-                                                f_item.location[1])
-                                            rails["type"] = "lateral"
-                        if len(rails) > 0:
-                            file_rail_thickness = 0.5
-                            letter_size = 12
-                            legal_size = 15
-                            label = []
-                            if (rails["type"] == "lateral"):
-                                label.append("FILE")
-                                bottom_line = "LAT "
-                                if rails["back"] - rails["front"] - file_rail_thickness == letter_size:
-                                    bottom_line += "Letter"
-                                elif rails["back"] - rails["front"] - file_rail_thickness == legal_size:
-                                    bottom_line += "Legal"
-                                label.append(bottom_line)
-                            if (rails["type"] == "front_back"):
-                                label.append("FILE")
-                                bottom_line = "F2B "
-                                if rails["right"] - rails["left"] - file_rail_thickness == letter_size:
-                                    bottom_line += "Letter"
-                                elif rails["right"] - rails["left"] - file_rail_thickness == legal_size:
-                                    bottom_line += "Legal"
-                                label.append(bottom_line)
-                            count = len(label)
-                            for l in label:
-                                dim = fd_types.Dimension()
-                                dim.parent(rails["dim_parent"])
-                                dim.start_x(value=(drawer_width / 2) -
-                                            unit.inch(file_rail_thickness * 2))
-                                dim.start_y(value=(drawer_width / 2) -
-                                            unit.inch(file_rail_thickness * 2))
-                                dim.start_z(
-                                    value=(unit.inch(3) * count) - unit.inch(2))
-                                dim.set_label(l)
-                                count -= 1
+        length = unit.inch(9)
+        off = unit.inch(1)
+        location = (width, depth, height)
+        rotation = (0, 0, 45)
 
-    def add_filler_labeling(self, context, item):
-        for child in item.children:
-            if 'filler' in child.name.lower():
-                for cc in child.children:
-                    if 'cutpart' in cc.name.lower() and not cc.hide:
-                        filler_assy = fd_types.Assembly(child)
-                        filler_measure = filler_assy.obj_y.location.y
-                        filler_amount = self.to_inch_lbl(abs(filler_measure))
-                        z_offset = child.location[2] + unit.inch(3)
-                        # Filler Measure
-                        # NOTE to change Z-position change X values
-                        #      to change X-position change Y values
-                        filler_dim = fd_types.Dimension()
-                        filler_dim.parent(child)
-                        filler_dim.start_x(value=0 - z_offset)
-                        filler_dim.start_y(value=filler_measure / 2)
-                        filler_dim.start_z(value=0)
-                        filler_dim.set_label(filler_amount)
-                        # Filler Label
-                        filler_lbl = fd_types.Dimension()
-                        filler_lbl.parent(child)
-                        filler_lbl.start_x(value=0 - z_offset - unit.inch(3))
-                        filler_lbl.start_y(value=filler_measure / 2)
-                        filler_lbl.start_z(value=0)
-                        filler_lbl.set_label("Filler")
+        custom_room = context.scene.fd_roombuilder.room_type == 'CUSTOM'
+        single_room = context.scene.fd_roombuilder.room_type == 'SINGLE'
 
-    def build_height_dimension(self, context, assembly):
-        for item in assembly.obj_bp.children:
-            if 'hanging' in item.name.lower():
-                offset = unit.inch(-5)
-                countertop_height = 0
-                ctop_thickness = 0
-                topshelf_thickness = 0
-                hanging_height = 0
-                for n_item in item.children:
-                    if n_item.mv.type == 'VPDIMZ':
-                        hanging_height = abs(n_item.location[2])
+        if single_room:
+            self.pv_pad += length * 2
 
-                    if n_item.lm_closets.is_counter_top_insert_bp:
-                        countertop_height = n_item.location[2]
-                        for k_item in n_item.children:
-                            for x_item in k_item.children:
-                                if not x_item.hide:
-                                    ctop_thickness = abs(x_item.dimensions[2])
-
-                    if n_item.lm_closets.is_closet_top_bp:
-                        for k_item in n_item.children:
-                            if k_item.mv.type == 'BPASSEMBLY':
-                                for f_item in k_item.children:
-                                    if f_item.mv.type == 'VPDIMZ':
-                                        topshelf_thickness = abs(
-                                            f_item.location[2])
-                hanging = hanging_height > 0
-                ctop = ctop_thickness == 0
-                tshelf = topshelf_thickness == 0
-                if hanging and ctop and tshelf:
-                    dim = fd_types.Dimension()
-                    dim.parent(assembly.obj_bp)
-                    dim.start_x(value=offset)
-                    dim.start_y(value=offset)
-                    dim.start_z(value=0)
-                    dim.end_z(value=hanging_height)
-                    label = self.to_inch_lbl(hanging_height)
-                    dim.set_label(" ")
-                    bpy.ops.object.text_add()
-                    text = context.active_object
-                    text.parent = assembly.obj_bp
-                    text.rotation_euler.x = math.radians(0)
-                    text.rotation_euler.y = math.radians(-90)
-                    text.rotation_euler.z = math.radians(90)
-                    text.location.x = offset - unit.inch(1)
-                    text.location.y = 0
-                    text.location.z = ((hanging_height / 2))
-                    text.data.align_x = 'CENTER'
-                    text.data.size = .1
-                    text.data.body = label
-                    text.data.font = self.font
-                elif ctop_thickness > 0:
-                    dim = fd_types.Dimension()
-                    dim.parent(assembly.obj_bp)
-                    dim.start_x(value=offset)
-                    dim.start_y(value=offset)
-                    dim.start_z(value=0)
-                    dim.end_z(value=countertop_height + ctop_thickness)
-                    label = self.to_inch_lbl(
-                        (countertop_height + ctop_thickness))
-                    dim.set_label(" ")
-                    bpy.ops.object.text_add()
-                    text = context.active_object
-                    text.parent = assembly.obj_bp
-                    text.rotation_euler.x = math.radians(0)
-                    text.rotation_euler.y = math.radians(-90)
-                    text.rotation_euler.z = math.radians(90)
-                    text.location.x = offset - unit.inch(1)
-                    text.location.y = 0
-                    text.location.z = (
-                        (countertop_height + ctop_thickness) / 2)
-                    text.data.align_x = 'CENTER'
-                    text.data.size = .1
-                    text.data.body = label
-                    text.data.font = self.font
-                elif topshelf_thickness > 0:
-                    dim = fd_types.Dimension()
-                    dim.parent(assembly.obj_bp)
-                    dim.start_x(value=offset)
-                    dim.start_y(value=offset)
-                    dim.start_z(value=0)
-                    dim.end_z(value=hanging_height + topshelf_thickness)
-                    label = self.to_inch_lbl(
-                        (hanging_height + topshelf_thickness))
-                    dim.set_label(" ")
-                    bpy.ops.object.text_add()
-                    text = context.active_object
-                    text.parent = assembly.obj_bp
-                    text.rotation_euler.x = math.radians(0)
-                    text.rotation_euler.y = math.radians(-90)
-                    text.rotation_euler.z = math.radians(90)
-                    text.location.x = offset - unit.inch(1)
-                    text.location.y = 0
-                    text.location.z = (
-                        (hanging_height + topshelf_thickness) / 2)
-                    text.data.align_x = 'CENTER'
-                    text.data.size = .1
-                    text.data.body = label
-                    text.data.font = self.font
-
-    def draw_hashmark(self, context, parent,
-                      location=(unit.inch(1.06), 0, unit.inch(1.06)),
-                      rotation=(0, math.radians(45), 0),
-                      length=unit.inch(3)):
-        # The following creates a Poly NURBS curve that looks like a dash/line
-        # Create a curve and define its rendering settings
-        hashmark_n = 'Hashmark'
-        line = bpy.data.curves.new(hashmark_n, 'CURVE')
-        line.dimensions = '3D'
-        line.fill_mode = 'HALF'
-        line.bevel_resolution = 0
-        line.bevel_depth = unit.inch(0.1)
-
-        # Create a straight line spline for the curve and adjust its points' properties
-        spline = line.splines.new(type='POLY')
-        spline.points.add(1)
-        spline.points[0].co = (0, 0, -0.5 * length, 1)
-        spline.points[1].co = (0, 0, 0.5 * length, 1)
-        spline.points[0].tilt = math.radians(90)
-        spline.points[1].tilt = math.radians(90)
-
-        # Create the hashmark object that contains the curve and spline data
-        hashmark_obj = bpy.data.objects.new(hashmark_n, line)
-        hashmark_obj.parent = parent
-        hashmark_obj.location = location
-        hashmark_obj.rotation_euler = rotation
-        context.scene.objects.link(hashmark_obj)
-        self.hashmarks.append(hashmark_obj)
-        return hashmark_obj
-
-    def plan_view_hashmarks(self, context, obj, mk_length=9, mk_offset=3.18):
-        width, depth, height = 0, 0, 0
-        wall_assembly = fd_types.Assembly(obj)
-        wall_angle = round(obj.rotation_euler[2], 4)
-        label_rotation = (math.radians(
-            90), math.radians(135), math.radians(-90))
-        label_offset = unit.inch(-7)
-
-        if context.scene.fd_roombuilder.room_type == 'CUSTOM':
-            for item in wall_assembly.obj_bp.children:
-                if item.mv.is_wall_mesh:
-                    width = item.dimensions[0]
-                    depth = item.dimensions[1]
-                    height = item.dimensions[2]
-            location = ((width + unit.inch((mk_offset))),
-                        (depth + unit.inch(mk_offset)), height)
-            rotation = (math.radians(135), math.radians(90), 0)
-            label_rotation = (math.radians(90), math.radians(270),
-                              math.radians(-90))
-            if wall_angle == round(math.radians(0), 4):  # ok
-                location = ((width + unit.inch((mk_offset))),
-                            (depth + unit.inch(mk_offset)), height)
-                rotation = (math.radians(135), math.radians(90), 0)
-                label_rotation = (math.radians(90), math.radians(135),
-                                  math.radians(-90))
-            elif wall_angle == round(math.radians(90), 4):  # ok
-                location = ((width + unit.inch((mk_offset))),
-                            (depth + unit.inch(mk_offset)), height)
-                rotation = (math.radians(135), math.radians(90), 0)
-                label_rotation = (math.radians(
-                    90), math.radians(225), math.radians(-90))
-            elif wall_angle == round(math.radians(-90), 4):  # ok
-                location = ((width + depth - unit.inch((mk_offset))),
-                            (depth + unit.inch(mk_offset)), height)
-                rotation = (math.radians(135), math.radians(90), 0)
-                label_rotation = (math.radians(
-                    90), math.radians(45), math.radians(270))
-                label_offset = unit.inch(-9)
+        elif custom_room:
+            if wall_angle == round(math.radians(-90), 4):  # ok
+                off = unit.inch(5)
             elif wall_angle == round(math.radians(180), 4):  # ok
-                location = ((width + unit.inch((mk_offset))),
-                            (depth + unit.inch(mk_offset)), height)
-                rotation = (math.radians(-225),
-                            math.radians(90), 0)
-                label_rotation = (math.radians(
-                    90), math.radians(315), math.radians(270))
-                label_offset = unit.inch(-9)
-        else:
-            width = wall_assembly.obj_x.location.x
-            depth = wall_assembly.obj_y.location.y
-            height = wall_assembly.obj_z.location.z
-            location = ((width + depth + unit.inch((mk_offset))),
-                        (depth + unit.inch(mk_offset)), height)
-            rotation = (math.radians(135),
-                        math.radians(90), 0)
-            if wall_angle == round(math.radians(0), 4):
-                label_rotation = (math.radians(
-                    90), math.radians(135), math.radians(270))
-            elif wall_angle == round(math.radians(90), 4):
-                label_rotation = (math.radians(
-                    90), math.radians(225), math.radians(270))
-            elif wall_angle == round(math.radians(-90), 4):
-                label_rotation = (math.radians(
-                    90), math.radians(45), math.radians(270))
-                label_offset = unit.inch(-9)
-            elif wall_angle == round(math.radians(180), 4):
-                label_rotation = (math.radians(
-                    90), math.radians(-45), math.radians(270))
-                label_offset = unit.inch(-9)
+                off = unit.inch(6)
+            self.pv_pad += length * 0.25
 
-        hashmark = self.draw_hashmark(
-            context, obj, location, rotation, length=unit.inch(mk_length))
-        label = str(round(height / unit.inch(1))) + "\""
-        bpy.ops.object.text_add()
-        text = context.active_object
-        text.parent = hashmark
-        text.rotation_euler = label_rotation
-        text.location.x = 0
-        text.location.y = 0
-        text.location.z = label_offset
-        text.data.align_x = 'CENTER'
-        text.data.size = .1
-        text.data.body = str(label)
-        text.data.font = self.font
-        hashmark.hide = True
+        else:
+            location = (width - depth, depth, height)
+            if wall_angle == round(math.radians(-90), 4):
+                off = unit.inch(5)
+            elif wall_angle == round(math.radians(180), 4):
+                off = unit.inch(5)
+
+        hashmark = self.draw_hashmark(length, 'X')
+        self.copy_world_loc(obj, hashmark, location)
+        self.copy_world_rot(obj, hashmark, rotation)
+
+        label = self.to_inch_lbl(height, prec = 0)
+        label_offset = length + off
+        text = fd_types.Dimension()
+        text.parent(hashmark)
+        text.set_label(label)
+        text.start_x(value = label_offset)
+        hashmark.mv.opengl_dim.hide = True
         if len(hashmark.children) > 0:
-            hashmark.children[0].hide = True
+            hashmark.children[1].mv.opengl_dim.hide = True
 
         return hashmark, height
+
+    def return_wall_labels(self, entry_wall, entry_door, elv=False):
+        wall_assy = fd_types.Assembly(entry_wall)
+        door_assy = fd_types.Assembly(entry_door)
+
+        wall_a = wall_assy.obj_x
+        door_a = door_assy.obj_x
+        door_b = door_assy.obj_bp
+        wall_b = wall_assy.obj_bp
+        door_h = door_assy.obj_z
+
+        dims_pts = [[wall_a, door_a], [door_a, door_b], [door_b, wall_b]]
+
+        py, pz = 0, 0
+
+        if elv:
+            dh_dim = fd_types.Dimension()
+            dh_dim_loc = (door_a.location.x - unit.inch(10), 0, 0)
+            self.copy_world_loc(door_h, dh_dim.anchor, dh_dim_loc)
+            self.copy_world_loc(door_b, dh_dim.end_point, dh_dim_loc)
+            dh_dim.set_label(self.to_inch_lbl(
+                abs(dh_dim.end_point.location.z)))
+            dh_dim.opengl_dim.gl_text_x = 55
+
+            [d.reverse() for d in dims_pts]
+            pz = wall_assy.obj_z.location.z + unit.inch(4)
+
+        else:
+            py = wall_assy.obj_y.location.y + unit.inch(14)
+
+        for d in dims_pts:
+            dim = fd_types.Dimension()
+            dim_loc = (0, py, pz)
+            self.copy_world_loc(d[0], dim.anchor, dim_loc)
+            self.copy_world_loc(d[1], dim.end_point, dim_loc)
+            dim.set_label(self.to_inch_lbl(abs(dim.end_point.location.x)))
+            self.ignore_obj_list.append(dim.anchor)
+            self.ignore_obj_list.append(dim.end_point)
 
     def create_plan_view_scene(self, context):
         bpy.ops.scene.new('INVOKE_DEFAULT', type='EMPTY')
@@ -2088,8 +2055,6 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
         pv_scene.mv.plan_view_scene = True
         self.create_linesets(pv_scene)
         hashmark_heights = {}
-        hashmark_length = 9
-        hashmark_offset = 3.18
         grp = bpy.data.groups.new("Plan View")
         custom_room = False
         for obj in self.main_scene.objects:
@@ -2101,18 +2066,28 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
                     pv_scene.objects.link(child)
 
             if obj.mv.type == 'BPWALL':
+                entry_wall_pv = None
+                has_entry = any(
+                    'Entry' in c.mv.class_name for c in obj.children)
                 pv_scene.objects.link(obj)
                 # Only link all of the wall meshes
 
-                hashmark, height = self.plan_view_hashmarks(
-                    context, obj, hashmark_length, hashmark_offset)
+                hashmark, height = self.plan_view_hashmarks(context, obj)
                 hashmark_heights[hashmark.name] = round(height, 2)
 
                 for child in obj.children:
                     if child.mv.is_wall_mesh:
-                        child.select = True
-                        pv_scene.objects.link(child)
-                        grp.objects.link(child)
+                        if has_entry:
+                            entry_wall_pv = child.copy()
+                            entry_wall_pv.data = child.data.copy()
+                            entry_wall_pv.name = 'Entry Wall PV'
+                            entry_wall_pv.mv.is_wall_mesh = False
+                            entry_wall_pv.mv.type = 'CAGE'
+                            pv_scene.objects.link(entry_wall_pv)
+                            grp.objects.link(entry_wall_pv)
+                        else:
+                            pv_scene.objects.link(child)
+                            grp.objects.link(child)
 
                 wall = fd_types.Wall(obj_bp=obj)
 
@@ -2203,27 +2178,47 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
                             assembly_mesh.location = assembly.obj_bp.location
                             assembly_mesh.rotation_euler = assembly.obj_bp.rotation_euler
                             assembly_mesh.mv.type = 'CAGE'
-                            distance = unit.inch(14)
-                            distance += wall.obj_y.location.y
+                            if 'Entry' in obj_bp.mv.class_name and entry_wall_pv:
+                                self.return_wall_labels(wall.obj_bp, obj_bp)
+                                # Create a break in return wall at entry location
+                                bool_mod_nm = 'MESH.Door Frame.Bool Obj'
+                                bool_mod = entry_wall_pv.modifiers.get(
+                                    bool_mod_nm)
+                                bool_mod.object = assembly_mesh
+                                bool_grow = unit.inch(0.125)
+                                grow_x = assembly_mesh.dimensions.x
+                                grow_y = wall.obj_y.location.y + \
+                                    (bool_grow * 2)
+                                grow_z = wall.obj_z.location.z + \
+                                    (bool_grow * 2)
+                                assembly_mesh.location.y -= bool_grow
+                                assembly_mesh.location.z -= bool_grow
+                                assembly_mesh.dimensions = (
+                                    grow_x, grow_y, grow_z)
+                                assembly_mesh.hide = True
+                                assembly_mesh.hide_render = True
 
-                            dim = fd_types.Dimension()
-                            dim.parent(assembly_mesh)
-                            dim.start_y(value=distance)
-                            dim.start_z(value=0)
-                            dim.end_x(value=assembly.obj_x.location.x)
-
-                            self.ignore_obj_list.append(dim.anchor)
-                            self.ignore_obj_list.append(dim.end_point)
+                                # Add icons for entry doors
+                                entry_class = obj_bp.mv.class_name
+                                entry_sgl = 'PRODUCT_Entry_Door_Double_Panel'
+                                entry_dbl = 'PRODUCT_Entry_Double_Door_Double_Panel'
+                                swing_door = ((entry_class == entry_sgl) or
+                                              (entry_class == entry_dbl))
+                                if swing_door:
+                                    self.pv_swing_door_icons(
+                                        context, obj_bp, wall.obj_bp)
 
                     if wall and wall.get_wall_mesh():
                         wall.get_wall_mesh().select = True
 
         show_all_hashmarks = False
-        first_hashmark_str = list(sorted(hashmark_heights.keys()))[:1][0]
-        first_hashmark = bpy.data.objects[str(first_hashmark_str)]
-        first_hashmark.hide = False
-        if len(first_hashmark.children) > 0:
-            first_hashmark.children[0].hide = False
+        first_hashmark_entry = list(sorted(hashmark_heights.keys()))[:1]
+        if len(first_hashmark_entry) > 0:
+            first_hashmark_str = list(sorted(hashmark_heights.keys()))[:1][0]
+            first_hashmark = bpy.data.objects[str(first_hashmark_str)]
+            first_hashmark.mv.opengl_dim.hide = False
+            if len(first_hashmark.children) > 0:
+                first_hashmark.children[1].mv.opengl_dim.hide = False
 
         hashmark_heights_mode = self.list_mode(list(hashmark_heights.values()))
 
@@ -2234,13 +2229,15 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
         for item in hashmark_heights:
             if item in bpy.data.objects and not show_all_hashmarks:
                 hashmark = bpy.data.objects[str(item)]
-                if hashmark.hide:
-                    bpy.data.objects.remove(hashmark, do_unlink=True)
+                if hashmark.mv.opengl_dim.hide:
+                    hsh_objs = [obj for obj in self.get_hierarchy(hashmark)]
+                    for h in hsh_objs:
+                        bpy.data.objects.remove(h, do_unlink=True)
             elif show_all_hashmarks:
                 hashmark = bpy.data.objects[str(item)]
-                hashmark.hide = False
+                hashmark.mv.opengl_dim.hide = False
                 if len(hashmark.children) > 0:
-                    hashmark.children[0].hide = False
+                    hashmark.children[1].mv.opengl_dim.hide = False
 
         if custom_room and show_all_hashmarks:
             hashmarks_dict = {}
@@ -2248,7 +2245,7 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
             hashmarks = list(sorted(hashmark_heights.keys()))
             for item in hashmarks:
                 hashmark = bpy.data.objects[str(item)]
-                if not hashmark.hide and item in bpy.data.objects:
+                if not hashmark.mv.opengl_dim.hide and item in bpy.data.objects:
                     wall = fd_types.Assembly(hashmark.parent)
                     hashmarks_dict[counter] = {
                         "hashmark": hashmark.name,
@@ -2258,7 +2255,6 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
                     }
                     counter += 1
             for i in range(len(hashmarks_dict)):
-                hashmark_offset_inches = hashmark_offset * unit.inch(1)
                 turn_angle = 0
                 if i + 1 in hashmarks_dict.keys():
                     hashmark = bpy.data.objects[hashmarks_dict[i]["hashmark"]]
@@ -2266,7 +2262,7 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
                     next_one_angle = hashmarks_dict[i + 1]["rotation"]
                     turn_angle = current_angle - next_one_angle
                     wall_depth = hashmarks_dict[i]["wall_depth"]
-                    dim_offset = (hashmark_offset_inches * 2) + wall_depth
+                    dim_offset = wall_depth
                     cyl_angle_offset = math.radians(-270)
                     text_angle_offset = math.radians(90)
                     children = hashmark.children
@@ -2285,6 +2281,45 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
         bpy.ops.object.select_all(action="SELECT")
         bpy.ops.view3d.camera_to_view_selected()
         camera.data.ortho_scale += self.pv_pad
+        cam_ortho = camera.data.ortho_scale
+        pv_font_size = -24.8 * math.log(0.04 * cam_ortho)
+        pv_scene.mv.opengl_dim.gl_font_size = pv_font_size
+
+    def process_connected_walls(self, context, walls):
+        joints = []
+        first_wall = [wall[0] for wall in walls][0]
+        last_wall = [wall[0] for wall in walls][-1]
+        # Getting wall connections
+        connected_walls = [[wall for wall in group if wall is not None]
+                           for group in walls]
+        [connected_walls.remove(conn)
+         for conn in connected_walls if len(conn) == 1]
+        for conn in connected_walls:
+            curr_wall_asmbly = []
+            prvs_wall_asmbly = []
+            for obj in conn[0].obj_bp.children:
+                product = 'product' in obj.name.lower()
+                hanging = 'hanging' in obj.name.lower()
+                if product and hanging:
+                    curr_wall_asmbly.append(obj)
+            for obj in conn[1].obj_bp.children:
+                product = 'product' in obj.name.lower()
+                hanging = 'hanging' in obj.name.lower()
+                if product and hanging:
+                    prvs_wall_asmbly.append(obj)
+            current_wall = round(math.degrees(
+                conn[0].obj_bp.rotation_euler[2]))
+            previous_wall = round(math.degrees(
+                conn[1].obj_bp.rotation_euler[2]))
+            cnctd_wall_angle_check = (
+                previous_wall - current_wall) in [90, -270]
+            # To know if a corner is a right angle the subtraction between
+            # the previous and the current wall need to be 90 or -270 degrees
+            if cnctd_wall_angle_check:
+                joints.append((conn[0].obj_bp, conn[1].obj_bp))
+        joints.append((first_wall.obj_bp, last_wall.obj_bp))
+        joints.append((last_wall.obj_bp, first_wall.obj_bp))
+        return joints
 
     def unlink_cleats(self, context):
         # ungrouping objects we do not want to be rendered.
@@ -2295,25 +2330,361 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
                 obj.select = True
                 bpy.ops.group.objects_remove_all()
 
+
+    def add_oclusion_partition(self, context, dimensions,
+                               location, rotation, parent):
+        oclusion_name = "CS Oclusion"
+        oclusion_mesh = utils.create_cube_mesh(oclusion_name, dimensions)
+        oclusion_mesh.parent = parent
+        oclusion_mesh.location = location
+        oclusion_mesh.rotation_euler = rotation
+        oclusion_mesh.mv.type = 'OBSTACLE'
+        oclusion_mesh.mv.comment = "render"
+        return oclusion_mesh
+
+    def add_oclusion_partitions(self, context, partitions,
+                                position, grp, largest_opening):
+        oclusions = []
+        previous_scene = context.scene.name
+        oclusion_scene = grp.name
+        active_children = [
+            [ch for ch in part.children if not ch.hide] for part in partitions]
+        if len(active_children) > 0:
+            active_children = (*active_children,)[0]
+            for child in active_children:
+                bpy.context.screen.scene = bpy.data.scenes[oclusion_scene]
+                partition_width = child.dimensions[1]
+                oclusion_z_location = largest_opening
+                oclusion_dimensions = child.dimensions
+                oclusion_location = (0, 0, 0)
+                if position == "first":
+                    oclusion_location = (
+                        0, (partition_width * -1), (oclusion_z_location * -1))
+                elif position == "last":
+                    oclusion_location = (
+                        0, (partition_width * -1), oclusion_z_location)
+                oclusion_name = "Oclusion"
+                oclusion_mesh = utils.create_cube_mesh(oclusion_name,
+                                                       oclusion_dimensions)
+                oclusion_mesh.parent = child
+                oclusion_mesh.location = oclusion_location
+                oclusion_mesh.rotation_euler = child.rotation_euler
+                oclusion_mesh.mv.type = 'OBSTACLE'
+                oclusions.append(oclusion_mesh)
+                self.group_children(grp, oclusion_mesh)
+                self.add_children_to_ignore(oclusion_mesh)
+        bpy.context.screen.scene = bpy.data.scenes[previous_scene]
+        return oclusions
+
+    def add_cross_sections_items_to_group(self, context, item,
+                                          grp, position, location, wall_width):
+        openings = item["openings"]
+        topshelves = item["topshelves"]
+        partitions = item["partitions"]
+        openings_widths = []
+        for opening in openings:
+            opng_assy_width = fd_types.Assembly(opening).obj_x.location.x
+            openings_widths.append(opng_assy_width)
+        if len(openings_widths) > 0:
+            largest_opening = max(openings_widths)
+            largest_opening = largest_opening * 1.1
+            if len(openings) > 0:
+                for op in openings:
+                    self.group_children(grp, op)
+                    self.add_children_to_ignore(op)
+            if len(topshelves) > 0:
+                for ts in topshelves:
+                    self.group_children(grp, ts)
+                    self.add_children_to_ignore(ts)
+            if len(partitions) > 0:
+                for part in partitions:
+                    self.group_children(grp, part)
+                    self.add_children_to_ignore(part)
+            oclusions = self.add_oclusion_partitions(
+                context, partitions, position, grp, largest_opening)
+            return oclusions
+        return None
+
+    def key_with_max_value(self, d):
+        v = list(d.values())
+        k = list(d.keys())
+        return k[v.index(max(v))]
+
+    def key_with_min_value(self, d):
+        v = list(d.values())
+        k = list(d.keys())
+        return k[v.index(min(v))]
+
+    def cross_section_second_pass(self, context, grp,
+                                  obj, position, location, inclusions_dict):
+        oclusions = []
+        wall_width = fd_types.Assembly(obj).obj_x.location.x
+        helper_dict = {}
+        for key, item in inclusions_dict.items():
+            if position == "first":
+                helper_dict[key] = item["start"]
+            elif position == "last":
+                helper_dict[key] = item["end"]
+        measure_set = len(set(list(helper_dict.values())))
+        if measure_set <= 1:
+            for key, item in inclusions_dict.items():
+                oclusion = self.add_cross_sections_items_to_group(context,
+                                                                  item,
+                                                                  grp,
+                                                                  position,
+                                                                  location,
+                                                                  wall_width)
+                oclusions.append(oclusion)
+        if measure_set > 1:
+            desired_keys = []
+            if position == "last":
+                max_key = self.key_with_max_value(helper_dict)
+                desired_keys.append(max_key)
+            elif position == "first":
+                min_key = self.key_with_min_value(helper_dict)
+                desired_keys.append(min_key)
+            for key, item in inclusions_dict.items():
+                if key in desired_keys:
+                    oclusion = self.add_cross_sections_items_to_group(context,
+                                                                      item,
+                                                                      grp,
+                                                                      position,
+                                                                      location,
+                                                                      wall_width)
+                    oclusions.append(oclusion)
+        return oclusions
+
+    def filter_join_and_add_to_group(self, context, grp,
+                                     obj, position, location):
+        inclusions_dict = {}
+        inclusions_list = []
+        for c in obj.children:
+            insert_matches = []
+            insert_matches_with_pos = []
+            topshelves = []
+            product = 'product' in c.name.lower()
+            hanging = 'hanging' in c.name.lower()
+            if product and hanging:
+                hang_opng_assy = fd_types.Assembly(c)
+                hang_opng_width = hang_opng_assy.obj_x.location.x
+                partitions_dict = {}
+                inclusions_dict[c] = {}
+                inclusions_dict[c]["openings"] = []
+                inclusions_dict[c]["partitions"] = []
+                inclusions_dict[c]["topshelves"] = []
+                inclusions_dict[c]["start"] = self.to_inch(c.location[0])
+                inclusions_dict[c]["end"] = self.to_inch(
+                    (c.location[0] + hang_opng_width))
+                for partition in c.children:
+                    if 'partition' in partition.name.lower():
+                        part_pos = self.to_inch(partition.location[0])
+                        partitions_dict[partition] = part_pos
+                for cc in c.children:
+                    if 'OPENING' in cc.name:
+                        opng_loc = self.to_inch(cc.location[0])
+                        result = self.find_matching_inserts(context,
+                                                            c,
+                                                            opng_loc)
+                        for res in result:
+                            insert_matches_with_pos.append((opng_loc, res))
+                    if 'partition' in cc.name.lower():
+                        item_location = self.to_inch(cc.location[0])
+                        if item_location == location:
+                            inclusions_dict[c]["partitions"].append(cc)
+                    if 'top' and 'shelf' in cc.name.lower():
+                        topshelves.append(cc)
+                        item_location = self.to_inch(cc.location[0])
+                        if item_location == location:
+                            inclusions_dict[c]["topshelves"].append(cc)
+                srtd = sorted(insert_matches_with_pos, key=lambda tup: tup[0])
+                insert_matches = [item[1] for item in srtd]
+                if position == "first":
+                    len_part_dict = len(partitions_dict) > 0
+                    included_parts = len(inclusions_dict[c]["partitions"]) == 0
+                    if len_part_dict and included_parts:
+                        part = self.key_with_min_value(partitions_dict)
+                        inclusions_dict[c]["partitions"].append(part)
+                    if len(insert_matches) > 0:
+                        inclusions_dict[c]["openings"].append(
+                            insert_matches[:1][0])
+                    for incl in inclusions_dict[c]["openings"]:
+                        if incl.parent in insert_matches:
+                            inclusions_dict[c]["openings"].append(incl.parent)
+                            for ch in incl.children:
+                                if ch in insert_matches and ch not in inclusions_dict[c]["openings"]:
+                                    inclusions_dict[c]["openings"].append(ch)
+                    if len(inclusions_dict[c]["topshelves"]) == 0:
+                        inclusions_dict[c]["topshelves"].append(
+                            topshelves[-1:][0])
+                    continue
+                if position == "last":
+                    len_part_dict = len(partitions_dict) > 0
+                    included_parts = len(inclusions_dict[c]["partitions"]) == 0
+                    if len_part_dict and included_parts:
+                        part = self.key_with_max_value(partitions_dict)
+                        inclusions_dict[c]["partitions"].append(part)
+                    if len(insert_matches) > 0:
+                        inclusions_dict[c]["openings"].append(
+                            insert_matches[-1:][0])
+                    for incl in inclusions_dict[c]["openings"]:
+                        if incl.parent in insert_matches:
+                            inclusions_dict[c]["openings"].append(incl.parent)
+                            for ch in incl.children:
+                                if ch in insert_matches and ch not in inclusions_dict[c]["openings"]:
+                                    inclusions_dict[c]["openings"].append(ch)
+                    if len(inclusions_dict[c]["topshelves"]) == 0:
+                        inclusions_dict[c]["topshelves"].append(
+                            topshelves[-1:][0])
+                    continue
+        oclusions = self.cross_section_second_pass(context,
+                                                   grp,
+                                                   obj,
+                                                   position,
+                                                   location,
+                                                   inclusions_dict)
+        inclusions_list.append(*oclusions)
+        for item in inclusions_dict.values():
+            inclusions_list.append(item["partitions"])
+            inclusions_list.append(item["openings"])
+            inclusions_list.append(item["topshelves"])
+        inclusions_list = spread(inclusions_list)
+        return inclusions_list
+
+    def add_wall_joints_to_grp(self, context, group_dict, joints):
+        aditions = []
+        for joint in joints:
+            # Every joint is a tuple, a pair of walls forming a... joint.
+            # Wall "A"
+            a = joint[0]
+            a_assy_widths = []
+            a_assy_depths = []
+            a_wall_assy = fd_types.Assembly(a)
+            a_wall_width = self.to_inch(a_wall_assy.obj_x.location.x)
+            # Wall B
+            b = joint[1]
+            b_assy_widths = []
+            b_assy_depths = []
+            b_wall_assy = fd_types.Assembly(b)
+            b_wall_width = self.to_inch(b_wall_assy.obj_x.location.x)
+            for obj in a.children:
+                product = 'product' in obj.name.lower()
+                hanging = 'hanging' in obj.name.lower()
+                if product and hanging:
+                    hang_opng_assy = fd_types.Assembly(obj)
+                    hang_opng_depth = abs(hang_opng_assy.obj_y.location.y)
+                    a_assy_depths.append(self.to_inch(hang_opng_depth))
+                    for child in obj.children:
+                        partition = 'partition' in child.name.lower()
+                        if partition:
+                            part_width = abs(child.location[0])
+                            hanging_width = abs(child.parent.location[0])
+                            width = self.to_inch(part_width + hanging_width)
+                            a_assy_widths.append(width)
+            a_assy_widths = list(set(a_assy_widths))
+            a_assy_depths = list(set(a_assy_depths))
+            for obj in b.children:
+                product = 'product' in obj.name.lower()
+                hanging = 'hanging' in obj.name.lower()
+                if product and hanging:
+                    hang_opng_assy = fd_types.Assembly(obj)
+                    hang_opng_depth = abs(hang_opng_assy.obj_y.location.y)
+                    b_assy_depths.append(self.to_inch(hang_opng_depth))
+                    for child in obj.children:
+                        partition = 'partition' in child.name.lower()
+                        if partition:
+                            part_width = abs(child.location[0])
+                            hanging_width = abs(child.parent.location[0])
+                            width = self.to_inch(part_width + hanging_width)
+                            b_assy_widths.append(width)
+            if len(a_assy_widths) == 0 and len(b_assy_widths) == 0:
+                continue
+            elif len(b_assy_widths) > 0 and len(a_assy_widths) == 0:
+                wall_group = group_dict.get(a.name)
+                if wall_group is not None:
+                    position = "last"
+                    added = self.filter_join_and_add_to_group(
+                        context,
+                        wall_group, b, position, max(b_assy_widths))
+                    aditions.append((position, b, a, added))
+                continue
+            elif len(a_assy_widths) > 0 and len(b_assy_widths) == 0:
+                wall_group = group_dict.get(b.name)
+                if wall_group is not None:
+                    position = "first"
+                    added = self.filter_join_and_add_to_group(
+                        context,
+                        wall_group, a, position, min(a_assy_widths))
+                    aditions.append((position, a, b, added))
+                continue
+            b_assy_widths = list(set(b_assy_widths))
+            b_assy_depths = list(set(b_assy_depths))
+            # Check available slots on wall joint
+            a_left = min(a_assy_widths) >= max(b_assy_depths)
+            b_left = min(b_assy_widths) >= max(a_assy_depths)
+            a_right = (a_wall_width - max(a_assy_widths)
+                       ) >= max(b_assy_depths)
+            b_right = (b_wall_width - max(b_assy_widths)
+                       ) >= max(a_assy_depths)
+            if (a_left and not b_right):
+                # Last B on A
+                position = "last"
+                added = self.filter_join_and_add_to_group(
+                    context,
+                    group_dict[a.name], b, position, max(b_assy_widths))
+                aditions.append((position, b, a, added))
+                continue
+            if (a_right and not b_left):
+                # First B on A
+                position = "first"
+                added = self.filter_join_and_add_to_group(
+                    context,
+                    group_dict[a.name], b, position, min(b_assy_widths))
+                aditions.append((position, b, a, added))
+                continue
+            if (b_right and not a_left):
+                # First A on B
+                position = "first"
+                added = self.filter_join_and_add_to_group(
+                    context,
+                    group_dict[b.name], a, position, min(a_assy_widths))
+                aditions.append((position, a, b, added))
+                continue
+        return aditions
+
     def create_elv_view_scene(self, context, assembly):
         if assembly.obj_bp and assembly.obj_x and assembly.obj_y and assembly.obj_z:
             grp = bpy.data.groups.new(assembly.obj_bp.mv.name_object)
             new_scene = self.create_new_scene(context, grp, assembly.obj_bp)
 
             self.group_children(grp, assembly.obj_bp)
-#             wall_mesh = utils.create_cube_mesh(assembly.obj_bp.mv.name_object,
-#                                                (assembly.obj_x.location.x,
-#                                                 assembly.obj_y.location.y,
-#                                                 assembly.obj_z.location.z))
-#
-#             wall_mesh.parent = assembly.obj_bp
-#             grp.objects.link(wall_mesh)
+            # wall_mesh = utils.create_cube_mesh(assembly.obj_bp.mv.name_object,
+            #                                    (assembly.obj_x.location.x,
+            #                                     assembly.obj_y.location.y,
+            #                                     assembly.obj_z.location.z))
+
+            # wall_mesh.parent = assembly.obj_bp
+            # grp.objects.link(wall_mesh)
 
             instance = bpy.data.objects.new(
                 assembly.obj_bp.mv.name_object + " " + "Instance", None)
             new_scene.objects.link(instance)
             instance.dupli_type = 'GROUP'
             instance.dupli_group = grp
+
+            # Getting blender object labels into group
+            lbls_grp = bpy.data.groups.new('{} Labels grp'.format(assembly.obj_bp.mv.name_object))
+            lbl_objs = [obj for obj in self.get_hierarchy(assembly.obj_bp)
+                        if obj.type == 'FONT' or obj.type == 'CURVE']
+            for l in lbl_objs:
+                if grp in l.users_group:
+                    grp.objects.unlink(l)
+                lbls_grp.objects.link(l)
+
+            lbls_instance = bpy.data.objects.new('{} Labels'.format(assembly.obj_bp.mv.name_object), None)
+            new_scene.objects.link(lbls_instance)
+            lbls_instance.dupli_type = 'GROUP'
+            lbls_instance.dupli_group = lbls_grp
+            lbls_instance.hide_select = True
 
             # Add partitions to the dimension ignore list so
             # it won't be linked to the scene "automatically"
@@ -2325,47 +2696,33 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
                     for n_item in item.children:
                         if 'partition' in n_item.name.lower():
                             self.ignore_obj_list.append(n_item)
+
+                if 'Entry' in item.mv.class_name:
+                    self.return_wall_labels(assembly.obj_bp, item, True)
+
                 if item.mv.type == 'VISDIM_A':
                     self.ignore_obj_list.append(item)
 
-            self.link_desired_dims_to_scene(new_scene, assembly.obj_bp)
-            self.widths_uppers_and_lowers(context, assembly)
             self.add_text(context, assembly)
-            self.wall_width_dimension(assembly)
-            self.build_height_dimension(context, assembly)
-            self.section_depths(context, assembly)
+            self.link_tagged_dims_to_scene(new_scene, assembly.obj_bp)
+            self.link_custom_entities_to_scene(new_scene, assembly.obj_bp)
 
-            for item in assembly.obj_bp.children:
-                self.arrayed_shelves_section_depth_dimension(context, item)
-                if item.mv.is_wall_mesh:
-                    self.wall_height_dimension(context, item)
-                # Hanging Opening Item Level.
-                if item.mv.type == "BPASSEMBLY":
-                    self.flat_crown(context, item)
-                    self.slanted_shoes_shelf(context, item)
-                    self.glass_shelves(context, item)
-                    self.valances(context, item)
-                    self.light_rails(context, item)
-                    self.non_standard_shelves_dimensions(context, item)
-                    self.topshelf_hashmark(context, item)
-                    self.topshelf_exposed_label(context, item)
-                    self.variable_opening_label(context, item)
-                    self.parallel_partition_dimension(context, item)
-                    self.toe_kick_dimension(context, item, assembly)
-                    self.fullback_labeling(context, item)
-                    self.countertop_hashmark(context, item)
-                    self.countertop_exposed_label(context, item)
-                    self.file_drawer_labeling(context, item)
-                    self.add_filler_labeling(context, item)
+            # for item in assembly.obj_bp.children:
+            #     # Hanging Opening Item Level.
+            #     if item.mv.type == "BPASSEMBLY":                    
+            #         self.flat_crown(context, item)
 
             camera = self.create_camera(new_scene)
             camera.rotation_euler.x = math.radians(90.0)
             camera.rotation_euler.z = assembly.obj_bp.rotation_euler.z
             bpy.ops.object.select_all(action='SELECT')
             bpy.ops.view3d.camera_to_view_selected()
-            camera.data.ortho_scale += self.pv_pad
+            camera.data.ortho_scale += self.ev_pad
+            new_scene.mv.opengl_dim.gl_font_size = 22
             instance.hide_select = True
             bpy.ops.object.select_all(action='DESELECT')
+
+            return grp
 
     def create_single_elv_view(self, context):
         grp = bpy.data.groups.new(self.single_scene_name)
@@ -2408,59 +2765,101 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
 
     # Will add assemblies that must not show as hidden line to a list
     def exclude_fs_hidden(self):
-        objects = bpy.data.objects
-        exclude_objs = []
+        blo = bpy.data.objects
+        e_bp = []
+        e_msh = []
 
         # Find top and bottom KD shelves by looking for expression in drivers
         # used to remove top or bottom shelves
-        shelves = [obj for obj in objects if obj.lm_closets.is_shelf_bp]
+        shelves = [obj for obj in blo if obj.lm_closets.is_shelf_bp]
         for s in shelves:
+            s_assy = fd_types.Assembly(s)
+            s_p = s.parent
+            lck_shf_pmt = s_assy.get_prompt('Is Locked Shelf')
+            lck_shf = ''
+            if lck_shf_pmt:
+                lck_shf = lck_shf_pmt.value()
+            top_bot_kd = False
+
+            # Check parent assembly
+            in_drawer = False
+            if s_p is not None:
+                in_drawer = s_p.lm_closets.is_drawer_stack_bp
+
             for d in s.animation_data.drivers:
                 exp = d.driver.expression
                 rem_top_str = 'Remove_Top_Shelf'
-                rem_bot_str = 'Remove_Bottom_Hanging_Shelf'
+                rem_bot_str = 'Remove_Bottom_Shelf'
+                rem_bot_hang_str = 'Remove_Bottom_Hanging_Shelf'
                 top_kd_str = 'Top_KD'
                 bot_kd_str = 'Bottom_KD'
-                if (rem_top_str in exp or
-                    rem_bot_str in exp or
-                    top_kd_str in exp or
-                        bot_kd_str in exp):
-                    exclude_objs.append(s)
+                if (rem_top_str in exp or rem_bot_str in exp or
+                        top_kd_str in exp or bot_kd_str in exp or rem_bot_hang_str):
+                    top_bot_kd = True
+
+            # Find top or bottom KDs
+            if (lck_shf and (top_bot_kd or in_drawer)):
+                e_bp.append(s)
 
         # Find vertical panels
-        panels = [obj for obj in objects if obj.lm_closets.is_panel_bp or
-                  obj.lm_closets.is_blind_corner_panel_bp]
-        for p in panels:
-            exclude_objs.append(p)
+        e_bp.extend([obj for obj in blo if obj.lm_closets.is_panel_bp or
+                     obj.lm_closets.is_blind_corner_panel_bp])
 
         # Find drawer structures
-        drawers = [obj for obj in objects if obj.lm_closets.is_drawer_box_bp
-                   or obj.lm_closets.is_drawer_side_bp
-                   or obj.lm_closets.is_drawer_back_bp
-                   or obj.lm_closets.is_drawer_sub_front_bp
-                   or obj.lm_closets.is_drawer_bottom_bp]
-        for d in drawers:
-            exclude_objs.append(d)
+        e_bp.extend([obj for obj in blo if obj.lm_closets.is_drawer_box_bp or
+                     obj.lm_closets.is_drawer_side_bp or
+                     obj.lm_closets.is_drawer_back_bp or
+                     obj.lm_closets.is_drawer_sub_front_bp or
+                     obj.lm_closets.is_drawer_bottom_bp or
+                     obj.lm_closets.is_file_rail_bp])
 
         # Find toe kicks
-        tks = [obj for obj in objects if obj.lm_closets.is_toe_kick_end_cap_bp
-               or obj.lm_closets.is_toe_kick_stringer_bp]
-        for t in tks:
-            exclude_objs.append(t)
+        e_bp.extend([obj for obj in blo if obj.lm_closets.is_toe_kick_bp or
+                     obj.lm_closets.is_toe_kick_end_cap_bp or
+                     obj.lm_closets.is_toe_kick_stringer_bp])
 
         # Find backings
-        backs = [obj for obj in objects if obj.lm_closets.is_back_bp or
-                 obj.lm_closets.is_top_back_bp or
-                 obj.lm_closets.is_bottom_back_bp or
-                 obj.lm_closets.is_hutch_back_bp or
-                 obj.lm_closets.is_drawer_back_bp]
-        for b in backs:
-            exclude_objs.append(b)
+        e_bp.extend([obj for obj in blo if obj.lm_closets.is_back_bp or
+                     obj.lm_closets.is_top_back_bp or
+                     obj.lm_closets.is_bottom_back_bp or
+                     obj.lm_closets.is_hutch_back_bp or
+                     obj.lm_closets.is_drawer_back_bp])
 
-        return exclude_objs
+        # Find machining and add to exclusion list
+        e_msh.extend(
+            [obj for obj in blo if obj.cabinetlib.type_mesh == 'MACHINING'])
+
+        # Find wall meshes
+        e_msh.extend([obj for obj in blo if obj.mv.is_wall_mesh])
+
+        # Add children of obj bps to exclusion list
+        for bp in e_bp:
+            for c in bp.children:
+                if c.cabinetlib.type_mesh == 'CUTPART':
+                    e_msh.append(c)
+
+        return e_msh
+
+    def level_elv_cameras(self):
+        elv_cams = [c for c in bpy.data.objects if c.type == 'CAMERA'
+                    and 'Plan View' not in c.name
+                    and 'Accordion' not in c.name]
+        cam_heights = [e.location.z for e in elv_cams]
+        ortho_scales = [e.data.ortho_scale for e in elv_cams]
+        avg_height = sum(cam_heights)/len(cam_heights)
+        max_ortho_scale = max(ortho_scales)
+        for e in elv_cams:
+            e.location.z = avg_height
+            e.data.ortho_scale = max_ortho_scale
 
     def execute(self, context):
+        dimprops = get_dimension_props()
+        group_walls = {}
+        mesh_data_dict = {}
+        cross_section_parts = None
+        joints = None
         context.window_manager.mv.use_opengl_dimensions = True
+        # render_2d_dims = context.window_manager.mv.render_dimensions
         self.font = opengl_dim.get_custom_font()
         self.font_bold = opengl_dim.get_custom_font_bold()
         self.create_linestyles()
@@ -2471,9 +2870,6 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
             self.create_single_elv_view(context)
 
         else:
-            for obj in bpy.data.objects:
-                if obj.type == 'CURVE' and 'hashmark' in obj.name.lower():
-                    bpy.data.objects.remove(obj, do_unlink=True)
             for obj in bpy.data.objects:
                 no_users = obj.users == 0
                 parent = obj.parent
@@ -2497,15 +2893,29 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
                     obj.hide = True
                     obj.hide_render = True
 
+            walls = []
+            wall_groups = {}
             bpy.ops.fd_scene.clear_2d_views()
+
 
             self.create_plan_view_scene(context)
 
+            for obj in bpy.data.objects:
+                if obj.data is not None:
+                    mesh_data = obj.data.name
+                    mesh_data_dict[obj.name] = mesh_data
             for obj in self.main_scene.objects:
                 if obj.mv.type == 'BPWALL':
                     wall = fd_types.Wall(obj_bp=obj)
                     if len(wall.get_wall_groups()) > 0:
-                        self.create_elv_view_scene(context, wall)
+                        wall_group = self.create_elv_view_scene(context, wall)
+                        left_wall = wall.get_connected_wall('LEFT')
+                        walls.append((wall, left_wall))
+                        wall_groups[wall.obj_bp.name] = wall_group
+                        group_walls[wall_group.name] = wall.obj_bp.name
+            joints = self.process_connected_walls(context, walls)
+            cross_section_parts = self.add_wall_joints_to_grp(
+                context, wall_groups, joints)
 
         self.clear_unused_linestyles()
         bpy.context.screen.scene = self.main_scene
@@ -2515,13 +2925,18 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
         self.unlink_cleats(context)
         bpy.ops.object.select_all(action='DESELECT')
 
+        if dimprops.include_accordions:
+            self.create_acordion_scenes(
+                context, mesh_data_dict, cross_section_parts)
+        bpy.context.screen.scene = bpy.data.scenes['_Main']
+        self.level_elv_cameras()
+
         # Add objects to freestyle hidden line exclusion group
         fs_exclude_grp = bpy.data.groups['FS Hidden Exclude']
         fs_exclude_objs = self.exclude_fs_hidden()
         for item in fs_exclude_objs:
-            for c in item.children:
-                if c.type == 'MESH' and c.name not in fs_exclude_grp.objects:
-                    fs_exclude_grp.objects.link(c)
+            if item.name not in fs_exclude_grp.objects:
+                fs_exclude_grp.objects.link(item)
 
         return {'FINISHED'}
 
@@ -2628,7 +3043,8 @@ class OPERATOR_render_2d_views(bpy.types.Operator):
 
         # Add all the text and curve objects in the scene only to layer 1
         scene_labels = [obj for obj in scene.objects if obj.type ==
-                        'FONT' or obj.type == 'CURVE']
+                        'FONT' or obj.type == 'CURVE' or (obj.type == 'EMPTY'
+                        and obj.name.endswith('Labels'))]
         for label in scene_labels:
             label.layers = [i == 1 for i in range(len(label.layers))]
 
@@ -2658,6 +3074,10 @@ class OPERATOR_render_2d_views(bpy.types.Operator):
         tree.links.new(labels_rl_node.outputs['Image'], mix_node.inputs[2])
         tree.links.new(mix_node.outputs['Image'], comp_node.inputs['Image'])
 
+        # Prevent Main Accordion from being rendered
+        if "Z_Main Accordion" in bpy.data.scenes:
+            bpy.data.scenes["Z_Main Accordion"].mv.elevation_selected = False
+
         # Render composite
         bpy.ops.render.render('INVOKE_DEFAULT', write_still=True)
         img_path = bpy.path.abspath(scene.render.filepath)
@@ -2675,10 +3095,10 @@ class OPERATOR_render_2d_views(bpy.types.Operator):
         if scene.mv.elevation_scene:
             image_view.is_elv_view = True
 
-            # Clear and deactivate nodes to prevent conflicts with other rendering methods
-            for node in tree.nodes:
-                tree.nodes.remove(node)
-            scene.use_nodes = False
+        # Clear and deactivate nodes to prevent conflicts with other rendering methods
+        for node in tree.nodes:
+            tree.nodes.remove(node)
+        scene.use_nodes = False
 
         self.reset_dim_color(context)
 
