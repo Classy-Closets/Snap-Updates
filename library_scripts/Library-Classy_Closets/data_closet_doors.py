@@ -147,6 +147,8 @@ class Doors(fd_types.Assembly):
         Shelf_Stack_Height = self.get_var("Shelf Stack Height")
         Fill_Opening = self.get_var("Fill Opening")
         Door_Type = self.get_var("Door Type")
+        Glass_Shelves = self.get_var("Glass Shelves")
+        Glass_Thickness = self.get_var("Glass Thickness")
 
         Add_Shelves = self.get_var("Add Shelves")
 
@@ -156,6 +158,7 @@ class Doors(fd_types.Assembly):
 
             Shelf_Height = self.get_var("Shelf " + str(i) + " Height", 'Shelf_Height')
 
+            #Get shelf's z location
             shelf_empty = self.add_empty()
             if previous_splitter:
                 prev_shelf_z_loc = previous_splitter.get_var('loc_z','prev_shelf_z_loc')
@@ -165,7 +168,8 @@ class Doors(fd_types.Assembly):
                                   [Fill_Opening,Shelf_Height,Insert_Height,Height,Door_Type])   
 
             sh_z_loc = shelf_empty.get_var('loc_z','sh_z_loc')
-                
+            
+            #Add Regular Shelf
             splitter = common_parts.add_shelf(self)
             
             Is_Locked_Shelf = splitter.get_var('Is Locked Shelf')
@@ -183,7 +187,27 @@ class Doors(fd_types.Assembly):
             splitter.x_dim('Width-IF(Is_Locked_Shelf,0,Adj_Shelf_Clip_Gap*2)',[Width,Is_Locked_Shelf,Adj_Shelf_Clip_Gap])
             splitter.y_dim('-Depth+IF(Is_Locked_Shelf,Locked_Shelf_Setback,Adj_Shelf_Setback)+Shelf_Setback+Shelf_Backing_Setback',[Depth,Locked_Shelf_Setback,Is_Locked_Shelf,Adj_Shelf_Setback,Shelf_Setback,Shelf_Backing_Setback])
             splitter.z_dim('ST',[ST])
-            splitter.prompt('Hide','IF(Add_Shelves,IF(Shelf_Quantity+1>'+str(i)+',False,True),True)',[Add_Shelves,Shelf_Quantity])
+            splitter.prompt('Hide','IF(Add_Shelves,IF(Glass_Shelves==False,IF(Shelf_Quantity+1>'+str(i)+',False,True),True),True)',[Add_Shelves,Shelf_Quantity,Glass_Shelves])
+                
+            #Add Glass Shelf
+            glass_shelf = common_parts.add_glass_shelf(self)
+            
+            Is_Locked_Shelf = glass_shelf.get_var('Is Locked Shelf')
+            Adj_Shelf_Setback = glass_shelf.get_var('Adj Shelf Setback')
+            Locked_Shelf_Setback = glass_shelf.get_var('Locked Shelf Setback')
+            Adj_Shelf_Clip_Gap = glass_shelf.get_var('Adj Shelf Clip Gap')    
+            Shelf_Setback = self.get_var("Shelf " + str(i) + " Setback", 'Shelf_Setback')
+            
+            glass_shelf.x_loc('IF(Is_Locked_Shelf,0,Adj_Shelf_Clip_Gap)',[Is_Locked_Shelf,Adj_Shelf_Clip_Gap])
+            glass_shelf.y_loc('Depth-Shelf_Backing_Setback',[Depth,Shelf_Backing_Setback])
+            glass_shelf.z_loc('sh_z_loc',[sh_z_loc])
+            glass_shelf.x_rot(value = 0)
+            glass_shelf.y_rot(value = 0)
+            glass_shelf.z_rot(value = 0)
+            glass_shelf.x_dim('Width-IF(Is_Locked_Shelf,0,Adj_Shelf_Clip_Gap*2)',[Width,Is_Locked_Shelf,Adj_Shelf_Clip_Gap])
+            glass_shelf.y_dim('-Depth+IF(Is_Locked_Shelf,Locked_Shelf_Setback,Adj_Shelf_Setback)+Shelf_Setback+Shelf_Backing_Setback',[Depth,Locked_Shelf_Setback,Is_Locked_Shelf,Adj_Shelf_Setback,Shelf_Setback,Shelf_Backing_Setback])
+            glass_shelf.z_dim('Glass_Thickness',[Glass_Thickness])
+            glass_shelf.prompt('Hide','IF(Add_Shelves,IF(Glass_Shelves,IF(Shelf_Quantity+1>'+str(i)+',False,True),True),True)',[Add_Shelves,Shelf_Quantity,Glass_Shelves])
             
             previous_splitter = splitter
 
@@ -317,7 +341,7 @@ class Doors(fd_types.Assembly):
         striker.z_dim('ST',[ST])
         striker.prompt('Hide','IF(Add_Striker,False,True)',[Add_Striker])      
 
-        self.add_glass_shelves()
+        #self.add_glass_shelves()
         self.add_shelves()
         
         #LEFT DOOR
@@ -985,19 +1009,6 @@ class PROMPTS_Door_Prompts(bpy.types.Operator):
                         else:
                             insert_height.draw_prompt(row)
                     
-                    row = box.row()
-                    glass_shelves.draw_prompt(row)
-
-                    if glass_shelves.value() == True:
-                        row = box.row()
-                        row.label("Glass Shelf Thickness:")
-                        row = box.row()
-                        glass_shelf_thickness.draw_prompt(row, text=" ")
-                    
-                    row = box.row()
-                    if shelf_qty:
-                        shelf_qty.draw_prompt(row)               
-                    
                     box = layout.box()
                     box.label("Door Options:")
                     if door_type:
@@ -1105,6 +1116,15 @@ class PROMPTS_Door_Prompts(bpy.types.Operator):
                                 row = col.row()
                                 row.label("Qty:")
                                 row.prop(self,"shelf_quantity",expand=True)   
+                                row = box.row()
+
+                                glass_shelves.draw_prompt(row)
+                                if glass_shelves.value() == True:
+                                    row = box.row()
+                                    row.label("Glass Shelf Thickness:")
+                                    row = box.row()
+                                    glass_shelf_thickness.draw_prompt(row, text=" ")
+                    
                                 col.separator()  
                                 row=box.row()
                                 row.label("Evenly Space Shelves: ")

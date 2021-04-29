@@ -985,8 +985,9 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
                     self.group_children(grp, child)
             else:
                 #                 if not child.mv.is_wall_mesh:
-                if child.mv.type != 'CAGE' and obj not in self.ignore_obj_list:
-                    grp.objects.link(child)
+                if (child.mv.type != 'CAGE' and obj not in self.ignore_obj_list
+                    and child.name not in grp.objects):
+                        grp.objects.link(child)
         return grp
 
     def add_children_to_ignore(self, obj):
@@ -1739,9 +1740,14 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
         return str(sh_qty)
 
     def get_shelf_stack_count(self, assembly):
+        shelf_count = 0
         assemblies = [
             item for item in assembly.children if item.lm_closets.is_shelf_bp]
-        return (len(assemblies))
+        for a in assemblies:
+            for c in a.children:
+                if c.cabinetlib.type_mesh == 'CUTPART' and not c.hide:
+                    shelf_count +=1
+        return (shelf_count)
 
     def get_door_count(self, assembly):
         door_count = 0
@@ -2067,8 +2073,8 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
 
             if obj.mv.type == 'BPWALL':
                 entry_wall_pv = None
-                has_entry = any(
-                    'Entry' in c.mv.class_name for c in obj.children)
+                has_entry = any('Door Frame' in e.name for c in obj.children
+                                for e in c.children)
                 pv_scene.objects.link(obj)
                 # Only link all of the wall meshes
 
@@ -2178,7 +2184,7 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
                             assembly_mesh.location = assembly.obj_bp.location
                             assembly_mesh.rotation_euler = assembly.obj_bp.rotation_euler
                             assembly_mesh.mv.type = 'CAGE'
-                            if 'Entry' in obj_bp.mv.class_name and entry_wall_pv:
+                            if has_entry and entry_wall_pv:
                                 self.return_wall_labels(wall.obj_bp, obj_bp)
                                 # Create a break in return wall at entry location
                                 bool_mod_nm = 'MESH.Door Frame.Bool Obj'
@@ -2542,7 +2548,9 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
                                                    position,
                                                    location,
                                                    inclusions_dict)
-        inclusions_list.append(*oclusions)
+        unpacked_oclusions = spread(oclusions)
+        for unpacked in unpacked_oclusions:
+            inclusions_list.append(unpacked)
         for item in inclusions_dict.values():
             inclusions_list.append(item["partitions"])
             inclusions_list.append(item["openings"])
@@ -2654,6 +2662,8 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
     def create_elv_view_scene(self, context, assembly):
         if assembly.obj_bp and assembly.obj_x and assembly.obj_y and assembly.obj_z:
             grp = bpy.data.groups.new(assembly.obj_bp.mv.name_object)
+            floor_obj = bpy.data.objects['Floor']
+            grp.objects.link(floor_obj)
             new_scene = self.create_new_scene(context, grp, assembly.obj_bp)
 
             self.group_children(grp, assembly.obj_bp)
@@ -2697,7 +2707,7 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
                         if 'partition' in n_item.name.lower():
                             self.ignore_obj_list.append(n_item)
 
-                if 'Entry' in item.mv.class_name:
+                if any('Door Frame' in c.name for c in item.children):
                     self.return_wall_labels(assembly.obj_bp, item, True)
 
                 if item.mv.type == 'VISDIM_A':
@@ -2853,6 +2863,8 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
             e.data.ortho_scale = max_ortho_scale
 
     def execute(self, context):
+        bpy.ops.fd_scene.clear_2d_views()
+        self.ignore_obj_list = []
         dimprops = get_dimension_props()
         group_walls = {}
         mesh_data_dict = {}
@@ -2895,8 +2907,6 @@ class OPERATOR_genereate_2d_views(bpy.types.Operator):
 
             walls = []
             wall_groups = {}
-            bpy.ops.fd_scene.clear_2d_views()
-
 
             self.create_plan_view_scene(context)
 

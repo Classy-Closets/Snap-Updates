@@ -26,6 +26,11 @@ from bpy.props import (StringProperty,
 
 DIMENSION_PROPERTY_NAMESPACE = "mv_closet_dimensions"
 
+def spread(arg):
+    ret = []
+    for i in arg:
+        ret.extend(i) if isinstance(i, list) else ret.append(i)
+    return ret
 
 def get_dimension_props():
     """
@@ -113,6 +118,22 @@ class OPERATOR_Cleanup(bpy.types.Operator):
     bl_description = "This will remove any existing label"
     bl_options = {'UNDO'}
 
+    def clear_orphan_data(self):
+        bl_data = lambda x: eval('bpy.data.{}'.format(x))
+        rna_props = bpy.data.bl_rna.properties
+        prop_ids = [p.identifier for p in rna_props if p.type == 'COLLECTION']
+        data_colls = [bl_data(p) for p in prop_ids if len(bl_data(p)) > 0]
+        orphans = [[coll, obj] for coll in data_colls for obj in coll
+                    if obj.users == 0]
+        if len(orphans) > 0:
+            while len(orphans) > 0:
+                ls_item = orphans.pop()
+                blr_data, obj = ls_item[0], ls_item[1]
+                blr_data.remove(obj, do_unlink = True)
+            self.clear_orphan_data()
+        else:
+            return
+
     def clean_up_scene(self, context):
         label_list = []
 
@@ -129,6 +150,7 @@ class OPERATOR_Cleanup(bpy.types.Operator):
             if 'hashmark' in item.name.lower():
                 label_list.append(item)
         utils.delete_obj_list(label_list)
+        self.clear_orphan_data()
         # bpy.ops.outliner.purge()
 
     def execute(self, context):
@@ -613,7 +635,8 @@ class OPERATOR_Auto_Dimension(bpy.types.Operator):
 
     def wall_width_dimension(self, wall_bp):
         assembly = fd_types.Assembly(wall_bp)
-        has_entry = any('Entry' in c.mv.class_name for c in wall_bp.children)
+        has_entry = any('Door Frame' in e.name for c in wall_bp.children
+                        for e in c.children)
         if not has_entry:
             dim = self.add_tagged_dimension(wall_bp)
             label = self.to_inch_lbl(assembly.obj_x.location.x)
@@ -739,6 +762,71 @@ class OPERATOR_Auto_Dimension(bpy.types.Operator):
         for each in openings:
             self.section_width_apply_lbl(each, "down")
 
+    def get_lower_openings_for_matching(self, opng_data):
+        hang_opngs_dict = {}
+        hang_opngs_list = [op for op in opng_data.keys()]
+        for hang_opng in hang_opngs_list:
+            height_metric = fd_types.Assembly(hang_opng).obj_z.location.z
+            height = self.to_inch(height_metric)
+            hang_opngs_dict[height] = hang_opng
+        lowest = min(hang_opngs_dict.keys())
+        result = hang_opngs_dict[lowest]
+        return result
+
+    def get_upper_openings_for_matching(self, opng_data):
+        hang_opngs_dict = {}
+        hang_opngs_list = [op for op in opng_data.keys()]
+        for hang_opng in hang_opngs_list:
+            height_metric = fd_types.Assembly(hang_opng).obj_z.location.z
+            height = self.to_inch(height_metric)
+            hang_opngs_dict[height] = hang_opng
+        highest = max(hang_opngs_dict.keys())
+        result = hang_opngs_dict[highest]
+        return result
+
+    def overlapping_different_hang_opng_count(self, opng_data):
+        hang_opng_count = []
+        hang_opngs = [obj for obj in opng_data.keys()]
+        hang_opngs_starts = [obj["start"] for obj in opng_data.values()]
+        hang_opngs_ends = [obj["end"] for obj in opng_data.values()]
+        for hang in hang_opngs:
+            op_count = 0
+            for op in hang.children:
+                if 'OPENING' in op.name:
+                    op_count += 1
+            hang_opng_count.append(op_count)
+        hang_opng_count_check = len(list(set(hang_opng_count))) > 1
+        starts_check = len(list(set(hang_opngs_starts))) == 1
+        end_check = len(list(set(hang_opngs_ends))) == 1
+        if hang_opng_count_check and starts_check and end_check:
+            return True
+        return False
+
+    def has_matching_opngs_while_overlapping(self, opng_data):
+        opng_qty_list = []
+        openings_count = 0
+        for hang_opng in opng_data.values():
+            opng_qty = len(hang_opng['openings'])
+            opng_qty_list.append(opng_qty)
+        openings_count = len(list(set(opng_qty_list)))
+        if openings_count > 1:
+            return False
+        elif openings_count == 1:
+            measures = []
+            for openings in opng_data.values():
+                opengs_list = openings["openings"]
+                positions = []
+                for opng in opengs_list:
+                    x_loc = opng[1]["x_loc"]
+                    positions.append(x_loc)
+                measures.append(positions)
+            number_diff_measures = len(list(set(spread(measures))))
+            opening_count_set = list(set(opng_qty_list))[0]
+            if opening_count_set == number_diff_measures:
+                return True
+            elif opening_count_set != number_diff_measures:
+                return False
+
     def has_overlapping_hanging_opening(self, opng_data):
         intervals = []
         overlapping = False
@@ -785,6 +873,24 @@ class OPERATOR_Auto_Dimension(bpy.types.Operator):
                 for opening in value["openings"]:
                     self.section_width_apply_lbl(opening[0], "down")
         elif overlapping:
+            matching = self.has_matching_opngs_while_overlapping(opng_data)
+            different = self.overlapping_different_hang_opng_count(opng_data)
+            if matching:
+                lowest = self.get_lower_openings_for_matching(opng_data)
+                desired_openings = opng_data[lowest]['openings']
+                for desired in desired_openings:
+                    self.section_width_apply_lbl(desired[0], "down")
+                return
+            if different:
+                lowest = self.get_lower_openings_for_matching(opng_data)
+                desired_lowers = opng_data[lowest]['openings']
+                for desired_low in desired_lowers:
+                    self.section_width_apply_lbl(desired_low[0], "down")
+                highest = self.get_upper_openings_for_matching(opng_data)
+                desired_uppers = opng_data[highest]['openings']
+                for desired_high in desired_uppers:
+                    self.section_width_apply_lbl(desired_high[0], "up")
+                return
             uppers = []
             lowers = []
             for key, value in opng_data.items():

@@ -90,14 +90,17 @@ class OPS_load_snap_defaults(Operator):
         src_fd = os.path.join(src_path, "fluid_main.py")
         src_fd_types = os.path.join(src_path, "fd_types.py")
         src_fd_material = os.path.join(src_path, "fd_material.py")
+        src_fd_scene = os.path.join(src_path, "fd_scene.py")
         src_mv_utils = os.path.join(src_path, "utils.py")
         dst_fd = os.path.join(os.path.dirname(__file__), "../../startup/fluid_main", "__init__.py")
         dst_fd_types = os.path.join(os.path.dirname(__file__), "../../modules/mv/", "fd_types.py")
         dst_mv_utils = os.path.join(os.path.dirname(__file__), "../../modules/mv/", "utils.py")
         dst_fd_material = os.path.join(os.path.dirname(__file__), "../../startup/fluid_operators/", "fd_material.py")
+        dst_fd_scene = os.path.join(os.path.dirname(__file__), "../../startup/fluid_operators/", "fd_scene.py")
         shutil.copyfile(src_fd, dst_fd)
         shutil.copyfile(src_fd_types, dst_fd_types)
         shutil.copyfile(src_fd_material, dst_fd_material)
+        shutil.copyfile(src_fd_scene, dst_fd_scene)
         shutil.copyfile(src_mv_utils, dst_mv_utils)
 
     def check_pull_thumb_categories(self):

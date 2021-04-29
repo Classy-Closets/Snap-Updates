@@ -2719,14 +2719,16 @@ class PROMPTS_Opening_Starter(bpy.types.Operator):
 
             if extend_left_end_pard_down.value() and extend_right_end_pard_down.value():
                 hutch_row.prop(add_hutch_backing,'CheckBoxValue',text="Add Hutch Backing")
+
+        self.draw_dogear_options(box)
                
       
         # CARCASS OPTIONS:
         col = box.column(align=True)
         col.label("Full Back Options:")
         row = col.row()
-        self.draw_backing_options(box)                             
-            
+        self.draw_backing_options(box)   
+        
         # col = box.column(align=True)
         # col.label("Dog Ear Options:")
         # if front_angle_depth and front_angle_height:
