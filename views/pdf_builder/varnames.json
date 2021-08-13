@@ -1,0 +1,22 @@
+[
+    "job_name",
+    "job_number",
+    "install_date",
+    "designer_name",
+    "designer_phone",
+    "client_name",
+    "client_phone",
+    "client_number",
+    "client_email",
+    "job_comments",
+    "tear_out",
+    "touch_up",
+    "block_wall",
+    "new_construction",
+    "elevator",
+    "stairs",
+    "floor",
+    "door",
+    "base_height",
+    "parking"
+]

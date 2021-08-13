@@ -1,0 +1,169 @@
+SKU,Name,DisplayName,Description,Type,Thickness,ProductType,FranchisePrice,RetailPrice,UOM,TypeCode,ColorCode,ProfileCode,VendorName
+PM-0014-0000731,White New,White New,White New 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880035,120,Tafisa
+PM-0014-0000730,White New,White New,White New 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880035,120,Tafisa
+EB-0014-0000004,White New,White New,White New 1mm,2,0.039,EB,0.38,0.38,LF,1037,880035,120,Tafisa
+PM-0014-0000733,Tete a Tete,Tete a Tete,Tete a Tete 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880036,120,Tafisa
+PM-0014-0000732,Tete a Tete,Tete a Tete,Tete a Tete 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880036,120,Tafisa
+EB-0014-0000005,Tete a Tete,Tete a Tete,Tete a Tete 1mm,2,0.039,EB,0.38,0.38,LF,1037,880036,120,Tafisa
+PM-0014-0000735,Winter Fun,Winter Fun,Winter Fun 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880037,120,Tafisa
+PM-0014-0000734,Winter Fun,Winter Fun,Winter Fun 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880037,120,Tafisa
+EB-0014-0000006,Winter Fun,Winter Fun,Winter Fun 1mm,2,0.039,EB,0.38,0.38,LF,1037,880037,120,Tafisa
+PM-0014-0000737,New Wave,New Wave,New Wave 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880038,120,Tafisa
+PM-0014-0000736,New Wave,New Wave,New Wave 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880038,120,Tafisa
+EB-0014-0000007,New Wave,New Wave,New Wave 1mm,2,0.039,EB,0.38,0.38,LF,1037,880038,120,Tafisa
+PM-0014-0000739,Sunday Bunch,Sunday Bunch,Sunday Bunch 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880039,120,Tafisa
+PM-0014-0000738,Sunday Bunch,Sunday Bunch,Sunday Bunch 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880039,120,Tafisa
+EB-0014-0000008,Sunday Bunch,Sunday Bunch,Sunday Bunch 1mm,2,0.039,EB,0.38,0.38,LF,1037,880039,120,Tafisa
+PM-0014-0000741,Tea For Two,Tea For Two,Tea For Two 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880040,120,Tafisa
+PM-0014-0000740,Tea For Two,Tea For Two,Tea For Two 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880040,120,Tafisa
+EB-0014-0000009,Tea For Two,Tea For Two,Tea For Two 1mm,2,0.039,EB,0.38,0.38,LF,1037,880040,120,Tafisa
+PM-0014-0000743,Casting at First Light,Casting at First Light,Casting at First Light 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880041,120,Tafisa
+PM-0014-0000742,Casting at First Light,Casting at First Light,Casting at First Light 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880041,120,Tafisa
+EB-0014-0000010,Casting at First Light,Casting at First Light,Casting at First Light 1mm,2,0.039,EB,0.38,0.38,LF,1037,880041,120,Tafisa
+PM-0014-0000745,After Hours,After Hours,After Hours 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880042,120,Tafisa
+PM-0014-0000744,After Hours,After Hours,After Hours 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880042,120,Tafisa
+EB-0014-0000011,After Hours,After Hours,After Hours 1mm,2,0.039,EB,0.38,0.38,LF,1037,880042,120,Tafisa
+PM-0014-0000747,Stargazer,Stargazer,Stargazer 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880043,120,Tafisa
+PM-0014-0000746,Stargazer,Stargazer,Stargazer 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880043,120,Tafisa
+EB-0014-0000012,Stargazer,Stargazer,Stargazer 1mm,2,0.039,EB,0.38,0.38,LF,1037,880043,120,Tafisa
+PM-0014-0000749,Summertime Blues,Summertime Blues,Summertime Blues 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880044,120,Tafisa
+PM-0014-0000748,Summertime Blues,Summertime Blues,Summertime Blues 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880044,120,Tafisa
+EB-0014-0000013,Summertime Blues,Summertime Blues,Summertime Blues 1mm,2,0.039,EB,0.38,0.38,LF,1037,880044,120,Tafisa
+PM-0014-0000751,Sugar on Ice,Sugar on Ice,Sugar on Ice 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880045,120,Tafisa
+PM-0014-0000750,Sugar on Ice,Sugar on Ice,Sugar on Ice 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880045,120,Tafisa
+EB-0014-0000014,Sugar on Ice,Sugar on Ice,Sugar on Ice 1mm,2,0.039,EB,0.38,0.38,LF,1037,880045,120,Tafisa
+PM-0014-0000753,Apres Ski,Apres Ski,Apres Ski 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880046,120,Tafisa
+PM-0014-0000752,Apres Ski,Apres Ski,Apres Ski 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880046,120,Tafisa
+EB-0014-0000015,Apres Ski,Apres Ski,Apres Ski 1mm,2,0.039,EB,0.38,0.38,LF,1037,880046,120,Tafisa
+PM-0014-0000755,Black New,Black New,Black New 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880047,120,Tafisa
+PM-0014-0000754,Black New,Black New,Black New 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880047,120,Tafisa
+EB-0014-0000016,Black New,Black New,Black New 1mm,2,0.039,EB,0.38,0.38,LF,1037,880047,120,Tafisa
+PM-0014-0000757,Creme de la Creme,Creme de la Creme,Creme de la Creme 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880048,120,Tafisa
+PM-0014-0000756,Creme de la Creme,Creme de la Creme,Creme de la Creme 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880048,120,Tafisa
+EB-0014-0000017,Creme de la Creme,Creme de la Creme,Creme de la Creme 1mm,2,0.039,EB,0.38,0.38,LF,1037,880048,120,Tafisa
+PM-0014-0000759,Treasure Trove,Treasure Trove,Treasure Trove 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880049,120,Tafisa
+PM-0014-0000758,Treasure Trove,Treasure Trove,Treasure Trove 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880049,120,Tafisa
+EB-0014-0000018,Treasure Trove,Treasure Trove,Treasure Trove 1mm,2,0.039,EB,0.38,0.38,LF,1037,880049,120,Tafisa
+PM-0014-0000761,Simply Gallant,Simply Gallant,Simply Gallant 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880050,120,Tafisa
+PM-0014-0000760,Simply Gallant,Simply Gallant,Simply Gallant 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880050,120,Tafisa
+EB-0014-0000019,Simply Gallant,Simply Gallant,Simply Gallant 1mm,2,0.039,EB,0.38,0.38,LF,1037,880050,120,Tafisa
+PM-0014-0000763,Home Sweet Home,Home Sweet Home,Home Sweet Home 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880051,120,Tafisa
+PM-0014-0000762,Home Sweet Home,Home Sweet Home,Home Sweet Home 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880051,120,Tafisa
+EB-0014-0000020,Home Sweet Home,Home Sweet Home,Home Sweet Home 1mm,2,0.039,EB,0.38,0.38,LF,1037,880051,120,Tafisa
+PM-0014-0000765,Black Tie,Black Tie,Black Tie 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880052,120,Tafisa
+PM-0014-0000764,Black Tie,Black Tie,Black Tie 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880052,120,Tafisa
+EB-0014-0000021,Black Tie,Black Tie,Black Tie 1mm,2,0.039,EB,0.38,0.38,LF,1037,880052,120,Tafisa
+PM-0014-0000767,First Dance,First Dance,First Dance 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880053,120,Tafisa
+PM-0014-0000766,First Dance,First Dance,First Dance 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880053,120,Tafisa
+EB-0014-0000022,First Dance,First Dance,First Dance 1mm,2,0.039,EB,0.38,0.38,LF,1037,880053,120,Tafisa
+PM-0014-0000769,Golden Light,Golden Light,Golden Light 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880054,120,Tafisa
+PM-0014-0000768,Golden Light,Golden Light,Golden Light 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880054,120,Tafisa
+EB-0014-0000023,Golden Light,Golden Light,Golden Light 1mm,2,0.039,EB,0.38,0.38,LF,1037,880054,120,Tafisa
+PM-0014-0000771,Brass Band,Brass Band,Brass Band 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880055,120,Tafisa
+PM-0014-0000770,Brass Band,Brass Band,Brass Band 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880055,120,Tafisa
+EB-0014-0000024,Brass Band,Brass Band,Brass Band 1mm,2,0.039,EB,0.38,0.38,LF,1037,880055,120,Tafisa
+PM-0014-0000773,Sunday Stroll,Sunday Stroll,Sunday Stroll 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880056,120,Tafisa
+PM-0014-0000772,Sunday Stroll,Sunday Stroll,Sunday Stroll 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880056,120,Tafisa
+EB-0014-0000025,Sunday Stroll,Sunday Stroll,Sunday Stroll 1mm,2,0.039,EB,0.38,0.38,LF,1037,880056,120,Tafisa
+PM-0014-0000775,Ganache,Ganache,Ganache 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880057,120,Tafisa
+PM-0014-0000774,Ganache,Ganache,Ganache 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880057,120,Tafisa
+EB-0014-0000026,Ganache,Ganache,Ganache 1mm,2,0.039,EB,0.38,0.38,LF,1037,880057,120,Tafisa
+PM-0014-0000777,Night Owl,Night Owl,Night Owl 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880058,120,Tafisa
+PM-0014-0000776,Night Owl,Night Owl,Night Owl 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880058,120,Tafisa
+EB-0014-0000027,Night Owl,Night Owl,Night Owl 1mm,2,0.039,EB,0.38,0.38,LF,1037,880058,120,Tafisa
+PM-0014-0000779,Chocolate Pear,Chocolate Pear,Chocolate Pear3/4,2,0.75,PM,3.49813,17.76,SF,15200,880059,120,Tafisa
+PM-0014-0000778,Chocolate Pear,Chocolate Pear,Chocolate Pear 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880059,120,Tafisa
+EB-0014-0000028,Chocolate Pear,Chocolate Pear,Chocolate Pear 1mm,2,0.039,EB,0.38,0.38,LF,1037,880059,120,Tafisa
+PM-0014-0000781,Summer Flame,Summer Flame,Summer Flame 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880060,120,Tafisa
+PM-0014-0000780,Summer Flame,Summer Flame,Summer Flame 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880060,120,Tafisa
+EB-0014-0000029,Summer Flame,Summer Flame,Summer Flame 1mm,2,0.039,EB,0.38,0.38,LF,1037,880060,120,Tafisa
+PM-0014-0000783,White Chocolate,White Chocolate,White Chocolate 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880061,120,Tafisa
+PM-0014-0000782,White Chocolate,White Chocolate,White Chocolate 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880061,120,Tafisa
+EB-0014-0000030,White Chocolate,White Chocolate,White Chocolate 1mm,2,0.039,EB,0.38,0.38,LF,1037,880061,120,Tafisa
+PM-0014-0000785,Nutmeg,Nutmeg,Nutmeg 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880062,120,Tafisa
+PM-0014-0000784,Nutmeg,Nutmeg,Nutmeg 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880062,120,Tafisa
+EB-0014-0000031,Nutmeg,Nutmeg,Nutmeg 1mm,2,0.039,EB,0.38,0.38,LF,1037,880062,120,Tafisa
+PM-0014-0000787,Latitude North,Latitude North,Latitude North 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880063,120,Tafisa
+PM-0014-0000786,Latitude North,Latitude North,Latitude North 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880063,120,Tafisa
+EB-0014-0000032,Latitude North,Latitude North,Latitude North 1mm,2,0.039,EB,0.38,0.38,LF,1037,880063,120,Tafisa
+PM-0014-0000789,Summer Breeze,Summer Breeze,Summer Breeze 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880064,120,Tafisa
+PM-0014-0000788,Summer Breeze,Summer Breeze,Summer Breeze 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880064,120,Tafisa
+EB-0014-0000033,Summer Breeze,Summer Breeze,Summer Breeze 1mm,2,0.039,EB,0.38,0.38,LF,1037,880064,120,Tafisa
+PM-0014-0000791,Southwester,Southwester,Southwester 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880065,120,Tafisa
+PM-0014-0000790,Southwester,Southwester,Southwester 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880065,120,Tafisa
+EB-0014-0000034,Southwester,Southwester,Southwester 1mm,2,0.039,EB,0.38,0.38,LF,1037,880065,120,Tafisa
+PM-0014-0000793,Latitude West,Latitude West,Latitude West 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880066,120,Tafisa
+PM-0014-0000792,Latitude West,Latitude West,Latitude West 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880066,120,Tafisa
+EB-0014-0000035,Latitude West,Latitude West,Latitude West 1mm,2,0.039,EB,0.38,0.38,LF,1037,880066,120,Tafisa
+PM-0014-0000795,Latitude East,Latitude East,Latitude East 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880067,120,Tafisa
+PM-0014-0000794,Latitude East,Latitude East,Latitude East 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880067,120,Tafisa
+EB-0014-0000036,Latitude East,Latitude East,Latitude East 1mm,2,0.039,EB,0.38,0.38,LF,1037,880067,120,Tafisa
+PM-0014-0000797,River Rock,River Rock,River Rock 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880068,120,Tafisa
+PM-0014-0000796,River Rock,River Rock,River Rock 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880068,120,Tafisa
+EB-0014-0000037,River Rock,River Rock,River Rock 1mm,2,0.039,EB,0.38,0.38,LF,1037,880068,120,Tafisa
+PM-0014-0000799,Laurentian Path,Laurentian Path,Laurentian Path 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880069,120,Tafisa
+PM-0014-0000798,Laurentian Path,Laurentian Path,Laurentian Path 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880069,120,Tafisa
+EB-0014-0000038,Laurentian Path,Laurentian Path,Laurentian Path 1mm,2,0.039,EB,0.38,0.38,LF,1037,880069,120,Tafisa
+PM-0014-0000801,Sea Fog,Sea Fog,Sea Fog 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880070,120,Tafisa
+PM-0014-0000800,Sea Fog,Sea Fog,Sea Fog 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880070,120,Tafisa
+EB-0014-0000039,Sea Fog,Sea Fog,Sea Fog 1mm,2,0.039,EB,0.38,0.38,LF,1037,880070,120,Tafisa
+PM-0014-0000803,Appalachia,Appalachia,Appalachia 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880071,120,Tafisa
+PM-0014-0000802,Appalachia,Appalachia,Appalachia 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880071,120,Tafisa
+EB-0014-0000040,Appalachia,Appalachia,Appalachia 1mm,2,0.039,EB,0.38,0.38,LF,1037,880071,120,Tafisa
+PM-0014-0000805,Mojave,Mojave,Mojave 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880072,120,Tafisa
+PM-0014-0000804,Mojave,Mojave,Mojave 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880072,120,Tafisa
+EB-0014-0000041,Mojave,Mojave,Mojave 1mm,2,0.039,EB,0.38,0.38,LF,1037,880072,120,Tafisa
+PM-0014-0000807,White Regular,White Regular,White Regular 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880073,120,Tafisa
+PM-0014-0000806,White Regular,White Regular,White Regular 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880073,120,Tafisa
+EB-0014-0000042,White Regular,White Regular,White Regular 1mm,2,0.039,EB,0.38,0.38,LF,1037,880073,120,Tafisa
+PM-0014-0000809,Glacier White,Glacier White,Glacier White 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880074,120,Tafisa
+PM-0014-0000808,Glacier White,Glacier White,Glacier White 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880074,120,Tafisa
+EB-0014-0000043,Glacier White,Glacier White,Glacier White 1mm,2,0.039,EB,0.38,0.38,LF,1037,880074,120,Tafisa
+PM-0014-0000811,Niagara,Niagara,Niagara 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880075,120,Tafisa
+PM-0014-0000810,Niagara,Niagara,Niagara 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880075,120,Tafisa
+EB-0014-0000044,Niagara,Niagara,Niagara 1mm,2,0.039,EB,0.38,0.38,LF,1037,880075,120,Tafisa
+PM-0014-0000813,Antique White,Antique White,Antique White 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880076,120,Tafisa
+PM-0014-0000812,Antique White,Antique White,Antique White 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880076,120,Tafisa
+EB-0014-0000045,Antique White,Antique White,Antique White 1mm,2,0.039,EB,0.38,0.38,LF,1037,880076,120,Tafisa
+PM-0014-0000815,Folkstone Grey,Folkstone Grey,Folkstone Grey 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880077,120,Tafisa
+PM-0014-0000814,Folkstone Grey,Folkstone Grey,Folkstone Grey 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880077,120,Tafisa
+EB-0014-0000046,Folkstone Grey,Folkstone Grey,Folkstone Grey 1mm,2,0.039,EB,0.38,0.38,LF,1037,880077,120,Tafisa
+PM-0014-0000817,London Grey,London Grey,London Grey 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880078,120,Tafisa
+PM-0014-0000816,London Grey,London Grey,London Grey 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880078,120,Tafisa
+EB-0014-0000047,London Grey,London Grey,London Grey 1mm,2,0.039,EB,0.38,0.38,LF,1037,880078,120,Tafisa
+PM-0014-0000819,Storm,Storm,Storm 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880079,120,Tafisa
+PM-0014-0000818,Storm,Storm,Storm 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880079,120,Tafisa
+EB-0014-0000048,Storm,Storm,Storm 1mm,2,0.039,EB,0.38,0.38,LF,1037,880079,120,Tafisa
+PM-0014-0000821,Pumice,Pumice,Pumice 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880080,120,Tafisa
+PM-0014-0000820,Pumice,Pumice,Pumice 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880080,120,Tafisa
+EB-0014-0000049,Pumice,Pumice,Pumice 1mm,2,0.039,EB,0.38,0.38,LF,1037,880080,120,Tafisa
+PM-0014-0000823,Black,Black,Black 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880081,120,Tafisa
+PM-0014-0000822,Black,Black,Black 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880081,120,Tafisa
+EB-0014-0000050,Black,Black,Black 1mm,2,0.039,EB,0.38,0.38,LF,1037,880081,120,Tafisa
+PM-0014-0000825,White Gloss,White Gloss,White Gloss 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880082,120,Tafisa
+PM-0014-0000824,White Gloss,White Gloss,White Gloss 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880082,120,Tafisa
+EB-0014-0000051,White Gloss,White Gloss,White Gloss 1mm,2,0.039,EB,0.38,0.38,LF,1037,880082,120,Tafisa
+PM-0014-0000827,Custom Solid,Custom Solid,Custom Solid 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880083,120,Tafisa
+PM-0014-0000826,Custom Solid,Custom Solid,Custom Solid 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880083,120,Tafisa
+EB-0014-0000052,Custom Solid,Custom Solid,Custom Solid 1mm,2,0.039,EB,0.38,0.38,LF,1037,880083,120,Tafisa
+PM-0014-0000829,Candlelight,Candlelight,Candlelight 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880084,120,Tafisa
+PM-0014-0000828,Candlelight,Candlelight,Candlelight 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880084,120,Tafisa
+EB-0014-0000053,Candlelight,Candlelight,Candlelight 1mm,2,0.039,EB,0.38,0.38,LF,1037,880084,120,Tafisa
+PM-0014-0000831,Cherry Blossom,Cherry Blossom,Cherry Blossom 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880085,120,Tafisa
+PM-0014-0000830,Cherry Blossom,Cherry Blossom,Cherry Blossom 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880085,120,Tafisa
+EB-0014-0000054,Cherry Blossom,Cherry Blossom,Cherry Blossom 1mm,2,0.039,EB,0.38,0.38,LF,1037,880085,120,Tafisa
+PM-0014-0000833,Chocolate Peartree,Chocolate Peartree,Chocolate Peartree 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880086,120,Tafisa
+PM-0014-0000832,Chocolate Peartree,Chocolate Peartree,Chocolate Peartree 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880086,120,Tafisa
+EB-0014-0000055,Chocolate Peartree,Chocolate Peartree,Chocolate Peartree 1mm,2,0.039,EB,0.38,0.38,LF,1037,880086,120,Tafisa
+PM-0014-0000835,Hardrock Maple,Hardrock Maple,Hardrock Maple 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880087,120,Tafisa
+PM-0014-0000834,Hardrock Maple,Hardrock Maple,Hardrock Maple 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880087,120,Tafisa
+EB-0014-0000056,Hardrock Maple,Hardrock Maple,Hardrock Maple 1mm,2,0.039,EB,0.38,0.38,LF,1037,880087,120,Tafisa
+PM-0014-0000837,Rustic Cherry,Rustic Cherry,Rustic Cherry 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880088,120,Tafisa
+PM-0014-0000836,Rustic Cherry,Rustic Cherry,Rustic Cherry 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880088,120,Tafisa
+EB-0014-0000057,Rustic Cherry,Rustic Cherry,Rustic Cherry 1mm,2,0.039,EB,0.38,0.38,LF,1037,880088,120,Tafisa
+PM-0014-0000839,Secret,Secret,Secret 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880089,120,Tafisa
+PM-0014-0000838,Secret,Secret,Secret 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880089,120,Tafisa
+EB-0014-0000058,Secret,Secret,Secret 1mm,2,0.039,EB,0.38,0.38,LF,1037,880089,120,Tafisa
+PM-0014-0000843,Windsor Mahogany,Windsor Mahogany,Windsor Mahogany 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880091,120,Tafisa
+PM-0014-0000842,Windsor Mahogany,Windsor Mahogany,Windsor Mahogany 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880091,120,Tafisa
+EB-0014-0000061,Windsor Mahogany,Windsor Mahogany,Windsor Mahogany 1mm,2,0.039,EB,0.38,0.38,LF,1037,880091,120,Tafisa

@@ -1,0 +1,8 @@
+[
+    { "label": "MATERIAL", "position": { "LEGAL": [18, 11] } },
+    { "label": "DOOR STYLE", "position": { "LEGAL": [238, 11] } },
+    { "label": "DRAWERS", "position": { "LEGAL": [388, 11] } },
+    { "label": "OPTIONS", "position": { "LEGAL": [501, 11] } },
+    { "label": "COUNTER", "position": { "LEGAL": [747, 11] } },
+    { "label": "INSTALL", "position": { "LEGAL": [867, 11] } }
+]

@@ -1,0 +1,71 @@
+[
+    { "label": "EXT COLOR", "value": "", "position": { "LEGAL": [43, 55] }, "varname": "" },
+    { "label": "INT COLOR", "value": "", "position": { "LEGAL": [43, 45] }, "varname": "" },
+    { "label": "TRIM COLOR", "value": "", "position": { "LEGAL": [43, 35] }, "varname": "" },
+    { "label": "VENEER", "value": "", "position": { "LEGAL": [43, 25] }, "varname": "" },
+    { "label": "FULL BACKS", "value": "", "position": { "LEGAL": [43, 15] }, "varname": "" },
+
+    { "label": "MELAMINE", "value":"", "position": { "LEGAL": [283, 85] }, "varname": "" },
+    { "label": "WOOD DOOR", "value": "", "position": { "LEGAL": [283, 75] }, "varname": "" },
+    { "label": "WOOD DRAWER", "value": "", "position": { "LEGAL": [283, 65] }, "varname": "" },
+    { "label": "FOIL DOOR", "value": "", "position": { "LEGAL": [283, 55] }, "varname": "" },
+    { "label": "FOIL DRAWER", "value": "", "position": { "LEGAL": [283, 45] }, "varname": "" },
+    { "label": "GLASS INSET", "value": "", "position": { "LEGAL": [283, 35] }, "varname": "" },
+    { "label": "LUCITE", "value": "", "position": { "LEGAL": [283, 25] }, "varname": "" },
+    { "label": "HARDWARE", "value":"", "position": { "LEGAL": [283, 15] }, "varname": "" },
+
+    { "label": "MELAMINE", "value":"", "position": { "LEGAL": [413, 85] }, "varname": "" },
+    { "label": "BIRCH DOVETAIL", "value": "", "position": { "LEGAL": [413, 75] }, "varname": "" },
+    { "label": "MEPLA 1/4/ FE", "value": "", "position": { "LEGAL": [413, 65] }, "varname": "" },
+    { "label": "HRBB", "value": "", "position": { "LEGAL": [413, 55] }, "varname": "" },
+    { "label": "FILE RAILS", "value": "", "position": { "LEGAL": [413, 35] }, "varname": "" },
+    { "label": "HARDWARE", "value":"", "position": { "LEGAL": [413, 25] }, "varname": "" },
+
+    { "label": "JEWELRY", "value":"", "position": { "LEGAL": [543, 85] }, "varname": "" },
+    { "label": "SLD TRAY", "value": "", "position": { "LEGAL": [543, 75] }, "varname": "" },
+    { "label": "VEL BOTTOM", "value": "", "position": { "LEGAL": [543, 65] }, "varname": "" },
+    { "label": "HAMPER", "value": "", "position": { "LEGAL": [543, 55] }, "varname": "" },
+    { "label": "HMPR BAG", "value": "", "position": { "LEGAL": [543, 45] }, "varname": "" },
+    { "label": "HMPR BRKT", "value": "", "position": { "LEGAL": [543, 35] }, "varname": "" },
+    { "label": "ROD", "value": "", "position": { "LEGAL": [543, 25] }, "varname": "" },
+    { "label": "HANDIWALL", "value":"", "position": { "LEGAL": [543, 15] }, "varname": "" },
+
+    { "label": "REACH POLE", "value":"", "position": { "LEGAL": [654, 85] }, "varname": "" },
+    { "label": "BELT RACK", "value": "", "position": { "LEGAL": [654, 75] }, "varname": "" },
+    { "label": "TIE RACK", "value": "", "position": { "LEGAL": [654, 65] }, "varname": "" },
+    { "label": "VALET", "value": "", "position": { "LEGAL": [654, 55] }, "varname": "" },
+    { "label": "SHOE FENCE", "value": "", "position": { "LEGAL": [654, 45] }, "varname": "" },
+    { "label": "LEGST", "value": "", "position": { "LEGAL": [654, 35] }, "varname": "" },
+    { "label": "HOOKS", "value": "", "position": { "LEGAL": [654, 25] }, "varname": "" },
+    { "label": "HOOKS", "value":"", "position": { "LEGAL": [654, 15] }, "varname": "" },
+
+    { "label": "MELAMINE", "value":"", "position": { "LEGAL": [770, 85] }, "varname": "" },
+    { "label": "LAMINATE", "value":"", "position": { "LEGAL": [770, 75] }, "varname": "" },
+    { "label": "CHIP #", "value": "", "position": { "LEGAL": [770, 55] }, "varname": "" },
+    { "label": "WOOD", "value": "", "position": { "LEGAL": [770, 45] }, "varname": "" },
+    { "label": "BUTCHER BLK", "value": "", "position": { "LEGAL": [770, 35] }, "varname": "" },
+
+    { "label": "TEAR OUT", "value": "", "position": { "LEGAL": [890, 97] }, "varname": "tear_out" },
+    { "label": "BLCK WALL", "value": "", "position": { "LEGAL": [890, 87] }, "varname": "block_wall" },
+    { "label": "ELEVATOR", "value": "", "position": { "LEGAL": [890, 77] }, "varname": "elevator" },
+    { "label": "TOUCH UP", "value": "", "position": { "LEGAL": [890, 67] }, "varname": "touch_up" },
+    { "label": "NEW CNST", "value": "", "position": { "LEGAL": [890, 57] }, "varname": "new_construction" },
+    { "label": "STAIRS", "value": "", "position": { "LEGAL": [955, 97] }, "varname": "stairs" },
+
+    { "label": "FLOOR TYPE", "value":"", "position": { "LEGAL": [890, 47] }, "varname": "floor" },
+    { "label": "DOOR TYPE", "value":"", "position": { "LEGAL": [890, 37] }, "varname": "door" },
+    { "label": "BASEBRD HT", "value":"", "position": { "LEGAL": [890, 27] }, "varname": "base_height" },
+    { "label": "CONDO PARKING INSTR", "value":"", "position": { "LEGAL": [890, 17] }, "varname": "parking" },
+    { "label": "NOTES", "value":"", "position": { "LEGAL": [890, 7] }, "varname": "" },
+
+    { "label": "Signature", "value":"", "position": { "LEGAL": [765, 569] }, "varname": "" },
+    { "label": "Job #", "value":"", "position": { "LEGAL": [765, 559] }, "varname": "job_number" },
+    { "label": "Install Date", "value":"", "position": { "LEGAL": [860, 559] }, "varname": "install_date" },
+    { "label": "Sheet", "value":"", "position": { "LEGAL": [860, 549] }, "varname": "" },
+
+    { "label": "", "value":"", "position": { "LEGAL": [45, 108] }, "varname": "client_name" },
+    { "label": "", "value":"", "position": { "LEGAL": [395, 108] }, "varname": "client_phone" },
+    { "label": "", "value":"", "position": { "LEGAL": [533, 108] }, "varname": "" },
+    { "label": "", "value":"", "position": { "LEGAL": [702, 108] }, "varname": "designer_name" }
+
+]

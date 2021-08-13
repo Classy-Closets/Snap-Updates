@@ -1,0 +1,55 @@
+[{
+        "data": [
+            { "label": "CLIENT", "position": { "LEGAL": [18, 108] } },
+            { "label": "PHONE", "position": { "LEGAL": [368, 108] } },
+            { "label": "DATE", "position": { "LEGAL": [512, 108] } },
+            { "label": "DESIGNER", "position": { "LEGAL": [663, 108] } }
+        ],
+        "bold": 1,
+        "underline": 0,
+        "checkbox": 0
+    },
+    {
+        "data": [
+            { "label": "WHITE", "position": { "LEGAL": [51, 88] } },
+            { "label": "ALMOND", "position": { "LEGAL": [51, 79] } },
+            { "label": "WDGRN", "position": { "LEGAL": [51, 70] } },
+            { "label": "WHITE", "position": { "LEGAL": [102, 88] } },
+            { "label": "ALMOND", "position": { "LEGAL": [102, 79] } },
+            { "label": "WDGRN", "position": { "LEGAL": [102, 70] } },
+            { "label": "WHITE", "position": { "LEGAL": [152, 88] } },
+            { "label": "ALMOND", "position": { "LEGAL": [152, 79] } },
+            { "label": "WDGRN", "position": { "LEGAL": [152, 70] } },
+            { "label": "ROUND", "position": { "LEGAL": [201, 88] } },
+            { "label": "SQUARE", "position": { "LEGAL": [201, 79] } },
+            { "label": "COMBO", "position": { "LEGAL": [201, 70] } },
+            { "label": "3M PVC", "position": { "LEGAL": [201, 61] } },
+            { "label": "3M WD", "position": { "LEGAL": [201, 52] } },
+            { "label": "VENEER", "position": { "LEGAL": [201, 43] } },
+            { "label": "DOLCE", "position": { "LEGAL": [201, 34] } }
+
+        ],
+        "bold": 0,
+        "underline": 0,
+        "checkbox": 1
+    },
+    {
+        "data": [
+            { "label": "EXT", "position": { "LEGAL": [54, 99] } },
+            { "label": "INT", "position": { "LEGAL": [105, 99] } },
+            { "label": "TRIM", "position": { "LEGAL": [155, 99] } },
+            { "label": "EDGE", "position": { "LEGAL": [204, 99] } },
+            { "label": "QTY", "position": { "LEGAL": [263, 99] } },
+            { "label": "STYLE", "position": { "LEGAL": [353, 99] } },
+            { "label": "QTY", "position": { "LEGAL": [481, 99] } },
+            { "label": "QTY", "position": { "LEGAL": [525, 99] } },
+            { "label": "COLOR/#", "position": { "LEGAL": [596, 99] } },
+            { "label": "QTY", "position": { "LEGAL": [636, 99] } },
+            { "label": "CT COLOR", "position": { "LEGAL": [704, 99] } },
+            { "label": "CT COLOR", "position": { "LEGAL": [825, 99] } }
+        ],
+        "bold": 1,
+        "underline": 1,
+        "checkbox": 0
+    }
+]

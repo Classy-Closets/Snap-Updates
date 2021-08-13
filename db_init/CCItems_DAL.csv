@@ -1,0 +1,25 @@
+SKU,Name,DisplayName,Description,Type,Thickness,ProductType,FranchisePrice,RetailPrice,UOM,TypeCode,ColorCode,ProfileCode,VendorName
+PM-0052-0000845,Black,Black,Custom Old Style 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880092,120,Plywood
+PM-0052-0000844,Black,Black,Custom Old Style 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880092,120,Plywood
+EB-0052-0000062,Black,Black,Custom Old Style 1mm,2,0.039,EB,0.38,0.38,LF,1037,880092,120,Plywood
+PM-0052-0000847,White,White,White 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880093,120,Plywood
+PM-0052-0000846,White,White,White 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880093,120,Plywood
+EB-0052-0000063,White,White,White 1mm,2,0.039,EB,0.38,0.38,LF,1037,880093,120,Plywood
+PM-0052-0000849,Antique White,Antique White,Antique White 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880094,120,Plywood
+PM-0052-0000848,Antique White,Antique White,Antique White 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880094,120,Plywood
+EB-0052-0000064,Antique White,Antique White,Antique White 1mm,2,0.039,EB,0.38,0.38,LF,1037,880094,120,Plywood
+PM-0052-0000851,Almond,Almond,Almond 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880095,120,Plywood
+PM-0052-0000850,Almond,Almond,Almond 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880095,120,Plywood
+EB-0052-0000065,Almond,Almond,Almond 1mm,2,0.039,EB,0.38,0.38,LF,1037,880095,120,Plywood
+PM-0052-0000853,Folkstone Grey,Folkstone Grey,Folkstone Grey 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880096,120,Plywood
+PM-0052-0000852,Folkstone Grey,Folkstone Grey,Folkstone Grey 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880096,120,Plywood
+EB-0052-0000066,Folkstone Grey,Folkstone Grey,Folkstone Grey 1mm,2,0.039,EB,0.38,0.38,LF,1037,880096,120,Plywood
+PM-0052-0000855,London Grey,London Grey,London Grey 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880097,120,Plywood
+PM-0052-0000854,London Grey,London Grey,London Grey 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880097,120,Plywood
+EB-0052-0000067,London Grey,London Grey,London Grey 1mm,2,0.039,EB,0.38,0.38,LF,1037,880097,120,Plywood
+PM-0052-0000857,Hardrock Maple,Hardrock Maple,Hardrock Maple 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880098,120,Plywood
+PM-0052-0000856,Hardrock Maple,Hardrock Maple,Hardrock Maple 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880098,120,Plywood
+EB-0052-0000068,Hardrock Maple,Hardrock Maple,Hardrock Maple 1mm,2,0.039,EB,0.38,0.38,LF,1037,880098,120,Plywood
+PM-0052-0000859,Chocolate Apple,Chocolate Apple,Chocolate Apple 3/4,2,0.75,PM,3.49813,17.76,SF,15200,880099,120,Plywood
+PM-0052-0000858,Chocolate Apple,Chocolate Apple,Chocolate Apple 1/4,2,0.25,PM,3.49813,17.76,SF,20100,880099,120,Plywood
+EB-0052-0000069,Chocolate Apple,Chocolate Apple,Chocolate Apple 1mm,2,0.039,EB,0.38,0.38,LF,1037,880099,120,Plywood
