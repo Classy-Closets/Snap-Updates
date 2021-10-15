@@ -12,7 +12,7 @@ from ..ops.drop_closet import PlaceClosetInsert
 from .. import closet_props
 
 
-class Vertical_Splitters(sn_types.Assembly):
+class Shelf_Stack(sn_types.Assembly):
 
     type_assembly = "INSERT"
     id_prompt = "sn_closets.vertical_splitters"
@@ -22,6 +22,19 @@ class Vertical_Splitters(sn_types.Assembly):
     category_name = "Closet Products - Shelves"
     mirror_y = False
     calculator = None
+
+    splitters = []
+
+    def __init__(self, obj_bp=None):
+        super().__init__(obj_bp=obj_bp)
+        self.splitters = []
+        self.get_shelves()
+
+    def get_shelves(self):
+        for child in self.obj_bp.children:
+            if child.get("IS_STACK_SHELF"):
+                shelf = sn_types.Assembly(child)
+                self.splitters.append(shelf)
 
     def add_prompts(self):
         for i in range(1, 17):  # 16 Openings
@@ -36,7 +49,7 @@ class Vertical_Splitters(sn_types.Assembly):
         self.add_prompt("Bottom Thickness", 'DISTANCE', sn_unit.inch(.75))
         self.add_prompt("Extend Top Amount", 'DISTANCE', sn_unit.inch(0))
         self.add_prompt("Extend Bottom Amount", 'DISTANCE', sn_unit.inch(0))
-        self.add_prompt("Remove Bottom Shelf", 'CHECKBOX', True)
+        self.add_prompt("Remove Bottom Shelf", 'CHECKBOX', False)
         self.add_prompt("Shelf Quantity", 'QUANTITY', 5)
         self.add_prompt("Evenly Spaced Shelves", 'CHECKBOX', True)
         self.add_prompt("Shelf Backing Setback", 'DISTANCE', 0)
@@ -89,9 +102,8 @@ class Vertical_Splitters(sn_types.Assembly):
 
         return opening
 
-    def add_splitters(self):
+    def add_splitters(self, amt=5):
         Width = self.obj_x.snap.get_var('location.x', 'Width')
-        Height = self.obj_z.snap.get_var('location.z', 'Height')
         Depth = self.obj_y.snap.get_var('location.y', 'Depth')
         Thickness = self.get_prompt('Thickness').get_var("Thickness")
         Remove_Bottom_Shelf = self.get_prompt('Remove Bottom Shelf').get_var("Remove_Bottom_Shelf")
@@ -112,13 +124,15 @@ class Vertical_Splitters(sn_types.Assembly):
         is_locked_shelf = bottom_shelf.get_prompt("Is Locked Shelf")
         is_locked_shelf.set_value(True)
 
-        for i in range(1, 16):
+        for i in range(1, amt + 1):
             Opening_Height = self.get_prompt("Opening " + str(i) + " Height").get_var("Opening_Height")
 
             if previous_splitter:
                 Previous_Z_Loc = previous_splitter.obj_bp.snap.get_var("location.z", "Previous_Z_Loc")
 
             splitter = common_parts.add_shelf(self)
+            splitter.obj_bp["IS_STACK_SHELF"] = True
+            self.splitters.append(splitter)
             Is_Locked_Shelf = splitter.get_prompt('Is Locked Shelf').get_var('Is_Locked_Shelf')
             Adj_Shelf_Setback = splitter.get_prompt('Adj Shelf Setback').get_var('Adj_Shelf_Setback')
             Locked_Shelf_Setback = splitter.get_prompt('Locked Shelf Setback').get_var('Locked_Shelf_Setback')
@@ -164,22 +178,11 @@ class Vertical_Splitters(sn_types.Assembly):
         props = self.obj_bp.sn_closets
         props.is_splitter_bp = True  # TODO: remove
 
-        # calculator = self.get_calculator('Opening Heights')
-        # if calculator:
-        #     calculator.calculate()
-        #     bpy.context.area.tag_redraw()
-
     def draw(self):
         self.create_assembly()
         self.add_prompts()
         self.add_splitters()
         self.update()
-
-    # def draw(self):
-    #     calculator = self.get_calculator('Opening Heights')
-    #     if calculator:
-    #         calculator.calculate()
-    #         bpy.context.area.tag_redraw()
 
 
 class Horizontal_Splitters(sn_types.Assembly):
@@ -436,9 +439,21 @@ class PROMPTS_Vertical_Splitter_Prompts(sn_types.Prompts_Interface):
     assembly = None
     cur_shelf_height = None
 
+    def update_shelves(self):
+        shelf_amt_changed = len(self.assembly.splitters) != int(self.shelf_quantity)
+
+        if shelf_amt_changed:
+            for assembly in self.assembly.splitters:
+                sn_utils.delete_object_and_children(assembly.obj_bp)
+            self.assembly.splitters.clear()
+            self.assembly.add_splitters(amt=int(self.shelf_quantity))
+
+        self.assembly.update()
+
     def check(self, context):
         self.update_openings()
         self.set_prompts_from_properties()
+        self.update_shelves()
 
         opening = self.assembly.obj_bp.sn_closets.opening_name
         parent_obj = self.assembly.obj_bp.parent
@@ -568,7 +583,7 @@ class PROMPTS_Vertical_Splitter_Prompts(sn_types.Prompts_Interface):
             return self.get_splitter(obj_bp.parent)
 
     def invoke(self, context, event):
-        self.assembly = self.get_insert()
+        self.assembly = Shelf_Stack(self.get_insert().obj_bp)
         self.set_properties_from_prompts()
 
         opening = self.assembly.obj_bp.sn_closets.opening_name
@@ -582,6 +597,8 @@ class PROMPTS_Vertical_Splitter_Prompts(sn_types.Prompts_Interface):
 
         if all(prompts):
             parent_has_bottom_kd.set_value(True)
+            if not remove_bottom_shelf.get_value():
+                parent_remove_bottom_shelf.set_value(True)
             if floor.get_value() or parent_remove_bottom_shelf.get_value():
                 remove_bottom_shelf.set_value(False)
             else:

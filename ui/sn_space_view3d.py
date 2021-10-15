@@ -742,6 +742,21 @@ class VIEW3D_MT_add(Menu):
             layout.operator_menu_enum("object.gpencil_add", "type", text="Grease Pencil", icon='OUTLINER_OB_GREASEPENCIL')
 
 
+class VIEW3D_MT_light_add(Menu):
+    bl_idname = "VIEW3D_MT_light_add"
+    bl_label = "Light"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        layout.operator_context = 'INVOKE_REGION_WIN'
+        layout.operator_enum("object.light_add", "type")
+        if not _context.scene.snap.ui.use_default_blender_interface:
+            layout.separator()
+            layout.operator_context = 'INVOKE_REGION_WIN'
+            layout.operator("sn_object.add_room_light", icon='LIGHT_AREA', text="Add Room Light")
+
+
 class VIEW3D_PT_active_tool(Panel, ToolActivePanelHelper):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -1017,6 +1032,7 @@ classes = (
     VIEW3D_PT_collections,
     VIEW3D_PT_grease_pencil,
     VIEW3D_PT_context_properties,
+    VIEW3D_MT_light_add
 )
 
 

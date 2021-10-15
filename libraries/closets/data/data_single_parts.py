@@ -733,17 +733,17 @@ class PROMPTS_Valet_Rod_Prompts(sn_types.Prompts_Interface):
                 metal_color = self.assembly.get_prompt("Metal Color")
 
                 row = layout.row()
-                row.label(text="Valet Rod Location")
+                row.label(text="Location")
                 row.prop(self.assembly.obj_bp, 'location', index=0, text="")
 
                 if valet_category:
                     row = layout.row()
-                    row.label(text="Valet Rod Category")
+                    row.label(text="Category")
                     row.prop(self, 'valet_category', expand=True)
 
                 if valet_length:
                     row = layout.row()
-                    row.label(text="Valet Rod Length")
+                    row.label(text="Length")
                     row.prop(self, 'valet_length', expand=True)
 
                 if valet_category:

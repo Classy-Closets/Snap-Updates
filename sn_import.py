@@ -266,13 +266,13 @@ class SN_DB_OT_Import_Csv(bpy.types.Operator):
             custom_mat_type.description = description
 
         for i, mat_type in enumerate(self.props.materials.mat_types):
-            if mat_type.type_code == 1:
+            if mat_type.type_code == 15225:
                 self.create_oversize_mat_color_collection(mat_type)
                 continue
             self.create_mat_color_collection(mat_type)
 
         for mat_type in self.props.door_drawer_materials.mat_types:
-            if mat_type.type_code == 1:
+            if mat_type.type_code == 15225:
                 self.create_oversize_mat_color_collection(mat_type)
                 continue
             self.create_mat_color_collection(mat_type)

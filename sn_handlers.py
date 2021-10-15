@@ -1,10 +1,13 @@
 import os
+import shutil
+import stat
 
 import bpy
 from bpy.app.handlers import persistent
 from snap import sn_utils
 from snap import sn_paths
 from . import sn_utils
+from . import addon_updater_ops
 
 @persistent
 def load_driver_functions(scene=None):
@@ -73,7 +76,17 @@ def load_libraries(scene=None):
         drop_id='windows_and_doors.drop',
         use_custom_icon=False,
         icon='MOD_LATTICE'
-    )    
+    )
+
+    wm_props.add_library(
+        name="Appliance Library",
+        lib_type='SNAP',
+        root_dir=sn_paths.APPLIANCE_DIR,
+        thumbnail_dir=sn_paths.APPLIANCE_THUMB_DIR,
+        drop_id='sn_appliances.drop',
+        use_custom_icon=False,
+        icon='TOPBAR',
+    )
 
     wm_props.add_library(
         name="Object Library",
@@ -93,6 +106,7 @@ def load_libraries(scene=None):
         icon='MATERIAL'
     )
 
+
     wm_props.get_library_assets()
 
     path = os.path.join(sn_paths.CLOSET_THUMB_DIR, sn_paths.DEFAULT_CATEGORY)
@@ -110,10 +124,23 @@ def load_library_modules(scene):
 
 
 @persistent
-def scene_unit_settings(scene=None):
-    bpy.context.scene.unit_settings.system = 'IMPERIAL'
-    bpy.context.scene.unit_settings.length_unit = 'INCHES'
-
+def default_settings(scene=None):
+    scene = bpy.context.scene
+    prefs = bpy.context.preferences
+    # Units
+    scene.unit_settings.system = 'IMPERIAL'
+    scene.unit_settings.length_unit = 'INCHES'
+    # Render
+    scene.render.engine = 'CYCLES'
+    scene.cycles.device = 'GPU'
+    scene.cycles.preview_samples = 0
+    scene.cycles.use_preview_denoising = True
+    scene.cycles.preview_denoiser = 'AUTO'
+    scene.cycles.max_bounces = 6
+    scene.cycles.transparent_max_bounces = 6
+    scene.cycles.transmission_bounces = 6
+    # Prefs
+    prefs.use_preferences_save = False  # Disable autosave
 
 @persistent
 def init_machining_collection(scene=None):
@@ -124,25 +151,46 @@ def init_machining_collection(scene=None):
         mac_col.hide_viewport = True
 
 
+def del_dir(action, name, exc):
+    os.chmod(name, stat.S_IWRITE)
+    os.remove(name)
+
+
+@persistent
+def check_for_update(scene=None):
+    source_dir = os.path.join(os.path.dirname(__file__), "snap_updater", "source")
+    staging_dir = os.path.join(os.path.dirname(__file__), "snap_updater", "update_staging")
+    update_dirs = [source_dir, staging_dir]
+
+    for dir_path in update_dirs:
+        if os.path.exists(dir_path):
+            shutil.rmtree(dir_path, onerror=del_dir)
+
+    if "snap" in bpy.context.preferences.addons.keys():
+        addon_updater_ops.check_for_update_background()
+
+
 def register():
     bpy.app.handlers.load_post.append(load_driver_functions)
     bpy.app.handlers.load_post.append(load_materials_from_db)
-    bpy.app.handlers.load_post.append(scene_unit_settings)
+    bpy.app.handlers.load_post.append(default_settings)
     bpy.app.handlers.load_post.append(sync_spec_groups)
     bpy.app.handlers.load_post.append(assign_material_pointers)
     bpy.app.handlers.save_pre.append(assign_materials)
     bpy.app.handlers.load_post.append(load_libraries)
     bpy.app.handlers.load_post.append(load_library_modules)
     bpy.app.handlers.load_post.append(init_machining_collection)
+    bpy.app.handlers.load_post.append(check_for_update)
 
 
 def unregister():
     bpy.app.handlers.load_post.remove(load_driver_functions)
     bpy.app.handlers.load_post.remove(load_materials_from_db)
-    bpy.app.handlers.load_post.remove(scene_unit_settings)
+    bpy.app.handlers.load_post.remove(default_settings)
     bpy.app.handlers.load_post.remove(sync_spec_groups)
     bpy.app.handlers.load_post.remove(assign_material_pointers)
     bpy.app.handlers.save_pre.remove(assign_materials)
     bpy.app.handlers.load_post.remove(load_libraries)
     bpy.app.handlers.load_post.remove(load_library_modules)
     bpy.app.handlers.load_post.remove(init_machining_collection)
+    bpy.app.handlers.load_post.append(check_for_update)

@@ -23,7 +23,7 @@ class Base_Assembly(sn_types.Assembly):
     category_name = ""
 
     def add_parts(self):
-        self.add_prompt("Cleat Width", 'DISTANCE', sn_unit.inch(2.5))
+        self.add_prompt("Cleat Width", 'DISTANCE', sn_unit.inch(1.5))
         self.add_prompt("Extend Left Amount", 'DISTANCE', 0)
         self.add_prompt("Extend Right Amount", 'DISTANCE', 0)
         self.add_prompt("Extend Depth Amount", 'DISTANCE', 0)
@@ -627,6 +627,10 @@ class DROP_OPERATOR_Place_Base_Assembly(Operator, PlaceClosetInsert):
 
             if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.selected_panel_1:
                 selected_panel_2 = sn_types.Assembly(sel_assembly_bp)
+                # Do not allow selecting fillers
+                if "IS_FILLER" in selected_panel_2.obj_bp:
+                    return {'RUNNING_MODAL'}
+
                 if selected_panel_2 and selected_panel_2.obj_bp:
                     sn_utils.set_wireframe(self.product.obj_bp, False)
                     bpy.context.window.cursor_set('DEFAULT')
@@ -740,6 +744,9 @@ class DROP_OPERATOR_Place_Base_Assembly(Operator, PlaceClosetInsert):
         self.reset_selection()
         bpy.ops.object.select_all(action='DESELECT')
         self.selected_point, self.selected_obj, _ = sn_utils.get_selection_point(context,event)
+
+        if not self.product:
+            self.product = self.asset
 
         if self.event_is_cancel_command(event):
             context.area.header_text_set(None)

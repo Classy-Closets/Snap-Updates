@@ -15,6 +15,7 @@ from snap import sn_unit
 from snap import sn_utils
 from snap import sn_db
 from . import closet_paths
+from .ui.closet_prompts_ui import get_panel_heights
 
 """
 Folder Names where data is located in
@@ -50,9 +51,9 @@ def update_back_mat_pointer(self, context):
     back_bp = back_mesh.parent
 
     if back_bp.sn_closets.use_unique_material:
-        back_mesh.cabinetlib.material_slots[0].pointer_name = ""
+        back_mesh.snap.material_slots[0].pointer_name = ""
     else:
-        back_mesh.cabinetlib.material_slots[0].pointer_name = "Closet_Part_Surfaces"
+        back_mesh.snap.material_slots[0].pointer_name = "Closet_Part_Surfaces"
 
     update_render_materials(self, context)
 
@@ -433,6 +434,7 @@ def get_veneer_colors(self, context):
     return bpy.context.scene.closet_materials.materials.veneer_backing_color_list
     
 # ---------PROPERTY GROUPS
+
     
 class Closet_Defaults(PropertyGroup):
 
@@ -470,7 +472,7 @@ class Closet_Defaults(PropertyGroup):
     
     island_panel_height: EnumProperty(name="Default Island Panel Height",items=common_lists.PANEL_HEIGHTS,default='915')    
     
-    hanging_panel_height: EnumProperty(name="Default Hanging Panel Height",items=common_lists.PANEL_HEIGHTS,default='1203')
+    hanging_panel_height: EnumProperty(name="Default Hanging Panel Height",items=get_panel_heights,default=34)
     
     angle_top_front_panel_height: FloatProperty(name="Angle Top Front Panel Height",default=0,unit='LENGTH', precision=4)
     

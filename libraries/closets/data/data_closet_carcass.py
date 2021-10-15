@@ -27,17 +27,25 @@ class Closet_Carcass(sn_types.Assembly):
 
     left_filler = None
     right_filler = None
+    backing_parts = {}
+    backing_inserts = []
 
     def __init__(self, obj_bp=None):
         super().__init__(obj_bp=obj_bp)
+        self.backing_parts = {}
+        self.backing_inserts = []
 
         if obj_bp:
-
-            
+            self.assembly_name = obj_bp.name
             opening_qty = self.get_prompt("Opening Quantity")
 
             if opening_qty:
                 self.opening_qty = opening_qty.get_value()
+
+            for i in range(self.opening_qty):
+                self.backing_parts[str(i + 1)] = []
+
+            self.get_backing_parts()
 
             for child in obj_bp.children:
                 if "IS_LEFT_FILLER_BP" in child:
@@ -57,6 +65,77 @@ class Closet_Carcass(sn_types.Assembly):
         else:
             self.height = sn_unit.millimeter(float(self.defaults.panel_height))
         self.depth = self.defaults.panel_depth
+
+    def get_opening_cleats(self, opening_num):
+        cleats = []
+        for child in self.obj_bp.children:
+            if "IS_BACKING_CLEAT" in child:
+                continue
+            if "IS_CLEAT" in child:
+                if int(child.sn_closets.opening_name) == opening_num:
+                    cleats.append(sn_types.Assembly(child))
+        return cleats
+
+    def update_cleats(self, opening_num, prompt_vars=[]):
+        for cleat in self.get_opening_cleats(opening_num):
+            hide = cleat.get_prompt('Hide')
+            if "Bottom" in cleat.obj_bp.name:
+                hide.set_formula(
+                    'IF(OR(B_Cleat==False,AND(B_Sections==1,CBT==1,CTR,BIG==0),'
+                    'AND(B_Sections>1,AND(BIG==0,OR(AND(IS_SB,CBT==1,BTM),'
+                    'AND(IS_SB,CBT==1,BTM,CTR,TOP==False),AND(IS_SB==False,BTM,BBT==1))))),'
+                    'True,False) or Hide',
+                    prompt_vars)
+                use_cleat_cover = cleat.get_prompt('Use Cleat Cover')
+                use_cleat_cover.set_formula('IF(OR(BIB>0,BIG>0),False,True)', prompt_vars)
+            else:
+                hide.set_formula(
+                    'IF(OR(Add_Hanging_Rail,AND(B_Sections==1,CBT==1,CTR),'
+                    'AND(B_Sections>1,OR(AND(IS_SB,CBT==1,TOP),'
+                    'AND(IS_SB,CBT==1,TOP,CTR,BTM==False),'
+                    'AND(IS_SB==False,TOP,TBT==1)))),True,False) or Hide',
+                    prompt_vars)
+
+    def get_backing_parts(self):
+        for child in self.obj_bp.children:
+            if child.sn_closets.is_back_bp:
+                opening_num = child.sn_closets.opening_name
+                if opening_num != '':
+                    self.backing_parts[child.sn_closets.opening_name].append(sn_types.Part(child))
+
+    def get_opening_inserts(self, obj_bp, opening_num):
+        for child in obj_bp.children:
+            props = child.sn_closets
+            types = (props.is_door_insert_bp, props.is_hamper_insert_bp, props.is_drawer_stack_bp)
+            if any(types) and int(props.opening_name) == opening_num:
+                self.backing_inserts.append(sn_types.Assembly(child))
+                if child.children:
+                    self.get_opening_inserts(child, opening_num)
+        return self.backing_inserts
+
+    def update_backing_sections(self, opening_num, backing):
+        self.backing_inserts = []
+
+        for insert in self.get_opening_inserts(self.obj_bp, opening_num):
+            if insert:
+                doors_gap_ppt = insert.get_prompt('Doors Backing Gap')
+                drawers_gap_ppt = insert.get_prompt('Drawer Stack Backing Gap')
+                hamper_gap_ppt = insert.get_prompt('Hamper Backing Gap')
+
+                if doors_gap_ppt:
+                    Doors_Backing_Gap = doors_gap_ppt.get_var()
+                    top_insert_backing = backing.get_prompt('Top Insert Backing')
+                    top_insert_backing.set_formula('Doors_Backing_Gap', [Doors_Backing_Gap])
+
+                if drawers_gap_ppt:
+                    Drawer_Stack_Backing_Gap = drawers_gap_ppt.get_var()
+                    bottom_insert_gap = backing.get_prompt('Bottom Insert Gap')
+                    bottom_insert_gap.set_formula('Drawer_Stack_Backing_Gap', [Drawer_Stack_Backing_Gap])
+
+                if hamper_gap_ppt:
+                    Hamper_Backing_Gap = hamper_gap_ppt.get_var()
+                    bottom_insert_backing = backing.get_prompt('Bottom Insert Backing')
+                    bottom_insert_backing.set_formula('Hamper_Backing_Gap', [Hamper_Backing_Gap])
 
     def add_opening_prompts(self):
         calculator = self.get_calculator(self.calculator_name)
@@ -567,20 +646,8 @@ class Closet_Carcass(sn_types.Assembly):
         Floor = self.get_prompt('Opening ' + str(i) + ' Floor Mounted').get_var("Floor")
         Toe_Kick_Height = self.get_prompt('Toe Kick Height').get_var('Toe_Kick_Height')
         Remove_Top_Shelf = self.get_prompt('Remove Top Shelf ' + str(i)).get_var('Remove_Top_Shelf')
-        CBT = self.get_prompt('Opening ' + str(i) + ' Center Backing Thickness').get_var('CBT')
-        TBT = self.get_prompt('Opening ' + str(i) + ' Top Backing Thickness').get_var('TBT')
         Cleat_Height = self.get_prompt("Cleat Height").get_var('Cleat_Height')
         TKDVO = self.get_prompt("Top KD " + str(i) + " Vertical Offset").get_var('TKDVO')
-
-        # TODO: Backing 
-        for child in self.obj_bp.children:
-            if child.sn_closets.is_back_bp and not child.sn_closets.is_hutch_back_bp:
-                back_assembly = sn_types.Assembly(child)
-                TOP = back_assembly.get_prompt("Top Section Backing").get_var('TOP')
-                CTR = back_assembly.get_prompt("Center Section Backing").get_var('CTR')
-                BTM = back_assembly.get_prompt("Bottom Section Backing").get_var('BTM')
-                IS_SB = back_assembly.get_prompt("Is Single Back").get_var('IS_SB')                 
-                B_Sec = back_assembly.get_prompt('Backing Sections').get_var('B_Sec')
 
         if panel:
             X_Loc = panel.obj_bp.snap.get_var('location.x', 'X_Loc')
@@ -609,14 +676,10 @@ class Closet_Carcass(sn_types.Assembly):
         else:
             cleat.loc_x('X_Loc+INCH(.01)',[X_Loc]) #USED TO FIX DRAWER SIDE TOKEN
 
-        # TODO: Backing
         hide = cleat.get_prompt('Hide')
         hide.set_formula(
-            'IF(OR(Add_Hanging_Rail,AND(B_Sec==1,CBT==1,CTR),'
-            'AND(B_Sec>1,OR(AND(IS_SB,CBT==1,TOP),'
-            'AND(IS_SB,CBT==1,TOP,CTR,BTM==False),'
-            'AND(IS_SB==False,TOP,TBT==1)))),True,False) or Hide',
-            [Add_Hanging_Rail, TBT, CBT, B_Sec, TOP, CTR, BTM, IS_SB, self.hide_var]
+            'Add_Hanging_Rail or Hide',
+            [Add_Hanging_Rail, self.hide_var]
         )
 
     def add_bottom_cleat(self, i, panel):
@@ -635,27 +698,13 @@ class Closet_Carcass(sn_types.Assembly):
         Left_Side_Wall_Filler = self.get_prompt('Left Side Wall Filler').get_var('Left_Side_Wall_Filler')
         Floor = self.get_prompt('Opening ' + str(i) + ' Floor Mounted').get_var("Floor")
         Toe_Kick_Height = self.get_prompt('Toe Kick Height').get_var('Toe_Kick_Height')
-        Rm_Btm_Hang_Shelf = self.get_prompt('Remove Bottom Hanging Shelf ' + str(i)).get_var('Rm_Btm_Hang_Shelf')
-        CBT = self.get_prompt('Opening ' + str(i) + ' Center Backing Thickness').get_var('CBT')
-        BBT = self.get_prompt('Opening ' + str(i) + ' Bottom Backing Thickness').get_var('BBT')                
+        Rm_Btm_Hang_Shelf = self.get_prompt('Remove Bottom Hanging Shelf ' + str(i)).get_var('Rm_Btm_Hang_Shelf')              
 
-        # TODO: Backing
-        for child in self.obj_bp.children:
-            if child.sn_closets.is_back_bp and not child.sn_closets.is_hutch_back_bp:
-                back_assembly = sn_types.Assembly(child)
-                TOP = back_assembly.get_prompt("Top Section Backing").get_var('TOP')
-                CTR = back_assembly.get_prompt("Center Section Backing").get_var('CTR')
-                BTM = back_assembly.get_prompt("Bottom Section Backing").get_var('BTM')
-                IS_SB = back_assembly.get_prompt("Is Single Back").get_var('IS_SB')
-                BIB = back_assembly.get_prompt("Bottom Insert Backing").get_var('BIB')
-                BIG = back_assembly.get_prompt("Bottom Insert Gap").get_var('BIG')
-                B_Sec = back_assembly.get_prompt('Backing Sections').get_var('B_Sec')                                           
-        
         if panel:
             X_Loc = panel.obj_bp.snap.get_var('location.x','X_Loc')
         else:
             X_Loc = self.get_prompt('Left Side Thickness').get_var('X_Loc')
-        
+
         cleat = common_parts.add_cleat(self)
         cleat.set_name("Bottom Cleat")
         cleat.obj_bp.sn_closets.opening_name = str(i)
@@ -678,21 +727,9 @@ class Closet_Carcass(sn_types.Assembly):
             cleat.loc_x('X_Loc+INCH(.01)',[X_Loc]) #USED TO FIX DRAWER SIDE TOKEN
         else:
             cleat.loc_x('X_Loc+INCH(.01)',[X_Loc]) #USED TO FIX DRAWER SIDE TOKEN
-    
+
         hide = cleat.get_prompt('Hide')
         hide.set_formula('IF(B_Cleat,False,True) or Hide', [B_Cleat, self.hide_var])
-
-        # TODO: Backing
-        hide = cleat.get_prompt('Hide')
-        hide.set_formula(
-            'IF(OR(B_Cleat==False,AND(B_Sec==1,CBT==1,CTR,BIG==0),'
-            'AND(B_Sec>1,AND(BIG==0,OR(AND(IS_SB,CBT==1,BTM),'
-            'AND(IS_SB,CBT==1,BTM,CTR,TOP==False),AND(IS_SB==False,BTM,BBT==1))))),'
-            'True,False) or Hide',
-            [B_Cleat, CBT, BBT, B_Sec, TOP, CTR, BTM, IS_SB, BIG, self.hide_var])
-
-        use_cleat_cover = cleat.get_prompt('Use Cleat Cover')
-        use_cleat_cover.set_formula('IF(OR(BIB>0,BIG>0),False,True)', [BIB, BIG])
 
     def add_closet_opening(self, i, panel):
         calculator = self.get_calculator(self.calculator_name)        
@@ -764,6 +801,7 @@ class Closet_Carcass(sn_types.Assembly):
             X_Loc = self.get_prompt('Left Side Thickness').get_var('X_Loc')
         
         cleat = common_parts.add_cleat(self)
+        cleat.obj_bp["IS_BACKING_CLEAT"] = True
         cleat.set_name("Top Cleat" if top_cleat else "Bottom Cleat")
         cleat.obj_bp.sn_closets.opening_name = str(i)
         self.add_cover_cleat_opening_name(cleat, str(i))
@@ -790,11 +828,13 @@ class Closet_Carcass(sn_types.Assembly):
         return cleat
 
     def add_backing(self,i,panel):
+        parts = []
         calculator = self.get_calculator(self.calculator_name)
         PH = self.obj_z.snap.get_var('location.z', 'PH')
         Height = self.get_prompt('Opening ' + str(i) + ' Height').get_var('Height')
         width_prompt = eval("calculator.get_calculator_prompt('Opening {} Width')".format(str(i)))
         Width = eval("width_prompt.get_var(calculator.name, 'opening_{}_width')".format(str(i)))
+        self.hide_var = self.get_prompt("Hide").get_var()
 
         Floor = self.get_prompt('Opening ' + str(i) + ' Floor Mounted').get_var('Floor')
         TBT = self.get_prompt('Opening ' + str(i) + ' Top Backing Thickness').get_var('TBT')
@@ -810,6 +850,7 @@ class Closet_Carcass(sn_types.Assembly):
         TKDVO = self.get_prompt("Top KD " + str(i) + " Vertical Offset").get_var('TKDVO')
       
         backing = common_parts.add_back(self)
+        parts.append(backing)
         backing.obj_bp.sn_closets.opening_name = str(i)
 
         backing.add_prompt("Opening Bottom", 'DISTANCE', 0)
@@ -894,8 +935,15 @@ class Closet_Carcass(sn_types.Assembly):
             [T_Shelf,ST,CH,TOP,CTR,BTM,TBT,CBT,SB,BIA,IS_SB,B_Sections])
 
         backing_bottom_offset.set_formula(
-            'IF(BIG>0,BIG,B_Cleat_Loc)+IF(OR(Floor,B_Shelf),ST,0)+IF(OR(AND(B_Sections==1,CBT==0,CTR),AND(B_Sections>1,OR(AND(IS_SB,CBT==0),AND(IS_SB,CBT==0,BTM,CTR,TOP==False),AND(IS_SB==False,BTM,BBT==0)))),CH-BIA,0)',
-            [Floor,B_Cleat,B_Cleat_Loc,ST,B_Shelf,CH,BIG,TOP,CTR,BTM,SB,CBT,BBT,BIA,B_Sections,IS_SB])
+            'IF(AND(BIG>0,BIB==0),BIG,B_Cleat_Loc)'
+            '+IF(OR(Floor,B_Shelf),ST,0)'
+            '+IF(OR('
+            'AND(B_Sections==1,CBT==0,CTR),'
+            'AND(B_Sections>1,OR(AND(IS_SB,CBT==0),'
+            'AND(IS_SB,CBT==0,BTM,CTR,TOP==False),'
+            'AND(IS_SB==False,BTM,BBT==0)))),'
+            'CH-BIA,0)',
+            [Floor,B_Cleat,B_Cleat_Loc,ST,B_Shelf,CH,BIG,BIB,TOP,CTR,BTM,SB,CBT,BBT,BIA,B_Sections,IS_SB])
 
         # 1 section
         section_1_backing_z.set_formula(
@@ -913,8 +961,10 @@ class Closet_Carcass(sn_types.Assembly):
 
         # Top insert
         section_2_backing_z_top.set_formula(
-            'IF(BC2==0,BZ1,IF(BC2==1,OB+Height-TIB+ST+IF(TBT==0,CH-BIA,0),IF(BC2==2,IF(BBT==0,OB+BBO-BIA,BZ1),BZ1)))',
-            [Height,OB,BC2,BZ1,TIB,BBO,BIA,CH,ST,TBT,BBT])
+            'IF(BC2==0,BZ1,'
+            'IF(BC2==1,OB+Height-TIB+BIG+ST+IF(TBT==0,CH-BIA,0),'
+            'IF(BC2==2,IF(BBT==0,OB+BBO-BIA,BZ1),BZ1)))',
+            [Height,OB,BC2,BZ1,TIB,BBO,BIA,CH,ST,TBT,BBT,BIG])
 
         section_2_backing_x_top.set_formula(
             'IF(BC2==0,BX1,IF(BC2==1,TIB-IF(TBT==0,CH*2+BIA,ST)-IF(T_Shelf,ST,0),IF(BC2==2,Height-TIB-IF(BBT==0,CH*2-BIA*2,0)-B_Cleat_Loc-IF(B_Shelf,ST,0),BX1)))',
@@ -932,17 +982,22 @@ class Closet_Carcass(sn_types.Assembly):
         # 3 section
         # [0:'Full', 1:'Top', 2:'Bottom', 3:'Center', 4:'Top & Center', 5:'Bottom & Center', 6:'Top & Bottom']
         prompt = backing.get_prompt('3 Section Backing Config')
-        section_3_backing_z.set_formula(
+        prompt.set_formula(
             'IF(AND(TOP,CTR,BTM),0,IF(AND(TOP,CTR),4,IF(AND(BTM,CTR),5,IF(AND(TOP,BTM),6,IF(TOP,1,IF(CTR,3,IF(BTM,2,0)))))))',
             [TOP,CTR,BTM])
 
         section_3_backing_z.set_formula(
-            'IF(OR(AND(BC3==0,IS_SB==False),BC3==3,BC3==4,AND(BC3==5,IS_SB==False)), OB+BIB+IF(CBT==0,CH-BIA,0) ,BZ1)',
-            [OB,BC3,BZ1,BIB,TIB,BIA,Height,ST,CH,CBT,IS_SB])
+            'IF(OR(AND(BC3==0,IS_SB==False),BC3==3,BC3==4,AND(BC3==5,IS_SB==False)),'
+            'OB+BIB+IF(BIG>0,BIG+IF(OR(BC3==3,BC3==4,BC3==5,BC3==0),-ST,0),0)+IF(CBT==0,CH-BIA,0)'
+            ',BZ1)',
+            [OB,BC3,BZ1,BIB,BIG,TIB,BIA,Height,ST,CH,CBT,IS_SB])
         
         section_3_backing_x.set_formula(
-            'IF(IS_SB,IF(BC3==0,BX1,IF(BC3==4,Height-BIB-BTO-IF(CBT==0,CH-BIA,0),IF(BC3==5,Height-TIB-BBO-IF(CBT==0,CH-BIA,0),BX1))),Height-TIB-BIB-IF(CBT==0,CH*2-BIA*2,0))',
-            [BC3,Height,TIB,BIB,BX1,BIA,CH,B_Cleat_Loc,T_Shelf,B_Shelf,ST,CBT,IS_SB,BBO,BTO])
+            'IF(IS_SB,'
+            'IF(BC3==0,BX1,IF(BC3==4,Height-BIB-IF(BIG>0,BIG-ST,0)-BTO-IF(CBT==0,CH-BIA,0),'
+            'IF(BC3==5,Height-TIB-BBO-IF(CBT==0,CH-BIA,0),BX1))),'
+            'Height-TIB-BIB-IF(BIG>0,BIG-ST,0)-IF(CBT==0,CH*2-BIA*2,0))',
+            [BC3,Height,TIB,BIB,BIG,BX1,BIA,CH,B_Cleat_Loc,T_Shelf,B_Shelf,ST,CBT,IS_SB,BBO,BTO])
 
         #Get X loc from opening panel
         if panel:
@@ -975,6 +1030,7 @@ class Closet_Carcass(sn_types.Assembly):
 
         #Top back
         top_backing = common_parts.add_back(self)
+        parts.append(top_backing)
         top_backing.obj_bp.sn_closets.opening_name = str(i)
         top_backing.obj_bp.sn_closets.is_back_bp = False
         top_backing.obj_bp.sn_closets.is_top_back_bp = True
@@ -989,8 +1045,11 @@ class Closet_Carcass(sn_types.Assembly):
 
         top_backing.loc_y(value=0)
         top_backing.loc_z(
-            'IF(B_Sections>1,IF(TIB>0,OB+Height-TIB+ST+IF(TBT==0,CH-BIA,0),IF(BIB>0,BIB+OB+IF(TBT==0,CH-BIA,0),0)),0)',
-            [B_Sections,OB,Height,TIB,CH,BIA,ST,TBT,BZ2T,BZ2B,BIB]
+            'IF(B_Sections>1,'
+            'IF(TIB>0,OB+Height-TIB+ST+IF(TBT==0,CH-BIA,0),'
+            'IF(BIB>0,BIB+OB+IF(BIG>0,BIG-ST,0)+IF(TBT==0,CH-BIA,0),0))'
+            ',0)',
+            [B_Sections,OB,Height,TIB,CH,BIA,ST,TBT,BZ2T,BZ2B,BIB,BIG]
         )
 
         top_backing.rot_x(value=math.radians(-90))
@@ -999,9 +1058,9 @@ class Closet_Carcass(sn_types.Assembly):
         top_backing.dim_x(
             "IF(B_Sections==2,"
             "IF(TIB>0,TIB-IF(TBT==0,CH*2+BIA,ST)"
-            "-IF(T_Shelf,ST,0),IF(BIB>0,Height-BIB-IF(TBT==0,CH*2-BIA*2,0)-IF(T_Shelf,ST,0),0)),"
+            "-IF(T_Shelf,ST,0),IF(BIB>0,Height-BIB-IF(BIG>0,BIG-ST,0)-IF(TBT==0,CH*2-BIA*2,0)-IF(T_Shelf,ST,0),0)),"
             "IF(B_Sections==3,TIB-IF(TBT==0,CH*2-BIA*2,0)-ST-IF(T_Shelf,ST,0),0))-TKDVO",
-            [B_Sections, BC3, Height, CH, ST, TIB, BIB,
+            [B_Sections, BC3, Height, CH, ST, TIB, BIB, BIG,
                 BIA, T_Shelf, TBT, BX2T, BX2B, TKDVO]
         )
         top_backing.dim_y('opening_{}_width'.format(str(i)),[Width])
@@ -1013,6 +1072,7 @@ class Closet_Carcass(sn_types.Assembly):
 
         #Bottom back
         bottom_backing = common_parts.add_back(self)
+        parts.append(bottom_backing)
         bottom_backing.obj_bp.sn_closets.opening_name = str(i)
         bottom_backing.obj_bp.sn_closets.is_back_bp = False
         bottom_backing.obj_bp.sn_closets.is_bottom_back_bp = True        
@@ -1028,13 +1088,14 @@ class Closet_Carcass(sn_types.Assembly):
 
         bottom_backing.loc_z(
             'OB+BBO-IF(AND(B_Shelf,BIG>0),ST,0)',
-            [B_Sections,OB,Height,TIB,CH,ST,BZ2T,BZ2B,BIB,BBT,BBO,B_Shelf,BIG,BIA]
+            [OB,ST,BIB,BBO,B_Shelf,BIG]
         )
 
         bottom_backing.rot_x(value=math.radians(-90))
         bottom_backing.rot_y(value=math.radians(-90))
         bottom_backing.dim_x(
-            'IF(B_Sections==3,IF(BBT==0,BIB-CH*2-BIA,BIB-ST)-IF(B_Shelf,ST,0), IF(TIB>0,Height-TIB-IF(BIG>0,BIG,0)+ST,BIB-IF(BIG>0,BIG,0))-IF(BBT==0,CH*2-BIA*2,0)-ST-IF(AND(B_Shelf,BIG==0),ST,0))',
+            'IF(B_Sections==3,IF(BBT==0,BIB-CH*2-BIA,BIB-ST),'
+            'IF(TIB>0,Height-TIB-IF(BIG>0,BIG,0)+ST,BIB)-IF(BBT==0,CH*2-BIA*2,0)-ST-IF(AND(B_Shelf,BIG==0),ST,0))',
             [B_Sections,Height,CH,ST,TIB,BIB,BIA,T_Shelf,TBT,BX2T,BX2B,BBT,B_Cleat_Loc,B_Shelf,BIG]
         )
         bottom_backing.dim_y('opening_{}_width'.format(str(i)),[Width])
@@ -1045,6 +1106,7 @@ class Closet_Carcass(sn_types.Assembly):
         #Additional cleats for multi-section backing
         #BC3 - [0:'Full', 1:'Top', 2:'Bottom', 3:'Center', 4:'Top & Center', 5:'Bottom & Center', 6:'Top & Bottom']
         top_sec_bottom_cleat = self.add_backing_cleat(i, panel, top_cleat=False)
+        parts.append(top_sec_bottom_cleat)
         prompt = top_sec_bottom_cleat.get_prompt('Hide')
         prompt.set_formula('IF(OR(TBT==1,TOP==False,B_Sections==1,AND(B_Sections>1,IS_SB)),True,False) or Hide',
             [B_Sections,TBT,TOP,BTM,IS_SB, self.hide_var])
@@ -1052,6 +1114,7 @@ class Closet_Carcass(sn_types.Assembly):
         top_sec_bottom_cleat.loc_z('IF(B_Sections==2,IF(TIB>0,OB+Height-TIB+ST,IF(BIB>0,OB+BIB,0)),IF(B_Sections==3,OB+Height-TIB+ST,0))',[Height,OB,TIB,BIB,ST,B_Sections])
 
         mid_sec_top_cleat = self.add_backing_cleat(i, panel, top_cleat=True)
+        parts.append(mid_sec_top_cleat)
         prompt = mid_sec_top_cleat.get_prompt('Hide')
         prompt.set_formula(
             'IF(OR(AND(B_Sections==3,BC3==5,CTR,BTM,CBT==0,IS_SB),AND(B_Sections==3,CTR,CBT==0,IS_SB==False)),False,True) or Hide',
@@ -1059,18 +1122,26 @@ class Closet_Carcass(sn_types.Assembly):
         mid_sec_top_cleat.loc_z('OB+Height-TIB', [Height, OB, TIB])
 
         mid_sec_bottom_cleat = self.add_backing_cleat(i, panel, top_cleat=False)
+        parts.append(mid_sec_bottom_cleat)
         prompt = mid_sec_bottom_cleat.get_prompt('Hide')
         prompt.set_formula('IF(AND(B_Sections==3,CTR,CBT==0,IS_SB==False),False,True) or Hide', [B_Sections, CTR, CBT, IS_SB, self.hide_var])
         mid_sec_bottom_cleat.loc_z('OB+BIB', [OB, BIB])
 
         bottom_sec_top_cleat = self.add_backing_cleat(i, panel, top_cleat=True)
+        parts.append(bottom_sec_top_cleat)
         prompt = bottom_sec_top_cleat.get_prompt('Hide')
         prompt.set_formula('IF(OR(BBT==1,BTM==False,B_Sections==1,AND(B_Sections>1,IS_SB)),True,False) or Hide',
             [B_Sections,BBT,TOP,BTM,IS_SB, self.hide_var])
 
         bottom_sec_top_cleat.loc_z('IF(B_Sections==2,IF(TIB>0,OB+Height-TIB,IF(BIB>0,OB+BIB-ST,0)),IF(B_Sections==3,OB+BIB-ST,0))', [Height, OB, TIB, BIB, ST, B_Sections])
         prompt = bottom_sec_top_cleat.get_prompt('Use Cleat Cover')
-        prompt.set_formula('IF(BIB>0,False,True)', [BIB])        
+        prompt.set_formula('IF(BIB>0,False,True)', [BIB])
+
+        self.backing_parts[str(i)] = parts
+
+        Add_Hanging_Rail = self.get_prompt('Add Hanging Rail').get_var('Add_Hanging_Rail')
+        self.update_cleats(i, [B_Cleat, Add_Hanging_Rail, TBT, BIB, BIG, BBT, CBT, B_Sections, TOP, CTR, BTM, IS_SB, self.hide_var])
+        self.update_backing_sections(i, backing)
 
     def add_hutch_backing(self):
         Add_Hutch_Backing = self.get_prompt("Add Hutch Backing").get_var()
@@ -1102,7 +1173,6 @@ class Closet_Carcass(sn_types.Assembly):
         hutch_backing.get_prompt('Hide').set_formula(
             "IF(OR(Extend_Left_End_Pard_Down,Extend_Right_End_Pard_Down),IF(Add_Hutch_Backing,False,True),True) or Hide",
             [Extend_Left_End_Pard_Down, Extend_Right_End_Pard_Down, Add_Hutch_Backing,self.hide_var])
-
 
     def add_system_holes(self,i,panel):
         calculator = self.get_calculator(self.calculator_name)
@@ -1147,6 +1217,7 @@ class Closet_Carcass(sn_types.Assembly):
         rfb_holes = common_parts.add_line_bore_holes(self)
         rfb_holes.set_name("Right Front Bottom Holes " + str(i))
         assemblies.append(rfb_holes)
+        
         rrb_holes = common_parts.add_line_bore_holes(self)
         rrb_holes.set_name("Right Rear Bottom Holes " + str(i))
         assemblies.append(rrb_holes)
@@ -1391,6 +1462,8 @@ class Closet_Carcass(sn_types.Assembly):
 
         #Left Blind Corner Panel
         left_blind_panel = common_parts.add_panel(self)
+        Vertical_Offset_1 = self.get_prompt("Top KD 1 Vertical Offset").get_var('Vertical_Offset')
+
         left_blind_panel.loc_y("-First_Opening_Depth-Panel_Thickness",[First_Opening_Depth,Panel_Thickness])
         left_blind_panel.loc_z('IF(First_Floor_Mounted,Toe_Kick_Height+(BCHD/2),Hanging_Height-First_Opening_Height+(BCHD/2))',
                                 [First_Floor_Mounted,Toe_Kick_Height,BCHD,Hanging_Height,First_Opening_Height])
@@ -1399,7 +1472,7 @@ class Closet_Carcass(sn_types.Assembly):
         left_blind_panel.rot_y(value=math.radians(-90))
         left_blind_panel.rot_z(value=math.radians(180))
 
-        left_blind_panel.dim_x("First_Opening_Height-BCHD",[First_Opening_Height,BCHD])
+        left_blind_panel.dim_x("First_Opening_Height-BCHD-Vertical_Offset",[First_Opening_Height,BCHD,Vertical_Offset_1])
         left_blind_panel.dim_y("Blind_Corner_Left_Depth",[Blind_Corner_Left_Depth])
         left_blind_panel.dim_z("Panel_Thickness", [Panel_Thickness])
 
@@ -1415,6 +1488,7 @@ class Closet_Carcass(sn_types.Assembly):
 
         #Right Blind Corner Panel
         right_blind_panel = common_parts.add_panel(self)
+        Vertical_Offset_Last = self.get_prompt("Top KD " + str(self.opening_qty) + " Vertical Offset").get_var('Vertical_Offset')
         right_blind_panel.loc_x("Width",[Width])
         right_blind_panel.loc_y("-Last_Opening_Depth",[Last_Opening_Depth])
         right_blind_panel.loc_z('IF(Last_Floor_Mounted,Toe_Kick_Height+(BCHD/2),Hanging_Height-Last_Opening_Height+(BCHD/2))',
@@ -1423,7 +1497,7 @@ class Closet_Carcass(sn_types.Assembly):
         right_blind_panel.rot_x(value=math.radians(90))
         right_blind_panel.rot_y(value=math.radians(-90))
 
-        right_blind_panel.dim_x("Last_Opening_Height-BCHD",[Last_Opening_Height,BCHD])
+        right_blind_panel.dim_x("Last_Opening_Height-BCHD-Vertical_Offset",[Last_Opening_Height,BCHD,Vertical_Offset_Last])
         right_blind_panel.dim_y("Blind_Corner_Right_Depth",[Blind_Corner_Right_Depth])
         right_blind_panel.dim_z("Panel_Thickness", [Panel_Thickness])
 
@@ -1461,7 +1535,7 @@ class Closet_Carcass(sn_types.Assembly):
         panel = None
         self.add_shelf(1, panel, is_top=True)
         self.add_shelf(1, panel, is_top=False)
-        self.add_backing(1, panel)
+        # self.add_backing(1, panel)
         self.add_closet_opening(1, panel)
         self.add_hutch_backing()
         # if self.defaults.show_panel_drilling:
@@ -1477,7 +1551,7 @@ class Closet_Carcass(sn_types.Assembly):
             panel.obj_bp['PARTITION_NUMBER'] = (i - 1)
             self.add_shelf(i,panel,is_top=True)
             self.add_shelf(i,panel,is_top=False)
-            self.add_backing(i,panel)
+            # self.add_backing(i,panel)
             self.add_closet_opening(i,panel)
             # if self.defaults.show_panel_drilling:
             #     self.add_system_holes(i, panel)

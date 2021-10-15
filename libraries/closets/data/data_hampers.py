@@ -12,6 +12,7 @@ from ..common import common_prompts
 from ..common import common_parts
 
 HAMPER_HEIGHTS = [
+    ('557.276', '18H-22.52"', '18H-22.52"'),
     ('589.280', '19H-23.78"', '19H-23.78"'),
     ('621.284', '20H-25.04"', '20H-25.04"'),
     ('653.288', '21H-26.30"', '21H-26.30"'),
@@ -53,8 +54,8 @@ class Hamper(sn_types.Assembly):
         
         self.add_prompt("Tilt Out Hamper", 'CHECKBOX', True)
         self.add_prompt("Hamper Type", 'COMBOBOX', 0, ['Wire', 'Canvas'])
-        self.add_prompt("Remove Bottom Shelf", 'CHECKBOX', True)
-        self.add_prompt("Remove Top Shelf", 'CHECKBOX', False)
+        self.add_prompt("Remove Bottom Shelf", 'CHECKBOX', False)
+        self.add_prompt("Remove Top Shelf", 'CHECKBOX', True)
         self.add_prompt("Hamper Height", 'DISTANCE', sn_unit.millimeter(589.280))
         self.add_prompt("Hamper Backing Gap", 'DISTANCE', 0, prompt_obj=self.add_prompt_obj("Backing_Gap"))        
         self.add_prompt("Cleat Location", 'COMBOBOX', 0, ["Above", "Below", "None"])  # columns=3
@@ -143,15 +144,15 @@ class Hamper(sn_types.Assembly):
         basket_1.get_prompt('Hide').set_formula('IF(Hamper_Type==0,False,True) or Hide',[Hamper_Type,self.hide_var])
 
         basket_2 = common_parts.add_single_canvas_hamper(self)
-        basket_2.loc_x('(Width-INCH(18.0))/2', [Width])
+        basket_2.loc_x('(Width-IF(Width<INCH(24),INCH(18),IF(Width<INCH(30),INCH(24),INCH(30))))/2', [Width])
         basket_2.loc_y('-IF(Tilt_Out_Hamper,0,Depth*Open)', [Tilt_Out_Hamper, Depth, Open])
         basket_2.rot_x('IF(Tilt_Out_Hamper,Open*.325,0)', [Open, Tilt_Out_Hamper])
-        basket_2.dim_x(value=sn_unit.inch(18.0))
+        basket_2.dim_x("IF(Width<INCH(24),INCH(18),IF(Width<INCH(30),INCH(24),INCH(30)))", [Width])
         basket_2.dim_y(value=sn_unit.inch(12.0625))
-        basket_2.dim_z(value=sn_unit.inch(WIRE_BASKET_HEIGHT))
+        basket_2.dim_z(value=sn_unit.millimeter(621.284))
         basket_2.get_prompt('Hide').set_formula(
-            'IF(AND(Width>=INCH(18.0),Width<INCH(24.0),Hamper_Type==1),False,True) or Hide', 
-            [self.hide_var, Hamper_Type, Width])
+            'IF(AND(Height>=INCH(25),Width>=INCH(17.999),Hamper_Type==1),False,True) or Hide', 
+            [self.hide_var, Hamper_Type, Width, Height])
 
         # basket_3 = common_parts.add_double_canvas_hamper(self)
         # basket_3.loc_x('(Width-INCH(24.0))/2',[Width])
@@ -179,7 +180,7 @@ class Hamper(sn_types.Assembly):
         top_shelf.dim_x('Width',[Width])
         top_shelf.dim_y('-Depth+Shelf_Backing_Setback',[Depth,Shelf_Backing_Setback])
         top_shelf.dim_z('-Shelf_Thickness',[Shelf_Thickness])
-        top_shelf.get_prompt('Hide').set_formula('IF(Remove_Top_Shelf,True,False) or Hide',[Remove_Top_Shelf,self.hide_var])
+        top_shelf.get_prompt('Hide').set_formula('IF(Remove_Top_Shelf,False,True) or Hide',[Remove_Top_Shelf,self.hide_var])
         top_shelf.get_prompt('Is Locked Shelf').set_value(value=True)
         
         bottom_shelf = common_parts.add_shelf(self)
@@ -259,7 +260,11 @@ class PROMPTS_Hamper_Prompts(sn_types.Prompts_Interface):
             self.hamper_height_prompt.set_value(sn_unit.inch(float(self.hamper_height) / 25.4))
 
         if self.hamper_type_prompt:
-            self.hamper_type_prompt.set_value(int(self.hamper_type))
+            if float(self.hamper_height) >= 621.284:
+                self.hamper_type_prompt.set_value(int(self.hamper_type))
+            else:
+                self.hamper_type = str(0)
+                self.hamper_type_prompt.set_value(0)
 
         if self.cleat_loc_prompt:
             self.cleat_loc_prompt.set_value(int(self.cleat_location))       
@@ -284,7 +289,11 @@ class PROMPTS_Hamper_Prompts(sn_types.Prompts_Interface):
                     break
 
         if self.hamper_type_prompt:
-            self.hamper_type = str(self.hamper_type_prompt.combobox_index)
+            if float(self.hamper_height) >= 621.284:
+                self.hamper_type = str(self.hamper_type_prompt.combobox_index)
+            else:
+                self.hamper_type = str(0)
+                self.hamper_type_prompt.set_value(0)
 
         if self.cleat_loc_prompt:
             self.cleat_location = str(self.cleat_loc_prompt.combobox_index)
@@ -305,6 +314,7 @@ class PROMPTS_Hamper_Prompts(sn_types.Prompts_Interface):
                 #hamper_type = self.assembly.get_prompt('Hamper Type')
                 cleat_loc = self.assembly.get_prompt("Cleat Location")
                 full_overlay = self.assembly.get_prompt("Full Overlay")
+                hamper_height = self.assembly.get_prompt("Hamper Height")
 
                 box = layout.box()
                 row = box.row()
@@ -313,7 +323,11 @@ class PROMPTS_Hamper_Prompts(sn_types.Prompts_Interface):
                 row = box.row()
                 split = row.split(factor=0.5)
                 split.label(text=self.hamper_type_prompt.name)
-                split.prop(self, "hamper_type", expand=True)
+                if hamper_height:
+                    if hamper_height.get_value() > sn_unit.inch(23.78):
+                        split.prop(self, "hamper_type", expand=True)
+                    else:
+                        split.label(text="Wire")
                 row = box.row()
 
                 if props.closet_defaults.use_32mm_system:

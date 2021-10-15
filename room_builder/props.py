@@ -45,6 +45,7 @@ class Wall(PropertyGroup):
         obst.name = obstacle.obj_bp.snap.name_object
         obst.bp_name = obstacle.obj_bp.name
         obst.base_point = base_point
+        obst["IS_OBSTACLE"] = True
 
 
 class Scene_Props(PropertyGroup):

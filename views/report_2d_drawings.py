@@ -25,11 +25,16 @@ class OPERATOR_create_pdf(bpy.types.Operator):
     filename: StringProperty()
     directory: StringProperty()
     files = None
+    project_name = "project"
+    room_name = "room"
 
     def invoke(self, context, event):
         bfile = bpy.path.abspath("//")
+        pm_props = context.window_manager.sn_project
+        project_name = pm_props.current_file_project
+        room_name = pm_props.current_file_room
         self.directory = bfile
-        self.filename = "2D Views.pdf"
+        self.filename = f'2D Views - {project_name} - {room_name}.pdf'
         context.window_manager.fileselect_add(self)
 
         return {'RUNNING_MODAL'}
@@ -141,16 +146,12 @@ class OPERATOR_create_pdf(bpy.types.Operator):
                 material_dict[key] = eval(prop_dict[key])
             except Exception as e:
                 print(e)
-                material_dict[key] = ""
-                mess = "The value of " + key + " is missing"
-                mess2 = "The file was generated with white fields"
-                bpy.ops.wm.warning_window('INVOKE_DEFAULT',
-                                          message=mess, message2=mess2)
+
         return material_dict
 
     @staticmethod
     def _has_ct(ct_materials, material_dict, data_objects):
-        ct_type = ct_materials.edges.get_edge_type()
+        ct_type = ct_materials.edges.get_edge_type().name
         for obj in data_objects:
             props = obj.sn_closets
             if props.is_counter_top_insert_bp:
@@ -301,24 +302,30 @@ class OPERATOR_create_pdf(bpy.types.Operator):
             im = PImage.open(i)
             original_ims.append(im)
             cropped_ims.append(self.trim(im))
-        widths, heights = zip(*(i.size for i in cropped_ims))
-        orig_widths, orig_heights = zip(*(i.size for i in original_ims))
-        if keep_width:
-            total_width = sum(orig_widths) + border[0] + border[2]
-            x_offset = border[0] + int((sum(orig_widths) - sum(widths)) / 2)
+        for i in cropped_ims:
+            if not i:
+                cropped_ims.remove(i)
+        if len(cropped_ims) > 0:
+            widths, heights = zip(*(i.size for i in cropped_ims))
+            orig_widths, orig_heights = zip(*(i.size for i in original_ims))
+            if keep_width:
+                total_width = sum(orig_widths) + border[0] + border[2]
+                x_offset = border[0] + int((sum(orig_widths) - sum(widths)) / 2)
+            else:
+                total_width = sum(widths) + border[0] + border[2]
+                x_offset = border[0]
+            max_height = max(heights) + border[1] + border[3]
+            new_im = PImage.new('RGB', (total_width, max_height), white_bg)
+            for im in cropped_ims:
+                y_offset = int((max(heights) - im.size[1]) / 2) + border[1]
+                new_im.paste(im, (x_offset, y_offset))
+                x_offset += im.size[0] + 10
+            # Always save as PNG, JPG makes blender crash silently
+            img_file = os.path.join(bpy.app.tempdir + output + ".png")
+            new_im.save(img_file)
+            return img_file
         else:
-            total_width = sum(widths) + border[0] + border[2]
-            x_offset = border[0]
-        max_height = max(heights) + border[1] + border[3]
-        new_im = PImage.new('RGB', (total_width, max_height), white_bg)
-        for im in cropped_ims:
-            y_offset = int((max(heights) - im.size[1]) / 2) + border[1]
-            new_im.paste(im, (x_offset, y_offset))
-            x_offset += im.size[0] + 10
-        # Always save as PNG, JPG makes blender crash silently
-        img_file = os.path.join(bpy.app.tempdir + output + ".png")
-        new_im.save(img_file)
-        return img_file
+            return None
 
     def join_images_vertical(self, images_files_list, output, vertical_padding=0):
         white_bg = (255, 255, 255)
@@ -470,13 +477,11 @@ class OPERATOR_create_pdf(bpy.types.Operator):
                 feeds_chunks[i], props.paper_size, "two"))
         return pages
     
-    def _get_pages_1ACCORD(self, plan_view, accordions, props):
+    def _get_pages_1ACCORD(self, accordions, props):
         pages = []
         chunk_length = 1
         first_page_qty = 1
         feeds = []
-        if len(plan_view) > 0:
-            feeds.append(plan_view[0])
         while len(accordions) > 0:
             feeds.append(accordions.pop(0))
         first_page = feeds[:first_page_qty]
@@ -645,9 +650,14 @@ class OPERATOR_create_pdf(bpy.types.Operator):
         """
         pages = []
         plan_view = [view for view in image_views if view.is_plan_view]
-        elevations = [view for view in image_views if view.is_elv_view and 'accordion' not in view.image_name.lower()]  # noqa E501
+        elevations = [view for view in image_views if view.is_elv_view]
+        islands = [view for view in image_views if view.is_island_view]
         accordions =\
-            [view for view in image_views if view.is_elv_view and 'accordion' in view.image_name.lower() or 'island' in view.image_name.lower()]  # noqa E501
+            [view for view in image_views if view.is_acc_view]
+        if len(islands) > 0 and len(elevations) > 0:
+            elevations += islands
+        elif len(islands) > 0 and len(accordions) > 0:
+            accordions += islands
         page_layout = props.page_layout_setting
         if len(accordions) > 0:
             page_layout = props.accordions_layout_setting
@@ -660,7 +670,7 @@ class OPERATOR_create_pdf(bpy.types.Operator):
         elif page_layout == 'PLAN+1ELVS':
             pages = self._get_pages_plan_1ELVS(plan_view, elevations, props)
         elif page_layout == '1_ACCORD':
-            pages = self._get_pages_1ACCORD(plan_view, accordions, props)
+            pages = self._get_pages_1ACCORD(accordions, props)
         elif page_layout == 'PLAN+1ACCORDS':
             pages = self._get_pages_plan_1ACCORD(plan_view, accordions, props)
         
@@ -729,11 +739,7 @@ class OPERATOR_create_pdf(bpy.types.Operator):
                 ctx[key] = eval(ctx_str[key])
             except Exception as e:
                 print(e)
-                ctx[key] = ""
-                mess = "The value of " + key + " is missing"
-                mess2 = "The file was generated with white fields"
-                bpy.ops.wm.warning_window(
-                    'INVOKE_DEFAULT', message=mess, message2=mess2)
+
         return ctx
 
     def _fix_file_path(self):

@@ -652,7 +652,13 @@ class OPERATOR_Place_Accessory(Operator, PlaceClosetInsert):
             sn_utils.set_wireframe(self.asset.obj_bp, False)
             context.view_layer.objects.active = self.asset.obj_bp
             self.asset.obj_bp.select_set(True)
-            bpy.ops.sn_closets.accessories('INVOKE_DEFAULT')
+            obj = self.asset.obj_bp
+
+            if obj and "ID_PROMPT" in obj and obj["ID_PROMPT"] != "":
+                id_prompt = obj["ID_PROMPT"]
+                eval("bpy.ops." + id_prompt + "('INVOKE_DEFAULT')")
+            else:
+                bpy.ops.sn_closets.accessories('INVOKE_DEFAULT')
             return {'FINISHED'}
 
         return {'RUNNING_MODAL'}
@@ -724,7 +730,6 @@ class PROMPTS_Accessories(sn_types.Prompts_Interface):
 
     def draw(self, context):
         Style = self.product.get_prompt("Custom Rack Style")
-        Add_Slide = self.product.get_prompt("Add Slide")
         Hook_Qty = self.product.get_prompt("Hook Qty")
         Pin_Qty = self.product.get_prompt("Pin Qty")
         Top_Pin_Qty = self.product.get_prompt("Top Pin Qty")
@@ -744,8 +749,6 @@ class PROMPTS_Accessories(sn_types.Prompts_Interface):
             box.label(text="Custom Rack Style")
             box.prop(self, "custom_rack_style", expand=True)
 
-        if Add_Slide:
-            Add_Slide.draw(box, allow_edit=False)
 
         if Pin_Offset:
             Pin_Offset.draw(box, allow_edit=False)
@@ -882,22 +885,26 @@ class PROMPTS_Belt_Rack_Prompts(sn_types.Prompts_Interface):
                 metal_color.set_value(int(self.metal_color))
 
     def draw(self, context):
+        layout = self.layout
         belt_rack_category = self.product.get_prompt("Belt Rack Category")
         synergy_belt_rack_length = self.product.get_prompt("Synergy Belt Rack Length")
         elite_belt_rack_length = self.product.get_prompt("Elite Belt Rack Length")
         metal_color = self.product.get_prompt("Metal Color")
 
-        layout = self.layout
+        row = layout.row()
+        row.label(text="Location")
+        row.prop(self.product.obj_bp, 'location', index=0, text="")
 
         if belt_rack_category:
             row = layout.row()
-            row.label(text="Valet Rod Category")
+            row.label(text="Category")
             row.prop(self, 'belt_rack_category', expand=True)
+
         if belt_rack_category:
             if belt_rack_category.get_value() == 1:
                 if elite_belt_rack_length:
                     row = layout.row()
-                    row.label(text="Valet Rod Length")
+                    row.label(text="Length")
                     row.prop(self, 'elite_belt_rack_length', expand=True)
 
                 if metal_color:
@@ -907,7 +914,7 @@ class PROMPTS_Belt_Rack_Prompts(sn_types.Prompts_Interface):
             else:
                 if synergy_belt_rack_length:
                     row = layout.row()
-                    row.label(text="Valet Rod Length")
+                    row.label(text="Length")
                     row.prop(self, 'synergy_belt_rack_length', expand=True)
 
 
@@ -1016,22 +1023,26 @@ class PROMPTS_Tie_Rack_Prompts(sn_types.Prompts_Interface):
                 metal_color.set_value(int(self.metal_color))
 
     def draw(self, context):
+        layout = self.layout
         tie_rack_category = self.product.get_prompt("Tie Rack Category")
         synergy_tie_rack_length = self.product.get_prompt("Synergy Tie Rack Length")
         elite_tie_rack_length = self.product.get_prompt("Elite Tie Rack Length")
         metal_color = self.product.get_prompt("Metal Color")
 
-        layout = self.layout
+        row = layout.row()
+        row.label(text="Location")
+        row.prop(self.product.obj_bp, 'location', index=0, text="")
 
         if tie_rack_category:
             row = layout.row()
-            row.label(text="Valet Rod Category")
+            row.label(text="Category")
             row.prop(self, 'tie_rack_category', expand=True)
+
         if tie_rack_category:
             if tie_rack_category.get_value() == 1:
                 if elite_tie_rack_length:
                     row = layout.row()
-                    row.label(text="Valet Rod Length")
+                    row.label(text="Length")
                     row.prop(self, 'elite_tie_rack_length', expand=True)
 
                 if metal_color:
@@ -1041,7 +1052,7 @@ class PROMPTS_Tie_Rack_Prompts(sn_types.Prompts_Interface):
             else:
                 if synergy_tie_rack_length:
                     row = layout.row()
-                    row.label(text="Valet Rod Length")
+                    row.label(text="Length")
                     row.prop(self, 'synergy_tie_rack_length', expand=True)
 
 

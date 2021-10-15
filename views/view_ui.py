@@ -67,6 +67,8 @@ class VIEW_PT_2d_views(bpy.types.Panel):
     def draw(self, context):
         props = context.window_manager.views_2d
         sn_wm = context.window_manager.snap
+        accordions_only = props.views_option == 'ACCORDIONS'
+        elevations_only = props.views_option == 'ELEVATIONS'
 
         layout = self.layout
         scene = context.scene
@@ -103,14 +105,21 @@ class VIEW_PT_2d_views(bpy.types.Panel):
 
         elv_scenes = []
         for scene in bpy.data.scenes:
-            if scene.snap.elevation_scene:
+            if scene.snap.scene_type == 'ELEVATION':
+                elv_scenes.append(scene)
+            elif scene.snap.scene_type == 'ACCORDION':
+                elv_scenes.append(scene)
+            elif scene.snap.scene_type == 'ISLAND':
                 elv_scenes.append(scene)
 
         if len(elv_scenes) < 1:
+            row.operator_context = 'INVOKE_DEFAULT'
             row.operator("sn_2d_views.generate_2d_views",
                          text="Prepare 2D Views", icon='RENDERLAYERS')
+            views_option_row = panel_box.row(align=True)
+            views_option_row.prop(props, 'views_option', expand=True)
         else:
-
+            row.operator_context = 'INVOKE_DEFAULT'
             row.operator("sn_2d_views.generate_2d_views",
                          text="", icon='FILE_REFRESH')
             row.operator("sn_2d_views.create_new_view", text="", icon='ADD')
@@ -130,9 +139,9 @@ class VIEW_PT_2d_views(bpy.types.Panel):
         if len(image_views) > 0:
             dimprops = get_dimension_props()
             row = panel_box.row(align=True)
-            if dimprops.include_accordions:
+            if accordions_only:
                 row.prop(props, 'accordions_layout_setting', text="Accordions layout")
-            elif not dimprops.include_accordions:
+            elif elevations_only:
                 row.prop(props, 'page_layout_setting', text="Elevations layout")
             paper_row = panel_box.row(align=True)
             paper_row.label(text='Paper Size')
@@ -186,12 +195,17 @@ class VIEW_UL_scenes(bpy.types.UIList):
 
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
 
-        main_accordion = "Z_Main Accordion" in item.snap.name_scene
-        virtual = "z_virtual" in item.snap.name_scene
-        if (item.snap.plan_view_scene or item.snap.name_scene) and not main_accordion and not virtual:
+        is_pv = item.snap.scene_type == 'PLAN_VIEW'
+        is_ev = item.snap.scene_type == 'ELEVATION'
+        is_ac = item.snap.scene_type == 'ACCORDION'
+        is_island = item.snap.scene_type == 'ISLAND'
+        not_virt = not item.snap.scene_type == 'VIRTUAL'
+        not_none = not item.snap.scene_type == 'NONE'
+        is_main = item.name == "_Main"
+        if (is_pv or is_ev or is_ac or is_island) and not_virt:
             layout.label(text=item.snap.name_scene, icon='RESTRICT_RENDER_OFF')
             layout.prop(item.snap, 'elevation_selected', text="")
-        elif not item.snap.plan_view_scene and not item.snap.elevation_scene:
+        elif is_main and not_virt:
             layout.label(text=item.name, icon='SCENE_DATA')
 
     def filter_items(self, context, data, propname):

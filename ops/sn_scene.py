@@ -11,7 +11,12 @@ class SN_SCENE_OT_clear_2d_views(Operator):
     def execute(self, context):
 
         for scene in bpy.data.scenes:
-            if scene.snap.elevation_scene or scene.snap.plan_view_scene:
+            is_pv = scene.snap.scene_type == 'PLAN_VIEW'
+            is_elv = scene.snap.scene_type == 'ELEVATION'
+            is_acc = scene.snap.scene_type == 'ACCORDION'
+            is_island = scene.snap.scene_type == 'ISLAND'
+            is_virt = scene.snap.scene_type == 'VIRTUAL'
+            if is_elv or is_pv or is_acc or is_island or is_virt:
                 context.window.scene = scene
                 bpy.ops.scene.delete()
 
@@ -20,6 +25,10 @@ class SN_SCENE_OT_clear_2d_views(Operator):
 
         # we need to remove any orphaned datablocks
         for obj in bpy.data.objects:
+
+            # Profiles have no users, but most be preserved
+            if obj.get('IS_MOLDING_PROFILE') is not None:
+                continue
             if len(obj.users_scene) == 0:
                 # first, remove mesh data, if its sole user is the object
                 mesh = obj.data

@@ -15,6 +15,7 @@ from snap import sn_utils
 from snap.libraries.closets.common import common_lists
 from snap.libraries.closets.data import data_closet_carcass
 import bpy
+import mathutils
 
 from snap.libraries.closets import closet_props
 
@@ -72,7 +73,7 @@ class PanelHeights:
 def get_panel_heights(self, context):
     global panel_heights
     mat_type = context.scene.closet_materials.materials.get_mat_type()
-    if mat_type.name == 'Oversized Material' or mat_type.type_code == 1:
+    if mat_type.name == 'Oversized Material' or mat_type.type_code == 15225:
         start = 115  # Millimeter
         max_height = 2419  # Millimeter
         start_hole_amt = 3
@@ -102,7 +103,7 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
     bl_label = "Partition Prompt"
 
     closet_name: StringProperty(name="Closet Name", default="")
-    width: FloatProperty(name="Width", unit='LENGTH', precision=4)
+    width: FloatProperty(name="Width", unit='LENGTH', precision=5)
     height: EnumProperty(name="Height", items=get_panel_heights, update=update_closet_height)
     depth: FloatProperty(name="Depth", unit='LENGTH', precision=4)
     exterior_changed: BoolProperty(name="Exterior Changed")
@@ -175,6 +176,7 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
     calculators = []
 
     back = None
+    selected_obj = None
 
     closet = None
     carcass = None
@@ -311,6 +313,8 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
             self.closet.get_prompt("Toe Kick Height").distance_value
         if toe_kick_height < sn_unit.inch(3):
             self.closet.get_prompt("Toe Kick Height").set_value(sn_unit.inch(3))
+            self.countertop.obj_bp.location.z +=  sn_unit.inch(3) - toe_kick_height
+            # we need to make sure everything else is synched up with the forced change
             bpy.ops.snap.log_window('INVOKE_DEFAULT',
                                     message="Minimum Toe Kick Height is 3\"",
                                     icon="ERROR")
@@ -381,9 +385,70 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                 height = opening_height + tk_height
                 if height > closet.obj_z.location.z:
                     self.closet.obj_z.location.z = height
-                    self.hang_heigh = height
+                    self.hang_height = height
+
+    def get_panel(self, num):
+        for child in self.closet.obj_bp.children:
+            if 'IS_BP_PANEL' in child and 'PARTITION_NUMBER' in child:
+                if child.get("PARTITION_NUMBER") == num:
+                    return sn_types.Assembly(child)
+
+    def update_backing(self, context):
+        for i in range(self.closet.opening_qty):
+            opening_num = i + 1
+            add_backing_ppt = self.closet.get_prompt("Add Full Back " + str(opening_num))
+            backing_parts = None
+
+            if str(opening_num) in self.closet.backing_parts.keys():
+                backing_parts = self.closet.backing_parts[str(opening_num)]
+
+            if add_backing_ppt.get_value() and not backing_parts:
+                if opening_num == 1:
+                    self.closet.add_backing(opening_num, None)
+                    self.closet.update()
+                else:
+                    panel = self.get_panel(i)
+                    self.closet.add_backing(opening_num, panel)
+                    self.closet.update()
+
+            if not add_backing_ppt.get_value() and backing_parts:
+                for assembly in backing_parts:
+                    sn_utils.delete_object_and_children(assembly.obj_bp)
+                backing_parts.clear()
+                for child in self.closet.obj_bp.children:
+                    if child.sn_closets.is_door_insert_bp:
+                        door_insert = sn_types.Assembly(child)
+                        setback_ppt = door_insert.get_prompt("Shelf Backing Setback")
+                        if setback_ppt:
+                            setback_ppt.set_value(0)
+
+        bpy.ops.object.select_all(action='DESELECT')
+
+    def update_countertop(self):
+        if self.countertop:
+            tpd = self.countertop.get_prompt('Tallest Pard Height')
+            Relative_Offset = self.countertop.get_prompt("Relative Offset")
+            Countertop_Height = self.countertop.get_prompt("Countertop Height")
+
+            if tpd and tpd.get_value() != self.hang_height:
+                tpd.set_value(self.hang_height)
+
+            if Relative_Offset is not None and Countertop_Height is not None:
+                Countertop_Height.set_value(tpd.get_value() + Relative_Offset.get_value())
+
+            if Countertop_Height is not None:
+                self.countertop.obj_bp.location.z = Countertop_Height.get_value()
+
+            opening_num = self.closet.get_prompt('Opening Quantity').get_value()
+            max_depth = 0
+            for i in range(1, opening_num  + 1):
+                current_depth = self.closet.get_prompt('Opening {} Depth'.format(i)).get_value()
+                max_depth = max([max_depth, current_depth])
+            self.countertop.obj_y.location.y = max_depth
+            self.countertop.obj_bp.location.y = - max_depth
 
     def check(self, context):
+
         self.closet.obj_x.location.x = self.width
         self.check_tk_height()
         self.update_tk_height()
@@ -392,6 +457,7 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
         self.update_opening_inserts()
         self.update_placement(context)
         self.update_fillers(context)
+        self.update_backing(context)
 
         # props = context.scene.sn_closets
 
@@ -432,6 +498,9 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
         self.update_hang_height()
         self.check_hang_height()
         self.update_top_location()
+        self.update_countertop()
+
+        self.closet.obj_bp.select_set(True)
 
         return True
 
@@ -476,6 +545,8 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                             TOP = back_assembly.get_prompt("Top Section Backing")
                             CTR = back_assembly.get_prompt("Center Section Backing")
                             BTM = back_assembly.get_prompt("Bottom Section Backing")
+                            BIB = back_assembly.get_prompt("Bottom Insert Backing")
+                            BIG = back_assembly.get_prompt("Bottom Insert Gap")
                             SB = back_assembly.get_prompt("Single Back")
                             TBT = self.closet.get_prompt('Opening ' + str(opening) + ' Top Backing Thickness')
                             CBT = self.closet.get_prompt('Opening ' + str(opening) + ' Center Backing Thickness')
@@ -535,12 +606,16 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                                                 Cleat_Loc.set_value(2)
 
                                         elif BTM.get_value():
-                                            if BBT.get_value() == 0:
+                                            if BBT.get_value() == 1:
                                                 Cleat_Loc.set_value(0)
                                             else:
                                                 Cleat_Loc.set_value(2)
 
                                     if obj_props.is_door_insert_bp:
+                                        door_insert = sn_types.Assembly(obj_bp)
+                                        use_bottom_kd_setback = door_insert.get_prompt("Use Bottom KD Setback")
+                                        if use_bottom_kd_setback:
+                                            use_bottom_kd_setback.set_value(single_back)
                                         if single_back:
                                             if CBT.get_value() == 0:
                                                 Shelf_Backing_Setback.set_value(sn_unit.inch(0.25))
@@ -580,10 +655,25 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                                         else:
                                             Shelf_Backing_Setback.set_value(sn_unit.inch(0))
 
+                                    if BIB and BIG:
+                                        if BIB.get_value() > 0 and BIG.get_value() > 0:
+                                            SB.set_value(False)
+                                            if TOP.get_value() and Cleat_Loc:
+                                                if TBT.get_value() == 1:
+                                                    Cleat_Loc.set_value(2)
+                                                if TBT.get_value() == 0:
+                                                    Cleat_Loc.set_value(0)
+
                                 if B_Sec.get_value() == 3:
                                     full_back = SB.get_value() and TOP.get_value() and CTR.get_value() and BTM.get_value()
                                     top_ctr_back = SB.get_value() and TOP.get_value() and CTR.get_value()
                                     btm_ctr_back = SB.get_value() and BTM.get_value() and CTR.get_value()
+                                    top_back = TOP.get_value()
+
+                                    if BIB and BIG:
+                                        if BIB.get_value() > 0 and BIG.get_value() > 0:
+                                            if not top_ctr_back:
+                                                SB.set_value(False)
 
                                     if obj_props.is_hamper_insert_bp:
                                         if full_back or btm_ctr_back:
@@ -601,10 +691,23 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                                             Shelf_Backing_Setback.set_value(sn_unit.inch(0))
 
                                     if obj_props.is_door_insert_bp:
+                                        door_insert = sn_types.Assembly(obj_bp)
+                                        use_bottom_kd_setback = door_insert.get_prompt("Use Bottom KD Setback")
+                                        if use_bottom_kd_setback:
+                                            if full_back or top_ctr_back:
+                                                use_bottom_kd_setback.set_value(True)
+                                            else:
+                                                use_bottom_kd_setback.set_value(False)
+
                                         if full_back or top_ctr_back:
                                             if CBT.get_value() == 1:
                                                 Shelf_Backing_Setback.set_value(sn_unit.inch(0.75))
                                             elif CBT.get_value() == 0:
+                                                Shelf_Backing_Setback.set_value(sn_unit.inch(0.25))
+                                        elif top_back:
+                                            if TBT.get_value() == 1:
+                                                Shelf_Backing_Setback.set_value(sn_unit.inch(0.75))
+                                            elif TBT.get_value() == 0:
                                                 Shelf_Backing_Setback.set_value(sn_unit.inch(0.25))
                                         else:
                                             Shelf_Backing_Setback.set_value(sn_unit.inch(0))
@@ -658,17 +761,8 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                                 if obj_props.is_splitter_bp:
                                     # For Splitter, Remove_Bottom_Shelf == True
                                     # means that there is no bottom shelf
-                                    if(RBS.get_value() or floor.get_value() is False):
+                                    if(RBS.get_value() or floor.get_value()):
                                         Remove_Bottom_Shelf.set_value(True)
-
-                                    if obj_props.is_door_insert_bp:
-                                        if full_back or top_ctr_back:
-                                            if CBT.get_value() == '3/4"':
-                                                Shelf_Backing_Setback.set_value(sn_unit.inch(0.75))
-                                            elif CBT.get_value() == '1/4"':
-                                                Shelf_Backing_Setback.set_value(sn_unit.inch(0.25))
-                                        else:
-                                            Shelf_Backing_Setback.set_value(sn_unit.inch(0))
 
                     if child.sn_closets.is_closet_bottom_bp:
                         capping_bottom_assembly = sn_types.Assembly(child)
@@ -884,7 +978,7 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                 self.interior_assembly = sn_types.Assembly(child)
             if "IS_EXTERIOR_BP" in child and child["IS_EXTERIOR_BP"]:
                 self.exterior_assembly = sn_types.Assembly(child)
-            if "IS_COUNTERTOP_BP" in child and child["IS_COUNTERTOP_BP"]:
+            if "IS_BP_COUNTERTOP" in child and child["IS_BP_COUNTERTOP"]:
                 self.countertop = sn_types.Assembly(child)
             if "IS_DRAWERS_BP" in child and child["IS_DRAWERS_BP"]:
                 self.drawers = sn_types.Assembly(child)
@@ -894,7 +988,7 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
             if "IS_VERTICAL_SPLITTER_BP" in child and child["IS_VERTICAL_SPLITTER_BP"]:
                 self.splitter = sn_types.Assembly(child)
                 # self.calculators.append(self.splitter.get_calculator('Opening Height Calculator'))
-
+    
     def invoke(self, context, event):
         self.reset_variables()
         bp = sn_utils.get_closet_bp(context.object)
@@ -968,6 +1062,7 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
         self.placement_on_wall = 'SELECTED_POINT'
         self.left_offset = 0
         self.right_offset = 0
+        self.all_floor_mounted = self.is_closet_floor_mounted()
                 
         wm = context.window_manager
         return wm.invoke_props_dialog(self, width=600)        
@@ -1235,16 +1330,20 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
         for i, prompt in enumerate(prompts):
             row.prop(prompt, "checkbox_value", text=str(i + 1))
 
-    def draw_backing_options(self,layout):
+    def draw_backing_options(self, layout):
+        full_back_prompts = []
         top_back_thickness_prompts = []
         center_back_thickness_prompts = []
         bottom_back_thickness_prompts = []
 
-        for i in range(1,10):
+        for i in range(1, 10):
+            add_full_back = self.closet.get_prompt("Add Full Back " + str(i))
             top_back_thickness = self.closet.get_prompt("Opening " + str(i) + " Top Backing Thickness")
             center_back_thickness = self.closet.get_prompt("Opening " + str(i) + " Center Backing Thickness")
             bottom_back_thickness = self.closet.get_prompt("Opening " + str(i) + " Bottom Backing Thickness")
 
+            if add_full_back:
+                full_back_prompts.append(add_full_back)
             if top_back_thickness:
                 top_back_thickness_prompts.append(top_back_thickness)
             if center_back_thickness:
@@ -1254,83 +1353,103 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
 
         row = layout.row()
 
-        for i, prompt in enumerate(center_back_thickness_prompts):
+        for i in range(self.closet.opening_qty):
             col = row.column(align=True)
+            full_back_ppt = full_back_prompts[i]
+            col.prop(full_back_ppt, 'checkbox_value', text=str(i + 1))
 
-            #Disable for now TODO: 3/4" capping full back
-            # if back_thickness_prompts[i].get_value() == '3/4"':
-            #     col.prop(inset_prompts[i], "checkbox_value", text="Inset")
+            if full_back_ppt.get_value():
+                # Disable for now TODO: 3/4" capping full back
+                # if back_thickness_prompts[i].get_value() == '3/4"':
+                #     col.prop(inset_prompts[i], "checkbox_value", text="Inset")
 
-            for child in self.closet.obj_bp.children:
-                if child.sn_closets.is_back_bp:
-                    if child.sn_closets.opening_name == str(i + 1):
-                        back_assembly = sn_types.Assembly(child)
-                        is_single_back = back_assembly.get_prompt('Is Single Back')
-                        backing_sections = back_assembly.get_prompt("Backing Sections")
-                        use_top = back_assembly.get_prompt("Top Section Backing")
-                        use_center = back_assembly.get_prompt("Center Section Backing")
-                        use_bottom = back_assembly.get_prompt("Bottom Section Backing")
-                        single_back = back_assembly.get_prompt("Single Back")
-
-                        #1 Section
-                        if backing_sections and backing_sections.get_value() == 1:                            
-                            col.prop(use_center, 'checkbox_value', text="Back " + str(i + 1))
-                            if use_center.get_value() == True:
-                                center_back_thickness_prompts[i].draw_combobox_prompt(col, text=" ")
-
-                        #2 Section
-                        if backing_sections and backing_sections.get_value() == 2:
-                            show_single_back = use_top.get_value() and use_bottom.get_value()
-
-                            #Single back
-                            if show_single_back:
-                                single_back.draw(col, alt_text="Single Back", allow_edit=False)
-
-                                if is_single_back.get_value():
-                                    center_back_thickness_prompts[i].draw_combobox_prompt(col, text=" ")
-
-                            #Top
+                for child in self.closet.obj_bp.children:
+                    if child.sn_closets.is_back_bp:
+                        if child.sn_closets.opening_name == str(i + 1):
+                            back_assembly = sn_types.Assembly(child)
+                            is_single_back = back_assembly.get_prompt('Is Single Back')
+                            backing_sections = back_assembly.get_prompt("Backing Sections")
                             use_top = back_assembly.get_prompt("Top Section Backing")
-                            col.prop(use_top, 'checkbox_value', text="Top " + str(i + 1))
-                            if use_top.get_value() and not is_single_back.get_value():
-                                top_back_thickness_prompts[i].draw_combobox_prompt(col, text=" ")
-
-                            #Bottom
-                            use_bottom = back_assembly.get_prompt("Bottom Section Backing")
-                            col.prop(use_bottom, 'checkbox_value', text="Bottom " + str(i + 1))
-                            if use_bottom.get_value() and not is_single_back.get_value():
-                                bottom_back_thickness_prompts[i].draw_combobox_prompt(col, text=" ")
-
-                        #3 Section
-                        if backing_sections and backing_sections.get_value() == 3:
-                            single_back_config = [
-                                use_top.get_value() and use_bottom.get_value() and use_center.get_value(),
-                                use_top.get_value() and use_center.get_value(),
-                                use_bottom.get_value() and use_center.get_value()
-                            ]
-
-                            if any(single_back_config):
-                                single_back.draw(col, alt_text="Single Back", allow_edit=False)
-                                if single_back.get_value():
-                                    center_back_thickness_prompts[i].draw_combobox_prompt(col, text=" ")
-
-                            #Top
-                            use_top = back_assembly.get_prompt("Top Section Backing")
-                            col.prop(use_top, 'checkbox_value', text="Top " + str(i + 1))
-                            if use_top.get_value() and not is_single_back.get_value():
-                                top_back_thickness_prompts[i].draw_combobox_prompt(col, text=" ")
-
-                            #Center
                             use_center = back_assembly.get_prompt("Center Section Backing")
-                            col.prop(use_center, 'checkbox_value', text="Center " + str(i + 1))
-                            if use_center.get_value() and not is_single_back.get_value():
-                                center_back_thickness_prompts[i].draw_combobox_prompt(col, text=" ")
-
-                            #Bottom
                             use_bottom = back_assembly.get_prompt("Bottom Section Backing")
-                            col.prop(use_bottom, 'checkbox_value', text="Bottom " + str(i + 1))
-                            if use_bottom.get_value() and not is_single_back.get_value():
-                                bottom_back_thickness_prompts[i].draw_combobox_prompt(col, text=" ")
+                            single_back = back_assembly.get_prompt("Single Back")
+                            BIB = back_assembly.get_prompt("Bottom Insert Backing")
+                            BIG = back_assembly.get_prompt("Bottom Insert Gap")
+
+                            #1 Section
+                            if backing_sections and backing_sections.get_value() == 1:
+                                col.prop(use_center, 'checkbox_value', text="Back " + str(i + 1))
+                                if use_center.get_value():
+                                    center_back_thickness_prompts[i].draw_combobox_prompt(col, text=" ")
+
+                            # 2 Section
+                            if backing_sections and backing_sections.get_value() == 2:
+                                show_single_back = use_top.get_value() and use_bottom.get_value()
+                                no_gap = True
+                                if BIB and BIG:
+                                    if BIB.get_value() > 0 and BIG.get_value() > 0:
+                                        no_gap = False
+
+                                # Single back
+                                if show_single_back and no_gap:
+                                    single_back.draw(col, alt_text="Single Back", allow_edit=False)
+
+                                    if is_single_back.get_value():
+                                        center_back_thickness_prompts[i].draw_combobox_prompt(col, text=" ")
+
+                                # Top
+                                use_top = back_assembly.get_prompt("Top Section Backing")
+                                col.prop(use_top, 'checkbox_value', text="Top " + str(i + 1))
+                                if use_top.get_value() and not is_single_back.get_value():
+                                    top_back_thickness_prompts[i].draw_combobox_prompt(col, text=" ")
+
+                                # Bottom
+                                use_bottom = back_assembly.get_prompt("Bottom Section Backing")
+                                col.prop(use_bottom, 'checkbox_value', text="Bottom " + str(i + 1))
+                                if use_bottom.get_value() and not is_single_back.get_value():
+                                    bottom_back_thickness_prompts[i].draw_combobox_prompt(col, text=" ")
+
+                            # 3 Section
+                            if backing_sections and backing_sections.get_value() == 3:
+                                single_back_config = [
+                                    use_top.get_value() and use_bottom.get_value() and use_center.get_value(),
+                                    use_top.get_value() and use_center.get_value(),
+                                    use_bottom.get_value() and use_center.get_value()
+                                ]
+
+                                no_gap = True
+                                top = use_top.get_value()
+                                ctr = use_center.get_value()
+                                btm = use_bottom.get_value()
+                                if BIB and BIG:
+                                    if BIB.get_value() > 0 and BIG.get_value() > 0:
+                                        if top and ctr and not btm:
+                                            no_gap = True
+                                        else:
+                                            no_gap = False
+
+                                if any(single_back_config) and no_gap:
+                                    single_back.draw(col, alt_text="Single Back", allow_edit=False)
+                                    if single_back.get_value():
+                                        center_back_thickness_prompts[i].draw_combobox_prompt(col, text=" ")
+
+                                #Top
+                                use_top = back_assembly.get_prompt("Top Section Backing")
+                                col.prop(use_top, 'checkbox_value', text="Top " + str(i + 1))
+                                if use_top.get_value() and not is_single_back.get_value():
+                                    top_back_thickness_prompts[i].draw_combobox_prompt(col, text=" ")
+
+                                #Center
+                                use_center = back_assembly.get_prompt("Center Section Backing")
+                                col.prop(use_center, 'checkbox_value', text="Center " + str(i + 1))
+                                if use_center.get_value() and not is_single_back.get_value():
+                                    center_back_thickness_prompts[i].draw_combobox_prompt(col, text=" ")
+
+                                #Bottom
+                                use_bottom = back_assembly.get_prompt("Bottom Section Backing")
+                                col.prop(use_bottom, 'checkbox_value', text="Bottom " + str(i + 1))
+                                if use_bottom.get_value() and not is_single_back.get_value():
+                                    bottom_back_thickness_prompts[i].draw_combobox_prompt(col, text=" ")
 
     def draw_cleat_options(self,layout):
         prompts = []
@@ -1345,12 +1464,20 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
         for i, prompt in enumerate(prompts):
             row.prop(prompt, "checkbox_value", text=str(i + 1))
 
+        prompts_drawn = 1
         for i, prompt in enumerate(prompts):
             if prompt.checkbox_value:
+                prompts_drawn += 1
+
+        row = layout.split(factor=1/prompts_drawn)
+        row.label(text="Custom Cleat Locations:")
+        for i, prompt in enumerate(prompts):
+            cleat_row = row.column()
+            show = self.closet.get_prompt("Use " + str(i + 1) + " Custom Cleat Location")
+            cleat_row.prop(show, "checkbox_value", text=str(i + 1))
+            if prompt.checkbox_value and show.get_value():
                 loc_prompt = self.closet.get_prompt("Cleat " + str(i + 1) + " Location")
-                row = layout.row()
-                row.label(text="Cleat " + str(i + 1) + " Location")
-                row.prop(loc_prompt, "distance_value", text=str(i + 1))
+                cleat_row.prop(loc_prompt, "distance_value", text=str(i + 1))
 
     def draw_dogear_options(self,layout):
         front_angle_height = self.closet.get_prompt("Front Angle Height")
@@ -1373,8 +1500,7 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
             row.label(text="Dog Ear To Depth:")
             col = row.column()
             col.prop(front_angle_depth, 'distance_value', text="")
-        
- 
+
     def draw_top_options(self,layout):
         prompts = []
         for i in range(1,10):

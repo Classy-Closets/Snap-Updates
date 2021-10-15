@@ -319,7 +319,7 @@ class SN_CLOSET_OT_Place_Top(Operator, PlaceClosetInsert):
                         same_panel = self.selected_panel_1.obj_bp == hover_panel.obj_bp
                         same_product = self.selected_panel_1.obj_bp.parent == hover_panel.obj_bp.parent
                         hp_to_left = hp_x_loc < sp1_x_loc
-                        hp_out_of_reach = sn_unit.meter_to_inch(ts_length) > self.max_shelf_length
+                        hp_out_of_reach = round(sn_unit.meter_to_inch(ts_length), 2) > self.max_shelf_length
 
                         if same_panel or hp_to_left or not same_product or hp_out_of_reach:
                             selected_obj.select_set(False)
@@ -435,6 +435,9 @@ class SN_CLOSET_OT_Place_Top(Operator, PlaceClosetInsert):
         context.area.tag_redraw()
         context.area.header_text_set(text=self.header_text)
         self.reset_selection()
+
+        if not self.top_shelf:
+            self.top_shelf = self.asset
 
         if self.event_is_cancel_command(event):
             context.area.header_text_set(None)

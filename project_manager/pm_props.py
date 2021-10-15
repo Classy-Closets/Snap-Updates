@@ -123,7 +123,6 @@ class Room(PropertyGroup, CollectionMixIn):
     def init(self, name, category, path=None, project_index=None):
         wm = bpy.context.window_manager.sn_project
         # On initial load, project index won't work.
-        
         col = wm.projects[project_index or wm.project_index].rooms
         super().init(col, name=name)
 
@@ -135,14 +134,17 @@ class Room(PropertyGroup, CollectionMixIn):
 
         else:
             # Set filepath
-            proj_filepath = wm.projects[wm.project_index].file_path
-            self.file_path = os.path.join(os.path.dirname(proj_filepath), '{}.{}'.format(self.file_name, "blend"))
+            project = wm.projects[wm.project_index]
+            proj_dir = os.path.join(project.dir_path, project.name)
+            self.file_path = os.path.join(os.path.dirname(proj_dir), '{}.{}'.format(self.file_name, "blend"))
 
             # Save file to project dir
             bpy.ops.wm.save_as_mainfile(filepath=self.file_path)
+            wm.current_file_project = project.name
+            wm.current_file_room = self.name
 
             # write info to project file
-            tree = ET.parse(proj_filepath)
+            tree = ET.parse(project.file_path)
             root = tree.getroot()
 
             for elm in root.findall("Rooms"):
@@ -152,7 +154,7 @@ class Room(PropertyGroup, CollectionMixIn):
                 elm_room.text = self.name
                 elm.append(elm_room)
 
-            tree.write(proj_filepath)
+            tree.write(project.file_path)
 
     def set_filename(self):
         self.file_name = self.get_clean_name(self.name)
@@ -195,19 +197,19 @@ class Project(PropertyGroup, CollectionMixIn):
     design_date: StringProperty(name="Design Date", description="Design Date", update=update_project_props)
 
     def init(self, name, path=None):
-
         col = bpy.context.window_manager.sn_project.projects
         super().init(col, name=name)
 
         self.create_dir()
         self.set_filename()
-        self.set_filepath()
+        proj_filepath = os.path.join(self.dir_path, ".snap", '{}.{}'.format(self.file_name, "ccp"))
+        self.set_filepath(proj_filepath)
 
         # File path passed in
         if path:
             self.read_project_file()
         # File already exists in project directory
-        elif os.path.exists(os.path.join(self.dir_path, self.file_name + ".ccp")):
+        elif os.path.exists(proj_filepath):
             self.read_project_file()
         else:
             project_id = self.get_id()
@@ -217,12 +219,13 @@ class Project(PropertyGroup, CollectionMixIn):
     def create_dir(self):
         if not os.path.exists(self.dir_path):
             os.mkdir(self.dir_path)
+        pm_utils.create_hidden_folder(self.dir_path)    
 
     def set_filename(self):
         self.file_name = self.get_clean_name(self.name)
 
-    def set_filepath(self):
-        self.file_path = os.path.join(self.dir_path, '{}.{}'.format(self.file_name, "ccp"))
+    def set_filepath(self, proj_filepath):
+        self.file_path = proj_filepath
 
     def get_id(self):
         addon_prefs = bpy.context.preferences.addons[__name__.split(".")[0]].preferences
@@ -254,7 +257,7 @@ class Project(PropertyGroup, CollectionMixIn):
 
         ccp.add_element(root, 'Rooms')
 
-        ccp.write(self.dir_path)
+        ccp.write(os.path.join(self.dir_path, ".snap"))
 
     def modify_project_file(self):
         tree = ET.parse(self.file_path)
@@ -383,7 +386,8 @@ class Project(PropertyGroup, CollectionMixIn):
 class WM_PROPERTIES_Projects(PropertyGroup):
     projects: CollectionProperty(name="Projects", type=Project)
     project_index: IntProperty(name="Project Index")
-    project_path: StringProperty(name="Project Path", description="Project file path", subtype='FILE_PATH')
+    current_file_room: StringProperty(name="Current File Room", description="Current blend file room name")
+    current_file_project: StringProperty(name="Current File Project", description="Current blend file project name")
     use_compact_ui: BoolProperty(name="Use Compact Projects UI Panel", default=False)
 
     def get_project(self):

@@ -42,9 +42,10 @@ class PlaceClosetAsset():
 
     def invoke(self, context, event):
         self.reset_properties()
-        self.get_asset(context)
+        if not self.obj_bp_name:
+            self.get_asset(context)
 
-        if self.asset:
+        if self.asset or self.obj_bp_name:
             return self.execute(context)
         else:
             return self.cancel_drop(context)
@@ -108,7 +109,7 @@ class PlaceClosetAsset():
 
     def hide_cages(self, context):
         for obj in context.visible_objects:
-            if 'IS_CAGE' in obj:
+            if 'IS_CAGE' in obj and 'IS_OBSTACLE' not in obj.parent:
                 obj.hide_viewport = True
 
     def get_asset(self, context):
@@ -130,9 +131,11 @@ class PlaceClosetAsset():
 
         asset_name = self.asset.obj_bp.snap.name_object
 
-        print("{} : Draw Time --- {} seconds ---".format(
+        print("{} : Draw Time --- {} seconds --- Objects in scene: {} ({} visible)".format(
             asset_name,
-            time.perf_counter() - start_time))
+            round(time.perf_counter() - start_time, 8),
+            len(bpy.data.objects),
+            len([ob for ob in bpy.context.view_layer.objects if ob.visible_get()])))
 
     def position_asset(self, context):
         pass

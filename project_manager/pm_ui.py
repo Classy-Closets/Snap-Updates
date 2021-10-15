@@ -101,6 +101,7 @@ class SNAP_PT_Projects(Panel):
                 col = box.column(align=True)
                 row = col.row(align=True)
                 row.operator("project_manager.create_project", icon='FILE_NEW')
+                row.operator("project_manager.copy_project", text="Copy Project", icon='DUPLICATE')
                 row.menu('SNAP_MT_Project_Tools', text="", icon='DOWNARROW_HLT')
                 if(len(projects) < 5):
                     col.template_list("SNAP_UL_Projects", "", wm, "projects", wm, "project_index", rows=len(projects))

@@ -56,6 +56,8 @@ class PDF_Director:
         form = PDF_Form_Content(self.form_info)
         self.form_info = fill_form(form, props, material_dict, **ctx)
         for image in self.images:
+            if not image:
+                continue
             builder.draw_main_image(image)
             builder.draw_logo(self.logo)
             builder.draw_info(self.form_info)

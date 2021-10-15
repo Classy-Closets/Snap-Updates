@@ -22,26 +22,28 @@ def update_closet_height(self,context):
 
 
 class Closet_Island_Carcass(sn_types.Assembly):
-    
+
     type_assembly = "PRODUCT"
     id_prompt = "sn_closets.island_openings"
     plan_draw_id = "sn_closets.draw_plan"
     show_in_library = True
     category_name = ""
-    
+
     opening_qty = 4
     calculator = None
     is_double_sided = False
-    
-    def __init__(self):
+
+    def __init__(self, obj_bp=None):
+        super().__init__(obj_bp=obj_bp)
+
         defaults = bpy.context.scene.sn_closets.closet_defaults
         self.width = sn_unit.inch(18) * self.opening_qty
         self.height = sn_unit.millimeter(float(defaults.island_panel_height))
         if self.is_double_sided:
-            self.depth = defaults.panel_depth * 2 
+            self.depth = defaults.panel_depth * 2
         else:
             self.depth = defaults.panel_depth
-    
+
     def add_opening_prompts(self):
         for i in range(1, self.opening_qty + 1):
             calc_prompt = self.calculator.add_calculator_prompt("Opening " + str(i) + " Width")
@@ -639,29 +641,35 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
     countertop_type: EnumProperty(
         name="Countertop Type",
         items=[
-            ('0', 'Granite', 'Granite'),
+            ('0', 'Melamine', 'Melamine'),
             ('1', 'HPL', 'HPL'),
-            ('2', 'Melamine', 'Melamine')],
+            ('2', 'Granite', 'Granite')],
         default='0')                          
     
     product = None
     
     inserts = []
 
+    def reset_variables(self):
+        self.tabs = 'OPENINGS'
+        self.product = None  
+
     def set_countertop_type_ppt(self):
         if self.countertop_type_ppt:
             self.countertop_type_ppt.set_value(int(self.countertop_type))
     
+    def update_placement(self, context):
+        self.product.obj_x.location.x = self.width
+        self.run_calculators(self.product.obj_bp)
+
     def check(self, context):
-        toe_kick_height =\
-            self.product.get_prompt("Toe Kick Height").distance_value
+        toe_kick_height = self.product.get_prompt("Toe Kick Height").distance_value
         if toe_kick_height <= inch(3):
             self.product.get_prompt("Toe Kick Height").set_value(inch(3))
             bpy.ops.snap.log_window('INVOKE_DEFAULT',
                                     message="Minimum Toe Kick Height is 3\"",
                                     icon="ERROR")
-        self.product.obj_x.location.x = self.width
-        self.run_calculators(self.product.obj_bp)
+        self.update_placement(context)                            
         self.set_countertop_type_ppt()
         depth_1 = self.product.get_prompt("Depth 1")
         if not depth_1:
@@ -691,11 +699,15 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                 exec('self.height = common_lists.PANEL_HEIGHTS[index - 1][0]')                                                                                                                                                                                                        
                 break
 
-    def invoke(self,context,event):
-        obj = bpy.data.objects[context.object.name]
-        obj_product_bp = sn_utils.get_bp(obj,'PRODUCT')
-        self.product = sn_types.Assembly(obj_product_bp)
+    def get_assemblies(self, context):
+        self.calculators = []
+        self.get_calculators(self.product.obj_bp)
 
+    def invoke(self,context,event):
+        self.reset_variables()
+        bp = sn_utils.get_closet_bp(context.object)
+        self.product = Closet_Island_Carcass(bp)
+        self.get_assemblies(context)
         self.run_calculators(self.product.obj_bp)
 
         if self.product.obj_bp:
@@ -790,7 +802,7 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                     else:
                         row.label(text="",icon='BLANK1')
                 if width.equal:
-                    row.label(text=str(sn_unit.meter_to_active_unit(width.distance_value)) + '"')
+                    row.label(text=str(round(sn_unit.meter_to_active_unit(width.distance_value), 3)) + '"')
                 else:
                     row.prop(width,'distance_value',text="")   
             

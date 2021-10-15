@@ -36,3 +36,15 @@ HIDE_TYPES = ['sn_closets.is_panel_bp',
 
 VIS_TYPES = ['sn_closets.is_cleat_bp',
              'sn_closets.is_toe_kick_stringer_bp']
+
+FS_SKIPS = ['Anchor', 
+            'End Point', 
+            'CAGE', 
+            'Dog Ear Height', 
+            'OBJ_PROMPTS', 
+            'OBJ_X', 
+            'OBJ_Y', 
+            'OBJ_Z', 
+            'PARTHGT', 
+            'Y1', 
+            'Y2']

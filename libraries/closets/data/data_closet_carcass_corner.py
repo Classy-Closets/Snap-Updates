@@ -74,6 +74,19 @@ class L_Shelves(sn_types.Assembly):
         self.add_prompt("Exposed Left", 'CHECKBOX', False)
         self.add_prompt("Exposed Right", 'CHECKBOX', False)
         self.add_prompt("Top Shelf Overhang", 'DISTANCE', sn_unit.inch(0.5))
+        self.add_prompt("Extend Left", 'DISTANCE', 0)
+        self.add_prompt("Extend Right", 'DISTANCE', 0)
+
+        self.add_prompt("Add Left Filler", 'CHECKBOX', False)
+        self.add_prompt("Add Right Filler", 'CHECKBOX', False)
+        self.add_prompt("Left Side Wall Filler", 'DISTANCE', 0.0)
+        self.add_prompt("Right Side Wall Filler", 'DISTANCE', 0.0)
+        self.add_prompt("Add Capping Left Filler", 'CHECKBOX', False)
+        self.add_prompt("Add Capping Right Filler", 'CHECKBOX', False)
+        self.add_prompt("Left Filler Setback Amount", 'DISTANCE', 0.0)
+        self.add_prompt("Right Filler Setback Amount", 'DISTANCE', 0.0)
+        self.add_prompt("Edge Bottom of Left Filler", 'CHECKBOX', False)
+        self.add_prompt("Edge Bottom of Right Filler", 'CHECKBOX', False)
 
         for i in range(1, 11):
             self.add_prompt("Shelf " + str(i) + " Height", 'DISTANCE', sn_unit.millimeter(493.014))
@@ -121,6 +134,17 @@ class L_Shelves(sn_types.Assembly):
         Exposed_Left = self.get_prompt('Exposed Left').get_var('Exposed_Left')
         Exposed_Right = self.get_prompt('Exposed Right').get_var('Exposed_Right')
         Top_Shelf_Overhang = self.get_prompt('Top Shelf Overhang').get_var('Top_Shelf_Overhang')
+        Left_Side_Wall_Filler = self.get_prompt('Left Side Wall Filler').get_var('Left_Side_Wall_Filler')
+        Panel_Thickness = self.get_prompt('Panel Thickness').get_var('Panel_Thickness')
+        Left_Filler_Setback_Amount = self.get_prompt('Left Filler Setback Amount').get_var()
+        Edge_Bottom_of_Left_Filler = self.get_prompt("Edge Bottom of Left Filler").get_var()
+        Add_Capping_Left_Filler = self.get_prompt("Add Capping Left Filler").get_var()
+        Right_Side_Wall_Filler = self.get_prompt('Right Side Wall Filler').get_var('Right_Side_Wall_Filler')
+        Right_Filler_Setback_Amount = self.get_prompt('Right Filler Setback Amount').get_var()
+        Edge_Bottom_of_Right_Filler = self.get_prompt("Edge Bottom of Right Filler").get_var()
+        Add_Capping_Right_Filler = self.get_prompt("Add Capping Right Filler").get_var()
+        Extend_Left = self.get_prompt('Extend Left').get_var('Extend_Left')
+        Extend_Right = self.get_prompt('Extend Right').get_var('Extend_Right')
 
         top = common_parts.add_l_shelf(self)
         top.loc_z('(Height+IF(Is_Hanging,0,Toe_Kick_Height))', [Height, Toe_Kick_Height, Is_Hanging])
@@ -133,10 +157,14 @@ class L_Shelves(sn_types.Assembly):
         top.get_prompt('Hide').set_formula('IF(Add_Top,False,True)', [Add_Top])
 
         left_top_shelf = common_parts.add_plant_on_top(self)
-        left_top_shelf.set_name('Left Top Shelf')
-        left_top_shelf.loc_y('Depth', [Depth])
+        left_top_shelf.set_name('Topshelf')
+        left_top_shelf.loc_y(
+            'Depth-Left_Side_Wall_Filler-Extend_Left', [Depth, Left_Side_Wall_Filler, Extend_Left])
         left_top_shelf.loc_z('(Height+IF(Is_Hanging,0,Toe_Kick_Height))+PT', [Height, Toe_Kick_Height, Is_Hanging, PT])
-        left_top_shelf.dim_x('(Depth+Right_Depth+Top_Shelf_Overhang)*-1', [Right_Depth, RRS, PT, Depth, Top_Shelf_Overhang])
+        left_top_shelf.dim_x(
+            '(Depth+Right_Depth+Top_Shelf_Overhang-Extend_Left)*-1+Left_Side_Wall_Filler',
+            [Right_Depth, RRS, PT, Depth,
+             Top_Shelf_Overhang, Left_Side_Wall_Filler, Extend_Left])
         left_top_shelf.dim_y('-Left_Depth-Top_Shelf_Overhang', [Depth, PT, RLS, Left_Depth, Top_Shelf_Overhang])
         left_top_shelf.dim_z('-Shelf_Thickness', [Shelf_Thickness])
         left_top_shelf.rot_z(value=math.radians(90))
@@ -144,16 +172,18 @@ class L_Shelves(sn_types.Assembly):
         left_top_shelf.get_prompt('Hide').set_formula('IF(Add_Top_Shelf,False,True)', [Add_Top_Shelf])
 
         right_top_shelf = common_parts.add_plant_on_top(self)
-        right_top_shelf.set_name('Right Top Shelf')
+        right_top_shelf.set_name('Topshelf')
         right_top_shelf.loc_z('(Height+IF(Is_Hanging,0,Toe_Kick_Height))+PT', [Height, Toe_Kick_Height, Is_Hanging, PT])
-        right_top_shelf.dim_x('Width', [Width, RRS, PT])
+        right_top_shelf.dim_x(
+            'Width+Right_Side_Wall_Filler+Extend_Right',
+            [Width, RRS, PT, Right_Side_Wall_Filler, Extend_Right])
         right_top_shelf.dim_y('-Right_Depth-Top_Shelf_Overhang', [Right_Depth, PT, RLS, Top_Shelf_Overhang])
         right_top_shelf.dim_z('-Shelf_Thickness', [Shelf_Thickness])
         right_top_shelf.get_prompt('Exposed Right').set_formula('Exposed_Right', [Exposed_Right])
         right_top_shelf.get_prompt('Hide').set_formula('IF(Add_Top_Shelf,False,True)', [Add_Top_Shelf])
 
         right_top_cleat = common_parts.add_cleat(self)
-        right_top_cleat.set_name("Right Top Cleat")
+        right_top_cleat.set_name("Top Cleat")
         right_top_cleat.loc_x('Spine_Width', [Spine_Width])
         right_top_cleat.loc_z('(IF(Add_Top,Height-Shelf_Thickness,Height))+IF(Is_Hanging,0,Toe_Kick_Height)',
                               [Height, Shelf_Thickness, Add_Top, Is_Hanging, Toe_Kick_Height])
@@ -164,7 +194,7 @@ class L_Shelves(sn_types.Assembly):
         right_top_cleat.get_prompt('Hide').set_formula('IF(Add_Backing,True,False) or Hide', [self.hide_var, Add_Backing])
 
         left_top_cleat = common_parts.add_cleat(self)
-        left_top_cleat.set_name("Left Top Cleat")
+        left_top_cleat.set_name("Top Cleat")
         left_top_cleat.loc_y('IF(RLS,Depth,Depth+PT)', [Depth, RLS, PT])
         left_top_cleat.loc_z('(IF(Add_Top,Height-Shelf_Thickness,Height))+IF(Is_Hanging,0,Toe_Kick_Height)', [Height, Shelf_Thickness, Add_Top, Is_Hanging, Toe_Kick_Height])
         left_top_cleat.rot_x(value=math.radians(-90))
@@ -184,7 +214,7 @@ class L_Shelves(sn_types.Assembly):
         bottom.get_prompt('Is Locked Shelf').set_value(True)
 
         right_bot_cleat = common_parts.add_cleat(self)
-        right_bot_cleat.set_name("Right Bottom Cleat")
+        right_bot_cleat.set_name("Bottom Cleat")
         right_bot_cleat.loc_x('Spine_Width', [Spine_Width])
         right_bot_cleat.loc_z('IF(Is_Hanging,Height-Panel_Height+Shelf_Thickness,Shelf_Thickness+Toe_Kick_Height)', [Height, Panel_Height, Is_Hanging, Shelf_Thickness, Toe_Kick_Height])
         right_bot_cleat.rot_x(value=math.radians(-90))
@@ -194,7 +224,7 @@ class L_Shelves(sn_types.Assembly):
         right_bot_cleat.get_prompt('Hide').set_formula('IF(Add_Backing,True,False) or Hide', [self.hide_var, Add_Backing])
 
         left_bot_cleat = common_parts.add_cleat(self)
-        left_bot_cleat.set_name("Left Bottom Cleat")
+        left_bot_cleat.set_name("Bottom Cleat")
         left_bot_cleat.loc_y('IF(RLS,Depth,Depth+PT)', [Depth, RLS, PT])
         left_bot_cleat.loc_z('IF(Is_Hanging,Height-Panel_Height+Shelf_Thickness,Shelf_Thickness+Toe_Kick_Height)', [Height, Panel_Height, Is_Hanging, Shelf_Thickness, Toe_Kick_Height])
         left_bot_cleat.rot_x(value=math.radians(-90))
@@ -205,7 +235,6 @@ class L_Shelves(sn_types.Assembly):
         left_bot_cleat.get_prompt('Hide').set_formula('IF(Add_Backing,True,False) or Hide', [self.hide_var, Add_Backing])
 
         left_panel = common_parts.add_panel(self)
-        left_panel.set_name("Left Panel")
         left_panel.loc_y('Depth', [Depth, Add_Backing])
         left_panel.loc_z('IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)', [Height, Panel_Height, Is_Hanging, Toe_Kick_Height])
         left_panel.rot_y(value=math.radians(-90))
@@ -252,10 +281,21 @@ class L_Shelves(sn_types.Assembly):
         left_back.get_prompt('Is Left Back').set_value(True)
         left_back.get_prompt('Hide').set_formula('IF(Add_Backing,False,True)', [Add_Backing])
 
+        # Fillers
+        create_corner_fillers(self, Panel_Height, Left_Side_Wall_Filler,
+                              Panel_Thickness, Left_Depth, Depth,
+                              Left_Filler_Setback_Amount, Is_Hanging, Width,
+                              Edge_Bottom_of_Left_Filler, self.hide_var,
+                              Add_Capping_Left_Filler, Right_Side_Wall_Filler,
+                              Right_Filler_Setback_Amount, Toe_Kick_Height,
+                              Edge_Bottom_of_Right_Filler, Right_Depth,
+                              Add_Capping_Right_Filler)
+
         spine = common_parts.add_panel(self)
         spine.set_name("Mitered Pard")
         spine.obj_bp["IS_BP_PANEL"] = False
         spine.obj_bp["IS_BP_MITERED_PARD"] = True
+        spine.obj_bp.sn_closets.is_panel_bp = False  # TODO: remove
         spine.obj_bp.snap.comment_2 = "1510"
         spine.loc_y("-Spine_Y_Location", [Spine_Y_Location])
         spine.loc_z('IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)', [Height, Panel_Height, Is_Hanging, Toe_Kick_Height])
@@ -434,6 +474,7 @@ class L_Shelves(sn_types.Assembly):
 
     def draw(self):
         self.obj_bp["IS_BP_CLOSET"] = True
+        self.obj_bp["IS_BP_L_SHELVES"] = True
         self.obj_bp["ID_PROMPT"] = self.id_prompt
         self.obj_y['IS_MIRROR'] = True
         self.obj_bp.snap.type_group = self.type_assembly
@@ -529,6 +570,132 @@ def set_tk_hide(toe_kick):
             child_hide.set_formula("Hide", [Hide])
 
 
+def create_corner_fillers(assemly, Panel_Height, Left_Side_Wall_Filler,
+                          Panel_Thickness, Left_Depth, Depth,
+                          Left_Filler_Setback_Amount, Is_Hanging, Width,
+                          Edge_Bottom_of_Left_Filler, hide_var,
+                          Add_Capping_Left_Filler, Right_Side_Wall_Filler,
+                          Right_Filler_Setback_Amount, Toe_Kick_Height,
+                          Edge_Bottom_of_Right_Filler, Right_Depth,
+                          Add_Capping_Right_Filler):
+
+    # Left Filler
+    left_filler = common_parts.add_filler(assemly)
+    left_filler.set_name("Left Filler")
+    left_filler.dim_x(
+        'Panel_Height',
+        [Panel_Height])
+    left_filler.dim_y('-Left_Side_Wall_Filler', [Left_Side_Wall_Filler])
+    left_filler.dim_z('Panel_Thickness', [Panel_Thickness])
+    left_filler.loc_x(
+        'Left_Depth - Left_Filler_Setback_Amount - Panel_Thickness',
+        [Left_Depth, Left_Filler_Setback_Amount, Panel_Thickness])
+    left_filler.loc_y(
+        "Depth-Left_Side_Wall_Filler",
+        [Depth, Left_Side_Wall_Filler])
+    left_filler.loc_z(
+        'IF(Is_Hanging, 0, Toe_Kick_Height)',
+        [Toe_Kick_Height, Is_Hanging])
+    left_filler.rot_x(value=0)
+    left_filler.rot_y(value=math.radians(-90))
+    left_filler.rot_z(value=math.radians(180))
+    hide = left_filler.get_prompt("Hide")
+    hide.set_formula(
+        'IF(Left_Side_Wall_Filler==0,True,False) or Hide',
+        [Left_Side_Wall_Filler, hide_var])
+    left_filler.get_prompt("Exposed Left").set_formula(
+        'IF(Edge_Bottom_of_Left_Filler,True,False)',
+        [Edge_Bottom_of_Left_Filler])
+    left_filler.get_prompt("Exposed Left").set_value(True)
+    left_filler.get_prompt("Exposed Right").set_value(True)
+    left_filler.get_prompt("Exposed Back").set_value(True)
+
+    # Left Capping Filler
+    left_capping_filler = common_parts.add_filler(assemly)
+    left_capping_filler.set_name("Left Capping Filler")
+    left_capping_filler.dim_x(
+        'Panel_Height-INCH(0.91)',
+        [Panel_Height])
+    left_capping_filler.dim_y(
+        '-Left_Side_Wall_Filler', [Left_Side_Wall_Filler])
+    left_capping_filler.dim_z('Panel_Thickness', [Panel_Thickness])
+    left_capping_filler.loc_x(
+        'Left_Depth-Left_Filler_Setback_Amount',
+        [Left_Depth, Left_Filler_Setback_Amount])
+    left_capping_filler.loc_y(
+        "Depth-Left_Side_Wall_Filler",
+        [Depth, Left_Side_Wall_Filler])
+    left_capping_filler.loc_z(
+        'IF(Is_Hanging, 0, Toe_Kick_Height)+INCH(0.455)',
+        [Toe_Kick_Height, Is_Hanging])
+    left_capping_filler.rot_y(value=math.radians(-90))
+    left_capping_filler.rot_z(value=math.radians(180))
+    left_capping_filler.get_prompt('Hide').set_formula(
+        'IF(Add_Capping_Left_Filler,False,True) or Hide',
+        [Left_Side_Wall_Filler, Add_Capping_Left_Filler, hide_var])
+    left_capping_filler.get_prompt("Exposed Left").set_value(True)
+    left_capping_filler.get_prompt("Exposed Right").set_value(True)
+    left_capping_filler.get_prompt("Exposed Back").set_value(True)
+
+    # Right Filler
+    right_filler = common_parts.add_filler(assemly)
+    right_filler.set_name("Right Filler")
+    right_filler.dim_x(
+        'Panel_Height',
+        [Panel_Height])
+    right_filler.dim_y('-Right_Side_Wall_Filler', [Right_Side_Wall_Filler])
+    right_filler.dim_z('Panel_Thickness', [Panel_Thickness])
+    right_filler.loc_x(
+        "Width+Right_Side_Wall_Filler",
+        [Width, Right_Side_Wall_Filler])
+    right_filler.loc_y(
+        '-Right_Depth+Right_Filler_Setback_Amount',
+        [Right_Depth, Right_Filler_Setback_Amount])
+    right_filler.loc_z(
+        'IF(Is_Hanging, 0, Toe_Kick_Height)',
+        [Toe_Kick_Height, Is_Hanging])
+    right_filler.rot_x(value=0)
+    right_filler.rot_y(value=math.radians(-90))
+    right_filler.rot_z(value=math.radians(-90))
+    hide = right_filler.get_prompt("Hide")
+    hide.set_formula(
+        'IF(Right_Side_Wall_Filler==0,True,False) or Hide',
+        [Right_Side_Wall_Filler, hide_var])
+    right_filler.get_prompt("Exposed Left").set_formula(
+        'IF(Edge_Bottom_of_Right_Filler,True,False)',
+        [Edge_Bottom_of_Right_Filler])
+    right_filler.get_prompt("Exposed Left").set_value(True)
+    right_filler.get_prompt("Exposed Right").set_value(True)
+    right_filler.get_prompt("Exposed Back").set_value(True)
+
+    # Right Capping Filler
+    right_capping_filler = common_parts.add_filler(assemly)
+    right_capping_filler.set_name("Right Capping Filler")
+    right_capping_filler.dim_x(
+        'Panel_Height-INCH(0.91)',
+        [Panel_Height])
+    right_capping_filler.dim_y(
+        '-Right_Side_Wall_Filler', [Right_Side_Wall_Filler])
+    right_capping_filler.dim_z('Panel_Thickness', [Panel_Thickness])
+    right_capping_filler.loc_x(
+        "Width+Right_Side_Wall_Filler",
+        [Width, Right_Side_Wall_Filler])
+    right_capping_filler.loc_y(
+        '-Right_Depth+Right_Filler_Setback_Amount-Panel_Thickness',
+        [Right_Depth, Right_Filler_Setback_Amount, Panel_Thickness])
+    right_capping_filler.loc_z(
+        'IF(Is_Hanging, 0, Toe_Kick_Height)+INCH(0.455)',
+        [Toe_Kick_Height, Is_Hanging])
+    right_capping_filler.rot_y(value=math.radians(-90))
+    right_capping_filler.rot_z(value=math.radians(-90))
+    right_capping_filler.get_prompt('Hide').set_formula(
+        'IF(Add_Capping_Right_Filler,False,True) or Hide',
+        [Right_Side_Wall_Filler, Add_Capping_Right_Filler, hide_var])
+    right_capping_filler.get_prompt("Exposed Left").set_value(True)
+    right_capping_filler.get_prompt("Exposed Right").set_value(True)
+    right_capping_filler.get_prompt("Exposed Back").set_value(True)
+
+
 class Corner_Shelves(sn_types.Assembly):
 
     """
@@ -581,6 +748,17 @@ class Corner_Shelves(sn_types.Assembly):
         self.add_prompt("Exposed Right", 'CHECKBOX', False)
         self.add_prompt("Top Shelf Overhang", 'DISTANCE', sn_unit.inch(0.5))
 
+        self.add_prompt("Add Left Filler", 'CHECKBOX', False)
+        self.add_prompt("Add Right Filler", 'CHECKBOX', False)
+        self.add_prompt("Left Side Wall Filler", 'DISTANCE', 0.0)
+        self.add_prompt("Right Side Wall Filler", 'DISTANCE', 0.0)
+        self.add_prompt("Add Capping Left Filler", 'CHECKBOX', False)
+        self.add_prompt("Add Capping Right Filler", 'CHECKBOX', False)
+        self.add_prompt("Left Filler Setback Amount", 'DISTANCE', 0.0)
+        self.add_prompt("Right Filler Setback Amount", 'DISTANCE', 0.0)
+        self.add_prompt("Edge Bottom of Left Filler", 'CHECKBOX', False)
+        self.add_prompt("Edge Bottom of Right Filler", 'CHECKBOX', False)
+
         for i in range(1, 11):
             self.add_prompt("Shelf " + str(i) + " Height", 'DISTANCE', sn_unit.millimeter(493.014))
 
@@ -624,6 +802,16 @@ class Corner_Shelves(sn_types.Assembly):
         Toe_Kick_Height = self.get_prompt('Toe Kick Height').get_var('Toe_Kick_Height')
         Add_Top_Shelf = self.get_prompt('Add Top Shelf').get_var('Add_Top_Shelf')
         Top_Shelf_Overhang = self.get_prompt('Top Shelf Overhang').get_var('Top_Shelf_Overhang')
+        Left_Side_Wall_Filler = self.get_prompt('Left Side Wall Filler').get_var('Left_Side_Wall_Filler')
+        Panel_Thickness = self.get_prompt('Panel Thickness').get_var('Panel_Thickness')
+        Left_Filler_Setback_Amount = self.get_prompt('Left Filler Setback Amount').get_var()
+        Edge_Bottom_of_Left_Filler = self.get_prompt("Edge Bottom of Left Filler").get_var()
+        Add_Capping_Left_Filler = self.get_prompt("Add Capping Left Filler").get_var()
+        Right_Side_Wall_Filler = self.get_prompt('Right Side Wall Filler').get_var('Right_Side_Wall_Filler')
+        Right_Filler_Setback_Amount = self.get_prompt('Right Filler Setback Amount').get_var()
+        Edge_Bottom_of_Right_Filler = self.get_prompt("Edge Bottom of Right Filler").get_var()
+        Add_Capping_Right_Filler = self.get_prompt("Add Capping Right Filler").get_var()
+
 
         top_angled = common_parts.add_angle_shelf(self)
         top_angled.loc_z('(Height+IF(Is_Hanging,0,Toe_Kick_Height))', [Height, Toe_Kick_Height, Is_Hanging])
@@ -636,17 +824,21 @@ class Corner_Shelves(sn_types.Assembly):
         top_angled.get_prompt('Hide').set_formula('IF(Add_Top,False,True)', [Add_Top])
 
         top_shelf_angled = common_parts.add_angle_shelf(self)
-        top_shelf_angled.set_name("Angled Top Shelf")
+        top_shelf_angled.set_name("Corner Top Shelf")
         top_shelf_angled.loc_z('(Height+IF(Is_Hanging,0,Toe_Kick_Height))+Shelf_Thickness', [Height, Toe_Kick_Height, Is_Hanging, Shelf_Thickness])
-        top_shelf_angled.dim_x('Width-IF(RRS,0,PT)+PT', [Width, RRS, PT])
-        top_shelf_angled.dim_y('Depth+IF(RLS,0,PT)-PT', [Depth, PT, RLS])
+        top_shelf_angled.dim_x(
+            'Width-IF(RRS,0,PT)+PT+Right_Side_Wall_Filler',
+            [Width, RRS, PT, Right_Side_Wall_Filler])
+        top_shelf_angled.dim_y(
+            'Depth+IF(RLS,0,PT)-PT-Left_Side_Wall_Filler',
+            [Depth, PT, RLS, Left_Side_Wall_Filler])
         top_shelf_angled.dim_z('-Shelf_Thickness', [Shelf_Thickness])
         top_shelf_angled.get_prompt('Left Depth').set_formula('Left_Depth+Top_Shelf_Overhang', [Left_Depth, Top_Shelf_Overhang])
         top_shelf_angled.get_prompt('Right Depth').set_formula('Right_Depth+Top_Shelf_Overhang', [Right_Depth, Top_Shelf_Overhang])
         top_shelf_angled.get_prompt('Hide').set_formula('IF(Add_Top_Shelf,False,True)', [Add_Top_Shelf])
 
         right_top_cleat = common_parts.add_cleat(self)
-        right_top_cleat.set_name("Right Top Cleat")
+        right_top_cleat.set_name("Top Cleat")
         right_top_cleat.loc_x('Spine_Width', [Spine_Width])
         right_top_cleat.loc_z('(IF(Add_Top,Height-Shelf_Thickness,Height))+IF(Is_Hanging,0,Toe_Kick_Height)', [Height, Shelf_Thickness, Add_Top, Is_Hanging, Toe_Kick_Height])
         right_top_cleat.rot_x(value=math.radians(-90))
@@ -656,7 +848,7 @@ class Corner_Shelves(sn_types.Assembly):
         right_top_cleat.get_prompt('Hide').set_formula('IF(Add_Backing,True,False) or Hide', [self.hide_var, Add_Backing])
 
         left_top_cleat = common_parts.add_cleat(self)
-        left_top_cleat.set_name("Left Top Cleat")
+        left_top_cleat.set_name("Top Cleat")
         left_top_cleat.loc_y('IF(RLS,Depth,Depth+PT)', [Depth, RLS, PT])
         left_top_cleat.loc_z('(IF(Add_Top,Height-Shelf_Thickness,Height))+IF(Is_Hanging,0,Toe_Kick_Height)', [Height, Shelf_Thickness, Add_Top, Is_Hanging, Toe_Kick_Height])
         left_top_cleat.rot_x(value=math.radians(-90))
@@ -676,7 +868,7 @@ class Corner_Shelves(sn_types.Assembly):
         bottom_angled.get_prompt('Is Locked Shelf').set_value(True)
 
         right_bot_cleat = common_parts.add_cleat(self)
-        right_bot_cleat.set_name("Right Bottom Cleat")
+        right_bot_cleat.set_name("Bottom Cleat")
         right_bot_cleat.loc_x('Spine_Width', [Spine_Width])
         right_bot_cleat.loc_z('IF(Is_Hanging,Height-Panel_Height+Shelf_Thickness,Shelf_Thickness+Toe_Kick_Height)', [Height, Panel_Height, Is_Hanging, Shelf_Thickness, Toe_Kick_Height])
         right_bot_cleat.rot_x(value=math.radians(-90))
@@ -686,7 +878,7 @@ class Corner_Shelves(sn_types.Assembly):
         right_bot_cleat.get_prompt('Hide').set_formula('IF(Add_Backing,True,False) or Hide', [self.hide_var, Add_Backing])
 
         left_bot_cleat = common_parts.add_cleat(self)
-        left_bot_cleat.set_name("Left Bottom Cleat")
+        left_bot_cleat.set_name("Bottom Cleat")
         left_bot_cleat.loc_y('IF(RLS,Depth,Depth+PT)', [Depth, RLS, PT])
         left_bot_cleat.loc_z('IF(Is_Hanging,Height-Panel_Height+Shelf_Thickness,Shelf_Thickness+Toe_Kick_Height)', [Height, Panel_Height, Is_Hanging, Shelf_Thickness, Toe_Kick_Height])
         left_bot_cleat.rot_x(value=math.radians(-90))
@@ -697,7 +889,6 @@ class Corner_Shelves(sn_types.Assembly):
         left_bot_cleat.get_prompt('Hide').set_formula('IF(Add_Backing,True,False) or Hide', [self.hide_var, Add_Backing])
 
         left_panel = common_parts.add_panel(self)
-        left_panel.set_name("Left Panel")
         left_panel.loc_y('Depth', [Depth, Add_Backing])
         left_panel.loc_z('IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)', [Height, Panel_Height, Is_Hanging, Toe_Kick_Height])
         left_panel.rot_y(value=math.radians(-90))
@@ -747,6 +938,7 @@ class Corner_Shelves(sn_types.Assembly):
         spine.set_name("Mitered Pard")
         spine.obj_bp["IS_BP_PANEL"] = False
         spine.obj_bp["IS_BP_MITERED_PARD"] = True
+        spine.obj_bp.sn_closets.is_panel_bp = False  # TODO: remove
         spine.obj_bp.snap.comment_2 = "1510"
         spine.loc_y("-Spine_Y_Location", [Spine_Y_Location])
         spine.loc_z('IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)', [Height, Panel_Height, Is_Hanging, Toe_Kick_Height])
@@ -787,6 +979,15 @@ class Corner_Shelves(sn_types.Assembly):
                 'IF(Hide_Toe_Kick,True,IF(Is_Hanging,True,False))',
                 [Hide_Toe_Kick, Is_Hanging])
 
+        # Fillers
+        create_corner_fillers(self, Panel_Height, Left_Side_Wall_Filler,
+                              Panel_Thickness, Left_Depth, Depth,
+                              Left_Filler_Setback_Amount, Is_Hanging, Width,
+                              Edge_Bottom_of_Left_Filler, self.hide_var,
+                              Add_Capping_Left_Filler, Right_Side_Wall_Filler,
+                              Right_Filler_Setback_Amount, Toe_Kick_Height,
+                              Edge_Bottom_of_Right_Filler, Right_Depth,
+                              Add_Capping_Right_Filler)
         # Doors
         # Left Angled Door
         angled_door_l = common_parts.add_door(self)
@@ -887,6 +1088,7 @@ class Corner_Shelves(sn_types.Assembly):
 
     def draw(self):
         self.obj_bp["IS_BP_CLOSET"] = True
+        self.obj_bp["IS_BP_CORNER_SHELVES"] = True
         self.obj_bp["ID_PROMPT"] = self.property_id
         self.obj_y['IS_MIRROR'] = True
         self.obj_bp.snap.type_group = self.type_assembly
@@ -1088,11 +1290,13 @@ class PROMPTS_L_Shelves(sn_types.Prompts_Interface):
     product = None
     show_tk_mess = None
 
+    prev_left_wall_filler = 0
+
     def check(self, context):
         """ This is called everytime a change is made in the UI """
         self.set_prompts_from_properties()
-        self.product.obj_x.location.x = self.width
-        self.product.obj_y.location.y = -self.depth
+        self.check_fillers()
+        self.set_obj_location()
         closet_props.update_render_materials(self, context)
         return True
 
@@ -1104,8 +1308,63 @@ class PROMPTS_L_Shelves(sn_types.Prompts_Interface):
         """ This is called before the interface is displayed """
         self.product = self.get_product()
         self.set_properties_from_prompts()
+        self.set_filler_values()
         wm = context.window_manager
         return wm.invoke_props_dialog(self, width=sn_utils.get_prop_dialog_width(400))
+
+    def set_obj_location(self):
+        right_wall_filler =\
+            self.product.get_prompt("Right Side Wall Filler")
+        left_wall_filler =\
+            self.product.get_prompt("Left Side Wall Filler")
+        self.product.obj_y.location.y =\
+            -self.depth + left_wall_filler.get_value()
+        self.product.obj_x.location.x =\
+            self.width - right_wall_filler.get_value()
+
+    def set_filler_values(self):
+        left_wall_filler =\
+            self.product.get_prompt("Left Side Wall Filler")
+        right_wall_filler =\
+            self.product.get_prompt("Right Side Wall Filler")
+        self.prev_left_wall_filler = left_wall_filler.get_value()
+        self.depth =\
+            -self.product.obj_y.location.y + left_wall_filler.get_value()
+        self.width =\
+            self.product.obj_x.location.x + right_wall_filler.get_value()
+
+    def check_fillers(self):
+        add_left_filler =\
+            self.product.get_prompt("Add Left Filler").get_value()
+        add_right_filler =\
+            self.product.get_prompt("Add Right Filler").get_value()
+        if not add_left_filler:
+            left_wall_filler =\
+                self.product.get_prompt("Left Side Wall Filler")
+            left_filler_setback_amount =\
+                self.product.get_prompt("Left Filler Setback Amount")
+            edge_bottom_of_left_filler =\
+                self.product.get_prompt("Edge Bottom of Left Filler")
+            add_capping_left_filler = \
+                self.product.get_prompt("Add Capping Left Filler")
+            left_wall_filler.set_value(0)
+            left_filler_setback_amount.set_value(0)
+            edge_bottom_of_left_filler.set_value(False)
+            add_capping_left_filler.set_value(False)
+            self.prev_left_wall_filler = 0
+        if not add_right_filler:
+            right_wall_filler =\
+                self.product.get_prompt("Right Side Wall Filler")
+            right_filler_setback_amount =\
+                self.product.get_prompt("Right Filler Setback Amount")
+            edge_bottom_of_righ_filler =\
+                self.product.get_prompt("Edge Bottom of Right Filler")
+            add_capping_righ_filler = \
+                self.product.get_prompt("Add Capping Right Filler")
+            right_wall_filler.set_value(0)
+            right_filler_setback_amount.set_value(0)
+            edge_bottom_of_righ_filler.set_value(False)
+            add_capping_righ_filler.set_value(False)
 
     def set_prompts_from_properties(self):
         ''' This should be called in the check function to set the prompts
@@ -1189,11 +1448,8 @@ class PROMPTS_L_Shelves(sn_types.Prompts_Interface):
 
         col = row.column(align=True)
         row1 = col.row(align=True)
-        if sn_utils.object_has_driver(self.product.obj_x):
-            row1.label(text='Width: ' + str(sn_unit.meter_to_active_unit(math.fabs(self.product.obj_x.location.x))))
-        else:
-            row1.label(text='Width:')
-            row1.prop(self, 'width', text="")
+        row1.label(text='Width:')
+        row1.prop(self, 'width', text="")
 
         row1 = col.row(align=True)
         if sn_utils.object_has_driver(self.product.obj_z):
@@ -1203,11 +1459,8 @@ class PROMPTS_L_Shelves(sn_types.Prompts_Interface):
             row1.prop(self, 'Product_Height', text="")
 
         row1 = col.row(align=True)
-        if sn_utils.object_has_driver(self.product.obj_y):
-            row1.label(text='Depth: ' + str(sn_unit.meter_to_active_unit(math.fabs(self.product.obj_y.location.y))))
-        else:
-            row1.label(text='Depth:')
-            row1.prop(self, 'depth', text="")
+        row1.label(text='Depth:')
+        row1.prop(self, 'depth', text="")
 
         col = row.column(align=True)
         col.label(text="Location X:")
@@ -1235,6 +1488,76 @@ class PROMPTS_L_Shelves(sn_types.Prompts_Interface):
         row.label(text='Rotation Z:')
         row.prop(self.product.obj_bp, 'rotation_euler', index=2, text="")
 
+    def draw_filler_options(self, layout):
+        add_left_filler = self.product.get_prompt("Add Left Filler")
+        add_right_filler = self.product.get_prompt("Add Right Filler")
+        left_wall_filler = self.product.get_prompt("Left Side Wall Filler")
+        right_wall_filler =\
+            self.product.get_prompt("Right Side Wall Filler")
+        left_filler_setback_amount =\
+            self.product.get_prompt("Left Filler Setback Amount")
+        right_filler_setback_amount =\
+            self.product.get_prompt("Right Filler Setback Amount")
+        add_capping_left_filler =\
+            self.product.get_prompt("Add Capping Left Filler")
+        add_capping_right_filler =\
+            self.product.get_prompt("Add Capping Right Filler")
+        edge_bottom_of_left_filler =\
+            self.product.get_prompt("Edge Bottom of Left Filler")
+        edge_bottom_of_right_filler =\
+            self.product.get_prompt("Edge Bottom of Right Filler")
+
+        filler_box = layout.box()
+        split = filler_box.split()
+        col = split.column(align=True)
+        col.label(text="Filler Options:")
+        row = col.row()
+        row.prop(add_left_filler, 'checkbox_value', text="Add Left Filler")
+        row.prop(add_right_filler, 'checkbox_value', text="Add Right Filler")
+        row = col.row()
+        distance_row = col.row()
+        setback_amount_row = col.row()
+        capping_filler_row = col.row()
+        edge_row = col.row()
+
+        if add_left_filler.get_value():
+            distance_row.prop(
+                left_wall_filler,
+                'distance_value', text="Left Filler Amount")
+            setback_amount_row.prop(
+                left_filler_setback_amount,
+                'distance_value', text="Left Filler Setback Amount")
+            capping_filler_row.prop(
+                add_capping_left_filler,
+                'checkbox_value', text="Add Capping Left Filler")
+            edge_row.prop(
+                edge_bottom_of_left_filler,
+                'checkbox_value', text="Edge Bottom of Left Filler")
+        elif add_right_filler.get_value():
+            distance_row.label(text="")
+            setback_amount_row.label(text="")
+            capping_filler_row.label(text="")
+            edge_row.label(text="")
+
+        if add_right_filler.get_value():
+            distance_row.prop(
+                right_wall_filler,
+                'distance_value', text="Right Filler Amount")
+            setback_amount_row.prop(
+                right_filler_setback_amount,
+                'distance_value', text="Right Filler Setback Amount")
+            capping_filler_row.prop(
+                add_capping_right_filler,
+                'checkbox_value', text="Add Capping Right Filler")
+            edge_row.prop(
+                edge_bottom_of_right_filler,
+                'checkbox_value', text="Edge Bottom of Right Filler")
+        elif add_left_filler.get_value():
+            distance_row.label(text="")
+            setback_amount_row.label(text="")
+            capping_filler_row.label(text="")
+            edge_row.label(text="")
+
     def draw(self, context):
         """ This is where you draw the interface """
         Left_Depth = self.product.get_prompt("Left Depth")
@@ -1255,9 +1578,12 @@ class PROMPTS_L_Shelves(sn_types.Prompts_Interface):
         Exposed_Left = self.product.get_prompt("Exposed Left")
         Exposed_Right = self.product.get_prompt("Exposed Right")
         Top_Shelf_Overhang = self.product.get_prompt("Top Shelf Overhang")
+        Extend_Left = self.product.get_prompt("Extend Left")
+        Extend_Right = self.product.get_prompt("Extend Right")
 
         layout = self.layout
         self.draw_product_size(layout)
+        self.draw_filler_options(layout)
 
         if Left_Depth:
             box = layout.box()
@@ -1297,6 +1623,9 @@ class PROMPTS_L_Shelves(sn_types.Prompts_Interface):
                 row.prop(Exposed_Right, "checkbox_value", text='Right')
                 row = box.row()
                 row.prop(Top_Shelf_Overhang, 'distance_value', text=Top_Shelf_Overhang.name)
+                row = box.row()
+                row.prop(Extend_Left, 'distance_value', text=Extend_Left.name)
+                row.prop(Extend_Right, 'distance_value', text=Extend_Right.name)
 
         if Remove_Left_Side:
             row = box.row()
@@ -1413,8 +1742,8 @@ class PROMPTS_Corner_Shelves(sn_types.Prompts_Interface):
         """ This is called everytime a change is made in the UI """
         self.check_tk_height()
         self.set_prompts_from_properties()
-        self.product.obj_x.location.x = self.width
-        self.product.obj_y.location.y = -self.depth
+        self.check_fillers()
+        self.set_obj_location()
         closet_props.update_render_materials(self, context)
         return True
 
@@ -1427,8 +1756,20 @@ class PROMPTS_Corner_Shelves(sn_types.Prompts_Interface):
         """ This is called before the interface is displayed """
         self.product = self.get_product()
         self.set_properties_from_prompts()
+        self.set_filler_values()
         wm = context.window_manager
         return wm.invoke_props_dialog(self, width=sn_utils.get_prop_dialog_width(400))
+
+    def set_filler_values(self):
+        left_wall_filler =\
+            self.product.get_prompt("Left Side Wall Filler")
+        right_wall_filler =\
+            self.product.get_prompt("Right Side Wall Filler")
+        self.prev_left_wall_filler = left_wall_filler.get_value()
+        self.depth =\
+            -self.product.obj_y.location.y + left_wall_filler.get_value()
+        self.width =\
+            self.product.obj_x.location.x + right_wall_filler.get_value()
 
     def set_prompts_from_properties(self):
         ''' This should be called in the check function to set the prompts
@@ -1499,11 +1840,8 @@ class PROMPTS_Corner_Shelves(sn_types.Prompts_Interface):
 
         col = row.column(align=True)
         row1 = col.row(align=True)
-        if sn_utils.object_has_driver(self.product.obj_x):
-            row1.label(text='Width: ' + str(sn_unit.meter_to_active_unit(math.fabs(self.product.obj_x.location.x))))
-        else:
-            row1.label(text='Width:')
-            row1.prop(self, 'width', text="")
+        row1.label(text='Width:')
+        row1.prop(self, 'width', text="")
 
         row1 = col.row(align=True)
         if sn_utils.object_has_driver(self.product.obj_z):
@@ -1513,11 +1851,8 @@ class PROMPTS_Corner_Shelves(sn_types.Prompts_Interface):
             row1.prop(self, 'Product_Height', text="")
 
         row1 = col.row(align=True)
-        if sn_utils.object_has_driver(self.product.obj_y):
-            row1.label(text='Depth: ' + str(sn_unit.meter_to_active_unit(math.fabs(self.product.obj_y.location.y))))
-        else:
-            row1.label(text='Depth:')
-            row1.prop(self, 'depth', text="")
+        row1.label(text='Depth:')
+        row1.prop(self, 'depth', text="")
 
         col = row.column(align=True)
         col.label(text="Location X:")
@@ -1545,6 +1880,119 @@ class PROMPTS_Corner_Shelves(sn_types.Prompts_Interface):
         row.label(text='Rotation Z:')
         row.prop(self.product.obj_bp, 'rotation_euler', index=2, text="")
 
+    def set_obj_location(self):
+        right_wall_filler =\
+            self.product.get_prompt("Right Side Wall Filler")
+        left_wall_filler =\
+            self.product.get_prompt("Left Side Wall Filler")
+        self.product.obj_y.location.y =\
+            -self.depth + left_wall_filler.get_value()
+        self.product.obj_x.location.x =\
+            self.width - right_wall_filler.get_value()
+
+    def check_fillers(self):
+        add_left_filler =\
+            self.product.get_prompt("Add Left Filler").get_value()
+        add_right_filler =\
+            self.product.get_prompt("Add Right Filler").get_value()
+        if not add_left_filler:
+            left_wall_filler =\
+                self.product.get_prompt("Left Side Wall Filler")
+            left_filler_setback_amount =\
+                self.product.get_prompt("Left Filler Setback Amount")
+            edge_bottom_of_left_filler =\
+                self.product.get_prompt("Edge Bottom of Left Filler")
+            add_capping_left_filler = \
+                self.product.get_prompt("Add Capping Left Filler")
+            left_wall_filler.set_value(0)
+            left_filler_setback_amount.set_value(0)
+            edge_bottom_of_left_filler.set_value(False)
+            add_capping_left_filler.set_value(False)
+            self.prev_left_wall_filler = 0
+        if not add_right_filler:
+            right_wall_filler =\
+                self.product.get_prompt("Right Side Wall Filler")
+            right_filler_setback_amount =\
+                self.product.get_prompt("Right Filler Setback Amount")
+            edge_bottom_of_righ_filler =\
+                self.product.get_prompt("Edge Bottom of Right Filler")
+            add_capping_righ_filler = \
+                self.product.get_prompt("Add Capping Right Filler")
+            right_wall_filler.set_value(0)
+            right_filler_setback_amount.set_value(0)
+            edge_bottom_of_righ_filler.set_value(False)
+            add_capping_righ_filler.set_value(False)
+
+    def draw_filler_options(self, layout):
+        add_left_filler = self.product.get_prompt("Add Left Filler")
+        add_right_filler = self.product.get_prompt("Add Right Filler")
+        left_wall_filler = self.product.get_prompt("Left Side Wall Filler")
+        right_wall_filler =\
+            self.product.get_prompt("Right Side Wall Filler")
+        left_filler_setback_amount =\
+            self.product.get_prompt("Left Filler Setback Amount")
+        right_filler_setback_amount =\
+            self.product.get_prompt("Right Filler Setback Amount")
+        add_capping_left_filler =\
+            self.product.get_prompt("Add Capping Left Filler")
+        add_capping_right_filler =\
+            self.product.get_prompt("Add Capping Right Filler")
+        edge_bottom_of_left_filler =\
+            self.product.get_prompt("Edge Bottom of Left Filler")
+        edge_bottom_of_right_filler =\
+            self.product.get_prompt("Edge Bottom of Right Filler")
+
+        filler_box = layout.box()
+        split = filler_box.split()
+        col = split.column(align=True)
+        col.label(text="Filler Options:")
+        row = col.row()
+        row.prop(add_left_filler, 'checkbox_value', text="Add Left Filler")
+        row.prop(add_right_filler, 'checkbox_value', text="Add Right Filler")
+        row = col.row()
+        distance_row = col.row()
+        setback_amount_row = col.row()
+        capping_filler_row = col.row()
+        edge_row = col.row()
+
+        if add_left_filler.get_value():
+            distance_row.prop(
+                left_wall_filler,
+                'distance_value', text="Left Filler Amount")
+            setback_amount_row.prop(
+                left_filler_setback_amount,
+                'distance_value', text="Left Filler Setback Amount")
+            capping_filler_row.prop(
+                add_capping_left_filler,
+                'checkbox_value', text="Add Capping Left Filler")
+            edge_row.prop(
+                edge_bottom_of_left_filler,
+                'checkbox_value', text="Edge Bottom of Left Filler")
+        elif add_right_filler.get_value():
+            distance_row.label(text="")
+            setback_amount_row.label(text="")
+            capping_filler_row.label(text="")
+            edge_row.label(text="")
+
+        if add_right_filler.get_value():
+            distance_row.prop(
+                right_wall_filler,
+                'distance_value', text="Right Filler Amount")
+            setback_amount_row.prop(
+                right_filler_setback_amount,
+                'distance_value', text="Right Filler Setback Amount")
+            capping_filler_row.prop(
+                add_capping_right_filler,
+                'checkbox_value', text="Add Capping Right Filler")
+            edge_row.prop(
+                edge_bottom_of_right_filler,
+                'checkbox_value', text="Edge Bottom of Right Filler")
+        elif add_left_filler.get_value():
+            distance_row.label(text="")
+            setback_amount_row.label(text="")
+            capping_filler_row.label(text="")
+            edge_row.label(text="")
+
     def draw(self, context):
         """ This is where you draw the interface """
         Left_Depth = self.product.get_prompt("Left Depth")
@@ -1569,6 +2017,7 @@ class PROMPTS_Corner_Shelves(sn_types.Prompts_Interface):
 
         layout = self.layout
         self.draw_product_size(layout)
+        self.draw_filler_options(layout)
 
         if Left_Depth:
             box = layout.box()

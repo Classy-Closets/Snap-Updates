@@ -102,7 +102,11 @@ class SN_GEN_OT_select_all_elevation_scenes(Operator):
 
     def execute(self, context):
         for scene in bpy.data.scenes:
-            if scene.snap.elevation_scene or scene.snap.plan_view_scene:
+            is_elv = scene.snap.scene_type == 'ELEVATION'
+            is_pvs = scene.snap.scene_type == 'PLAN_VIEW'
+            is_acc = scene.snap.scene_type == 'ACCORDION'
+            is_island = scene.snap.scene_type == 'ISLAND'
+            if is_elv or is_pvs or is_acc or is_island:
                 scene.snap.elevation_selected = self.select_all
 
         return{'FINISHED'}
@@ -183,22 +187,8 @@ class SNAP_GEN_OT_viewport_shade_mode(Operator):
             ('MATERIAL', "Material", "MATERIAL", 'MATERIAL', 3),
             ('RENDERED', "Rendered", "RENDERED", 'SHADING_RENDERED', 4)))
 
-    def hide_ceiling(self, context, hide):
-        for obj in bpy.data.objects:
-            if obj.sn_roombuilder.is_ceiling:
-                obj.hide_viewport = hide
-
     def execute(self, context):
         context.area.spaces.active.shading.type = self.mode
-        if self.mode == 'RENDERED':
-            context.space_data.overlay.show_overlays = False
-            context.space_data.show_gizmo = False
-            self.hide_ceiling(context, False)
-        else:
-            context.space_data.overlay.show_overlays = True
-            context.space_data.show_gizmo = True
-            self.hide_ceiling(context, True)
-
         return {'FINISHED'}
 
 

@@ -230,6 +230,9 @@ class DROP_OPERATOR_Place_Bottom_Capping(Operator, PlaceClosetInsert):
         context.area.header_text_set(text=self.header_text)
         self.reset_selection()
 
+        if not self.bottom_capping:
+            self.bottom_capping = self.asset
+
         if self.event_is_cancel_command(event):
             context.area.header_text_set(None)
             return self.cancel_drop(context)

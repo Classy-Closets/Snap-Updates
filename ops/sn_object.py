@@ -35,6 +35,73 @@ enum_machine_tokens = [('NONE', "None", "None", 'SCULPTMODE_HLT', 0),
                        ('BORE', "BORE", "BORE", 'SCULPTMODE_HLT', 13)]
 
 
+class SN_OBJ_delete(Operator):
+    bl_idname = "sn_object.delete"
+    bl_label = "Delete Object(s)"
+
+    use_global: BoolProperty(name='Use Global', default=False)
+    del_obj_protected: BoolProperty(name='Delete Protected Object', default=False)
+    del_obj = None
+    del_obj_bp = None
+    delete_protected_objects = []
+
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_object is not None
+
+    def invoke(self, context, event):
+        wm = context.window_manager
+
+        for obj in context.selected_objects:
+            # Ensure delete_protected is set for older library data
+            obj_bp = sn_utils.get_assembly_bp(obj)
+            if obj_bp:
+                if "IS_BP_PANEL" in obj_bp:
+                    obj.snap.delete_protected = True
+
+            if obj.snap.delete_protected:
+                self.del_obj = obj
+                obj.select_set(False)
+                self.del_obj_protected = True
+                self.delete_protected_objects.append(obj.name)
+
+        self.del_obj_bp = sn_utils.get_assembly_bp(self.del_obj)
+
+        if self.del_obj_bp:
+            if "IS_BP_PANEL" in self.del_obj_bp:
+                return wm.invoke_props_dialog(self, width=350)
+            else:
+                return self.execute(context)
+        return self.execute(context)
+
+    def draw(self, context):
+        layout = self.layout
+
+        if "IS_BP_PANEL" in self.del_obj_bp:
+            layout.label(text="Warning!")
+            layout.label(text="Deleting this partition is unsupported and may lead to plans with")
+            layout.label(text="insufficient/incorrect information and/or inability to create 2D views")
+
+    def execute(self, context):
+        bpy.ops.object.delete(use_global=self.use_global)
+
+        if self.del_obj_protected and self.del_obj:
+            message = ""
+            if self.del_obj.snap:
+                props = self.del_obj.snap
+                if props.is_wall_mesh:
+                    message = "Unable to delete wall. Proceed building room and then \nadd door or open entry way to reflect open space."
+            if message:
+                bpy.ops.snap.message_box('INVOKE_DEFAULT', message=message)
+
+            if self.del_obj_bp:
+                if "IS_BP_PANEL" in self.del_obj_bp:
+                    sn_utils.delete_object_and_children(self.del_obj_bp)
+
+        return {'FINISHED'}
+
+
 class SN_OBJ_select_object(Operator):
     bl_idname = "sn_object.select_object"
     bl_label = "Select Object"
@@ -49,6 +116,20 @@ class SN_OBJ_select_object(Operator):
             obj = context.scene.objects[self.obj_name]
             obj.select_set(True)
             context.view_layer.objects.active = obj
+        return {'FINISHED'}
+
+
+class SNAP_OT_delete_object(Operator):
+    bl_idname = "sn_object.delete_object"
+    bl_label = "Delete Object"
+    bl_description = "This deletes an object"
+    bl_options = {'UNDO'}
+
+    obj_name: StringProperty(name='Object Name')
+
+    def execute(self, context):
+        obj = bpy.data.objects[self.obj_name]
+        bpy.data.objects.remove(obj, do_unlink=True)
         return {'FINISHED'}
 
 
@@ -241,10 +322,32 @@ class SNAP_OT_camera_properties(Operator):
         sn_utils.draw_object_data(self.layout, camera)
 
 
-class SN_OBJ_add_room_lamp(Operator):
-    bl_idname = "sn_object.add_room_lamp"
+class SNAP_OT_light_properties(Operator):
+    bl_idname = "sn_object.light_properties"
+    bl_label = "Light Properties"
+
+    def execute(self, context):
+        return {"FINISHED"}
+
+    def invoke(self, context, event):
+        wm = context.window_manager
+        return wm.invoke_props_dialog(self, width=400)
+
+    def draw(self, context):
+        light = context.active_object
+        sn_utils.draw_object_info(self.layout, light)
+        sn_utils.draw_object_data(self.layout, light)
+
+
+class SNAP_OT_add_room_light(Operator):
+    bl_idname = "sn_object.add_room_light"
     bl_label = "Add Room Lamp"
     bl_options = {'UNDO'}
+
+    def invoke(self, context, event):
+        view = context.space_data
+        view.overlay.show_extras = True
+        return self.execute(context)
 
     def execute(self, context):
         largest_x = 0
@@ -303,16 +406,6 @@ class SN_OBJ_add_room_lamp(Operator):
         obj_lamp.data.shape = 'RECTANGLE'
         obj_lamp.data.size = length
         obj_lamp.data.size_y = math.fabs(width)
-        obj_lamp.data.energy = 120
-        obj_lamp.data.use_shadow = False
-
-        bpy.ops.object.light_add(type='POINT')
-        obj_lamp = context.active_object
-        obj_lamp.location.x = x
-        obj_lamp.location.y = y
-        obj_lamp.location.z = z * 0.5
-        smallest_dim = min(length, width, height)
-        obj_lamp.data.shadow_soft_size = smallest_dim * 0.5
         obj_lamp.data.energy = 120
         obj_lamp.data.use_shadow = False
 
@@ -414,18 +507,21 @@ class OPS_delete_machine_token(Operator):
 
 classes = (
     SN_OBJ_select_object,
+    SNAP_OT_delete_object,
     SN_OBJ_toggle_edit_mode,
     SN_OBJ_clear_vertex_groups,
     SN_OBJ_assign_verties_to_vertex_group,
     SN_OBJ_draw_floor_plane,
     SNAP_OT_add_camera,
     SNAP_OT_camera_properties,
-    SN_OBJ_add_room_lamp,
+    SNAP_OT_light_properties,
+    SNAP_OT_add_room_light,
     SN_OBJ_unwrap_mesh,
     SN_OBJ_add_material_slot,
     SN_OBJ_apply_hook_modifiers,
     OPS_add_machine_token,
-    OPS_delete_machine_token
+    OPS_delete_machine_token,
+    SN_OBJ_delete
 )
 
 register, unregister = bpy.utils.register_classes_factory(classes)

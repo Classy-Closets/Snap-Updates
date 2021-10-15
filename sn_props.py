@@ -19,8 +19,12 @@ from snap.sn_unit import inch
 from snap import sn_paths, sn_utils, sn_unit
 from snap.libraries.closets import closet_library
 from snap.libraries.doors_and_windows import doors_and_windows_library
+from snap.libraries.appliances import appliance_library
+from . import addon_updater_ops
 
-LIBRARIES = (closet_library, doors_and_windows_library)
+LIBRARIES = (closet_library,
+             doors_and_windows_library,
+             appliance_library)
 DEV_TOOLS_AVAILABLE = False
 
 try:
@@ -64,7 +68,13 @@ def update_scene_index(self, context):
     context.window.scene = bpy.data.scenes[self.elevation_scene_index]
     scene = context.window.scene
 
-    if scene.snap.elevation_scene or scene.snap.plan_view_scene:
+    is_elv = scene.snap.scene_type == 'ELEVATION'
+    is_pv = scene.snap.scene_type == 'PLAN_VIEW'
+    is_acc = scene.snap.scene_type == 'ACCORDION'
+    is_island = scene.snap.scene_type == 'ISLAND'
+    is_virt = scene.snap.scene_type == 'VIRTUAL'
+
+    if is_elv or is_pv or is_acc or is_island or is_virt:
         for area in context.screen.areas:
             if area.type == 'VIEW_3D':
                 area.spaces[0].region_3d.view_perspective = 'CAMERA'
@@ -1357,6 +1367,8 @@ class SnapObjectProps(PropertyGroup):
 
     class_name: StringProperty(name="Class Name", description="This is the python class name the assembly is from")
 
+    delete_protected: BoolProperty(name='Delete Protected', description='Flag for sn_object.delete', default=False)
+
     def add_prompt(self, prompt_type, prompt_name):
         prompt = self.prompts.add()
         prompt.prompt_type = prompt_type
@@ -1504,6 +1516,18 @@ class sn_image(PropertyGroup):
     is_elv_view: BoolProperty(name="Is Elv View",
                               default=False,
                               description="This determines if the image is a 2D Elevation View")
+
+    is_acc_view: BoolProperty(name="Is Accordion View",
+                              default=False,
+                              description="This determines if the image is a 2D Accordion View")
+    
+    is_island_view: BoolProperty(name="Is Island View",
+                                 default=False,
+                                 description="This determines if the image is a 2D Island View")
+
+    is_virtual_view: BoolProperty(name="Is Virtual View",
+                                  default=False,
+                                  description="This determines if the image is a Virtual View - Used only to form elevations occlusions")
 
 
 class SnapWindowManagerProps(PropertyGroup):
@@ -1694,6 +1718,20 @@ class SnapSceneProps(PropertyGroup):
 
     opengl_dim: PointerProperty(type=opengl_dim)
     accordion_view: PointerProperty(type=accordion_view)
+
+    scene_type: EnumProperty(
+        name="SNaP Scene Type",
+        items=[
+            ('NONE', 'None', 'None'),
+            ('ELEVATION', 'Elevation View', 'Elevation View'),
+            ('PLAN_VIEW', 'Plan View', 'Plan View'),
+            ('ACCORDION', 'Accordion View', 'Accordion View'),
+            ('ISLAND', 'Island View', 'Island View'),
+            ('VIRTUAL', 'Virtual View', 'Virtual View')
+        ],
+        default='NONE'
+    )
+
     plan_view_scene: BoolProperty(
         name="Plan View Scene",
         description="Scene used for rendering project plan view",
@@ -1704,9 +1742,18 @@ class SnapSceneProps(PropertyGroup):
         description="Scene used for rendering elevations",
         default=False)
 
-    plan_view_scene: BoolProperty(name="Plan View Scene",
-                                  description="Scene used for rendering project plan view",
+    accordion_view_scene: BoolProperty(name="Accordion View Scene",
+                                  description="Scene used for rendering project accordion view",
                                   default=False)
+
+    island_view_scene: BoolProperty(name="Island View Scene",
+                                  description="Scene used for rendering project island view",
+                                  default=False)
+
+    virtual_view_scene: BoolProperty(name="Virtual View Scene",
+                                  description="Scene used only for creating occlusions at elevations",
+                                  default=False)
+
 
     name_scene: StringProperty(name="Scene Name",
                                description="This is the readable name of the scene") 
@@ -1825,10 +1872,6 @@ class SnapAddonPreferences(bpy.types.AddonPreferences):
         name="Enable Franchise Pricing View",
         description="If enabled, show franchise pricing in Project Pricing",
         default=False)
-    enable_franchise_pricing: BoolProperty(
-        name="Enable Franchise Pricing View",
-        description="If enabled, show franchise pricing in Project Pricing",
-        default=False)
 
     franchise_location: EnumProperty(name="",
                                 description="Select Franchise Materials List Location",
@@ -1843,18 +1886,40 @@ class SnapAddonPreferences(bpy.types.AddonPreferences):
                                           ('9',"Location 9",'9')],
                                    default = 'PHX')
 
-    franchise_location: EnumProperty(name="",
-                                description="Select Franchise Materials List Location",
-                                   items=[('PHX',"Phoenix",'Phoenix'),
-                                          ('DAL',"Dallas",'Dallas'),
-                                          ('SD',"San Diego",'San Diego'),
-                                          ('DEN',"Denver",'Denver'),
-                                          ('5',"Location 5",'5'),
-                                          ('6',"Location 6",'6'),
-                                          ('7',"Location 7",'7'),
-                                          ('8',"Location 8",'8'),
-                                          ('9',"Location 9",'9')],
-                                   default = 'PHX')
+    auto_check_update: bpy.props.BoolProperty(
+        name="Auto-check for Update",
+        description="If enabled, auto-check for updates using an interval",
+        default=True)
+
+    updater_interval_months: bpy.props.IntProperty(
+        name='Months',
+        description="Number of months between checking for updates",
+        min=0)
+
+    updater_interval_days: bpy.props.IntProperty(
+        name='Days',
+        description="Number of days between checking for updates",
+        default=7,
+        min=0,
+        max=31)
+
+    updater_interval_hours: bpy.props.IntProperty(
+        name='Hours',
+        description="Number of hours between checking for updates",
+        default=0,
+        min=0,
+        max=23)
+
+    updater_interval_minutes: bpy.props.IntProperty(
+        name='Minutes',
+        description="Number of minutes between checking for updates",
+        default=0,
+        min=0,
+        max=59)
+
+    updater_key: StringProperty(
+        name="Access Key",
+        default="")
 
     def draw(self, context):
         layout = self.layout
@@ -1889,6 +1954,8 @@ class SnapAddonPreferences(bpy.types.AddonPreferences):
             row.prop(self, "debug_mac")
             row = box.row()
             row.prop(self, "enable_franchise_pricing")
+
+            addon_updater_ops.update_settings_ui(self, context)
 
 
 classes = (

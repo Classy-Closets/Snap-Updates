@@ -4,6 +4,7 @@ import time
 
 import bpy
 from bpy.types import Operator
+from bpy.props import BoolProperty
 
 from snap import sn_types, sn_unit
 from snap import sn_utils
@@ -11,6 +12,7 @@ from .. import closet_props
 from ..common import common_parts
 from .. import closet_paths
 from ..ops.drop_closet import PlaceClosetInsert
+from ..data import data_drawers
 
 
 class SNAP_OT_move_closet(Operator):
@@ -337,6 +339,8 @@ class SNAP_OT_delete_closet_insert(Operator):
                         child.snap.interior_open = True
                         break
                     if insert.obj_bp.snap.placement_type == 'EXTERIOR':
+                        if insert.obj_bp.get('IS_BP_DOOR_INSERT'):
+                            child.snap.interior_open = True
                         child.snap.exterior_open = True
                         break
 
@@ -344,8 +348,17 @@ class SNAP_OT_delete_closet_insert(Operator):
         start_time = time.perf_counter()
         obj_insert_bp = sn_utils.get_bp(context.object, 'INSERT')
         self.make_opening_available(obj_insert_bp)
+        insert_name = obj_insert_bp.snap.name_object
+        obs = len(bpy.data.objects)
+        vis_obs = len([ob for ob in bpy.context.view_layer.objects if ob.visible_get()])
         sn_utils.delete_object_and_children(obj_insert_bp)
-        print("sn_closets.delete_closet_insert --- {} seconds ---".format(time.perf_counter() - start_time))
+
+        print("{}: ({}) --- {} seconds --- Objects in scene: {} ({} visible)".format(
+            self.bl_idname,
+            insert_name,
+            round(time.perf_counter() - start_time, 8),
+            obs,
+            vis_obs))
 
         return {'FINISHED'}
 
@@ -396,11 +409,12 @@ class SNAP_OT_hardlock_part_size(Operator):
     @classmethod
     def poll(cls, context):
         obj_bp = sn_utils.get_assembly_bp(context.object)
-        for child in obj_bp.children:
-            if child.type == 'MESH':
-                for mod in child.modifiers:
-                    if mod.type == 'HOOK':
-                        return  True      
+        if obj_bp:
+            for child in obj_bp.children:
+                if child.type == 'MESH':
+                    for mod in child.modifiers:
+                        if mod.type == 'HOOK':
+                            return True
         return False
 
     def execute(self, context):
@@ -431,17 +445,27 @@ class SNAP_OT_copy_product(Operator):
         else:
             return False
 
+    def mute_hide_viewport_driver(self, obj, mute=True):
+        if obj.animation_data:
+            for driver in obj.animation_data.drivers:
+                if driver.data_path == "hide_viewport":
+                    driver.mute = mute
+
     def select_obj_and_children(self, obj):
+        self.mute_hide_viewport_driver(obj, mute=True)
         obj.hide_viewport = False
+        obj.hide_set(False)
         obj.select_set(True)
         for child in obj.children:
             obj.hide_viewport = False
+            obj.hide_set(False)
             child.select_set(True)
             self.select_obj_and_children(child)
 
     def hide_empties_and_boolean_meshes(self, obj):
         if obj.type == 'EMPTY' or obj.hide_render:
             obj.hide_viewport = True
+            self.mute_hide_viewport_driver(obj, mute=False)
         for child in obj.children:
             self.hide_empties_and_boolean_meshes(child)
 
@@ -537,6 +561,21 @@ class SNAP_OT_copy_insert(Operator):
             insert = sn_types.Assembly(obj_bp=obj_bp)
 
             self.clear_drivers(insert)
+
+            if 'ID_DROP' in obj_bp:
+                custom_drop_id = [
+                    "sn_closets.top_shelf_drop",  # Top shelf
+                    "sn_closets.bottom_capping_drop",  # Bottom capping
+                    "sn_closets.place_countertop",  # Countertop
+                    "sn_closets.top_drop",  # Flat crown, light rail, valence
+                    "sn_closets.place_base_assembly",  # Toe kick
+                    "sn_closets.place_single_part"]  # Slanted shoe shelf
+
+                id_drop = obj_bp.get('ID_DROP')
+                if id_drop in custom_drop_id:
+                    eval('bpy.ops.{}("INVOKE_DEFAULT", obj_bp_name=obj_bp.name)'.format(id_drop))
+                    return {'FINISHED'}
+
             bpy.ops.sn_closets.copy_insert_drop(
                 "EXEC_DEFAULT",
                 obj_bp_name=insert.obj_bp.name,
@@ -994,9 +1033,13 @@ class SNAP_OT_update_door_selection(Operator):
             if props.door_category == "Slab Door":
                 new_door = common_parts.add_door(sn_types.Assembly(obj_bp.parent))
                 new_door.obj_bp.snap.name_object = door_assembly.obj_bp.snap.name_object
+                new_door.obj_bp.name = door_assembly.obj_bp.name
                 new_door.obj_bp.location = door_assembly.obj_bp.location
                 new_door.obj_bp.rotation_euler = door_assembly.obj_bp.rotation_euler
                 new_door.obj_bp.sn_closets.use_unique_material = False
+                for child in new_door.obj_bp.children:
+                    if child.type == 'MESH':
+                        child.snap.type_mesh = 'CUTPART'
 
             else:
                 group_bp = sn_utils.get_group(
@@ -1013,12 +1056,20 @@ class SNAP_OT_update_door_selection(Operator):
                     new_door.obj_bp.snap.comment_2 == '2222'
 
                 new_door.obj_bp.snap.name_object = door_assembly.obj_bp.snap.name_object
+                if "left" in door_assembly.obj_bp.name.lower():
+                    new_door.obj_bp.name = "Left " + new_door.obj_bp.name
+                if "right" in door_assembly.obj_bp.name.lower():
+                    new_door.obj_bp.name = "Right " + new_door.obj_bp.name
                 new_door.obj_bp.parent = door_assembly.obj_bp.parent
                 new_door.obj_bp.location = door_assembly.obj_bp.location
                 new_door.obj_bp.rotation_euler = door_assembly.obj_bp.rotation_euler
+                for child in new_door.obj_bp.children:
+                    if child.type == 'MESH':
+                        child.snap.type_mesh = 'BUYOUT'
 
             id_prompt = door_assembly.obj_bp.get("ID_PROMPT")
 
+            sn_utils.copy_assembly_prompts(door_assembly, new_door)
             sn_utils.copy_drivers(door_assembly.obj_bp, new_door.obj_bp)
             sn_utils.copy_prompt_drivers(door_assembly.obj_bp, new_door.obj_bp)
             sn_utils.copy_drivers(door_assembly.obj_x, new_door.obj_x)
@@ -1029,10 +1080,22 @@ class SNAP_OT_update_door_selection(Operator):
             obj_props.is_door_bp = door_assembly.obj_bp.sn_closets.is_door_bp
             obj_props.is_drawer_front_bp = door_assembly.obj_bp.sn_closets.is_drawer_front_bp
             obj_props.is_hamper_front_bp = door_assembly.obj_bp.sn_closets.is_hamper_front_bp
+            obj_props.opening_name = door_assembly.obj_bp.sn_closets.opening_name
+            new_door.obj_bp.snap.comment = door_assembly.obj_bp.snap.comment
+            new_door.obj_bp.snap.comment_2 = door_assembly.obj_bp.snap.comment_2
+
+            new_door.obj_bp["ID_PROMPT"] = id_prompt
+
+            if obj_props.is_door_bp:
+                new_door.obj_bp['IS_DOOR'] = True
+            if obj_props.is_drawer_front_bp:
+                new_door.obj_bp['DRAWER_NUM'] = door_assembly.obj_bp.get("DRAWER_NUM")
+                new_door.obj_bp['IS_BP_DRAWER_FRONT'] = True
+            if obj_props.is_hamper_front_bp:
+                new_door.obj_bp['IS_BP_HAMPER_FRONT'] = True
 
             sn_utils.delete_obj_list(sn_utils.get_child_objects(door_assembly.obj_bp, []))
-            new_door.obj_bp["ID_PROMPT"] = id_prompt
-            new_door.obj_bp['IS_DOOR'] = True
+
             parent_assembly = sn_types.Assembly(new_door.obj_bp.parent)
             parent_door_style = parent_assembly.get_prompt("Door Style")
             new_door.add_prompt("Door Style", 'TEXT', "Slab Door")
@@ -1078,6 +1141,9 @@ class SNAP_OT_Auto_Add_Molding(Operator):
                     closet_props.CROWN_MOLDING_FOLDER_NAME,
                     props.crown_molding_category,
                     props.crown_molding + ".blend"))
+
+        self.profile['IS_MOLDING_PROFILE'] = True
+        bpy.context.scene.collection.objects.link(self.profile)
 
 
     def get_products(self):
@@ -1143,17 +1209,19 @@ class SNAP_OT_Auto_Add_Molding(Operator):
         objs = []
         for obj in bpy.data.objects:
             obj_props = obj.sn_closets
-            if is_crown:
-                if obj_props.is_crown_molding:
-                    objs.append(obj)
-            else:
-                if obj_props.is_base_molding:
-                    objs.append(obj)
+
+            if obj.type == 'CURVE':
+                if is_crown:
+                    if obj_props.is_crown_molding:
+                        objs.append(obj)
+                else:
+                    if obj_props.is_base_molding:
+                        objs.append(obj)
         sn_utils.delete_obj_list(objs)
 
     def set_curve_location(self, product, curve, is_crown):
         curve.parent = product.obj_bp
-        if is_crown:
+        if is_crown and curve.type == 'CURVE':
             if product.obj_z.location.z < 0:
                 curve.location.z = 0
             else:
@@ -1163,6 +1231,7 @@ class SNAP_OT_Auto_Add_Molding(Operator):
         thickness = product.get_prompt("Panel Thickness")
         left_end_condition = product.get_prompt("Left End Condition")
         right_end_condition = product.get_prompt("Right End Condition")
+        toe_kick_height = product.get_prompt('Toe Kick Height')
         if left_end_condition and right_end_condition:
             start_x = 0
             for i in range(1, 10):
@@ -1339,6 +1408,8 @@ class SNAP_OT_Auto_Add_Molding(Operator):
 
                             if floor.get_value():
                                 curve.location.z = height.get_value()
+                                if toe_kick_height:
+                                    curve.location.z += toe_kick_height.get_value()
                             else:
                                 curve.location.z = product.obj_z.location.z
                         else:
@@ -1430,12 +1501,13 @@ class SNAP_OT_Auto_Add_Molding(Operator):
         curve['ID_PROMPT'] = product.obj_bp.get('ID_PROMPT')
         curve.location.z = 0
 
-    def invoke(self, context, event):
-        wm = context.window_manager
-        if self.molding_type == 'Crown':
-            return wm.invoke_props_dialog(self, width=400)
-        else:
-            return self.execute(context)
+    # TODO: 2.1.0 Fix crown to ceiling option
+    # def invoke(self, context, event):
+    #     wm = context.window_manager
+    #     if self.molding_type == 'Crown':
+    #         return wm.invoke_props_dialog(self, width=400)
+    #     else:
+    #         return self.execute(context)
 
     def draw(self, context):
         layout = self.layout
@@ -1481,6 +1553,52 @@ class SNAP_OT_Delete_Molding(Operator):
         return {'FINISHED'}
 
 
+class SNAP_OT_Update_Drawer_boxes(Operator):
+    bl_idname = "sn_closets.update_drawer_boxes"
+    bl_label = "Add/Remove Drawer Boxes"
+
+    add: BoolProperty(name="Add Drawers", default=True)
+
+    def execute(self, context):
+        drawer_stack_bps = sn_utils.get_drawer_stack_bps()
+
+        for bp in drawer_stack_bps:
+            drawer_stack = data_drawers.Drawer_Stack(bp)
+            drawer_qty_prompt = drawer_stack.get_prompt("Drawer Quantity")
+            six_hole = drawer_stack.get_prompt("Six Hole")
+            seven_hole = drawer_stack.get_prompt("Seven Hole")
+
+            if self.add and not drawer_stack.drawer_boxes:
+                drawer_stack.add_drawer_boxes()
+                for i in range(1, drawer_qty_prompt.get_value()):
+                    use_double_drawer = drawer_stack.get_prompt("Use Double Drawer " + str(i))
+                    drawer_height = drawer_stack.get_prompt("Drawer " + str(i) + " Height")
+                    if drawer_height is not None:
+                        dbl_drawer_conditions = [
+                            drawer_height.get_value() < six_hole.get_value(),
+                            drawer_height.get_value() > seven_hole.get_value(),
+                            drawer_stack.obj_y.location.y < sn_unit.inch(15.99)]
+                        if any(dbl_drawer_conditions):
+                            use_double_drawer.set_value(False)
+
+                        if use_double_drawer.get_value():
+                            drawer_stack.add_dbl_drawer_box(i)
+                drawer_stack.update()
+
+            elif not self.add and drawer_stack.drawer_boxes:
+                for box in drawer_stack.drawer_boxes:
+                    sn_utils.delete_object_and_children(box.obj_bp)
+
+                for i in range(1, drawer_qty_prompt.get_value()):
+                    dbl_drawer = drawer_stack.get_dbl_drawer_box(i)
+                    if dbl_drawer:
+                        sn_utils.delete_object_and_children(dbl_drawer.obj_bp)
+
+            bpy.context.view_layer.update()
+
+        return {'FINISHED'}
+
+
 classes = (
     SNAP_OT_delete_closet,
     SNAP_OT_delete_closet_insert,
@@ -1499,7 +1617,8 @@ classes = (
     SNAP_OT_update_door_selection,
     SNAP_OT_Auto_Add_Molding,
     SNAP_OT_Delete_Molding,
-    SNAP_OT_Assembly_Copy_Drop
+    SNAP_OT_Assembly_Copy_Drop,
+    SNAP_OT_Update_Drawer_boxes
 )
 
 register, unregister = bpy.utils.register_classes_factory(classes)

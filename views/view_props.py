@@ -25,24 +25,21 @@ class WM_PROPERTIES_2d_views(bpy.types.PropertyGroup):
                                                   'One accordion per page'),
                                                  ('PLAN+1ACCORDS', "Plan and Accordions",
                                                   'Plan on top plus accordions (U-Shaped)'),
-                                                 ('PLAN+1ELVS', "Plan and elevations",
-                                                  'Plan on top plus three elevations (U-Shaped)'),
-                                                 ('3ELVS', 'Three elevations per page',
-                                                  'Three elevations per page'),
-                                                 ('2ELVS', "Two elevations per page",
-                                                  'Two elevations per page'),
-                                                 ('SINGLE', "One elevation per page",
-                                                  'One elevation per page'),
-                                                   ],default='1_ACCORD')
+                                                   ],default='PLAN+1ACCORDS')
 
     paper_size: EnumProperty(name="Paper Size",
                              items=[('ELEVENSEVENTEEN', '11x17',
                                      'US Ledger Paper - 11 x 17 inches - ANSI B'),
                                     ('LEGAL', 'Legal',
-                                     'US Legal Paper - 8.5 x 14 inches'),
-                                    ('LETTER', 'Letter',
-                                     'US Letter Paper - 8.5 x 11 inches')],
+                                     'US Legal Paper - 8.5 x 14 inches')],
                              default='LEGAL')
+    
+    views_option: EnumProperty(name="2D Views Options",
+                             items=[('ACCORDIONS', 'PV + Accordions + Islands',
+                                     'Generates the Plan View, Accordions and existing islands'),
+                                    ('ELEVATIONS', 'PV + Elevations + Islands',
+                                     'Generates the Plan View, Elevations and existing islands')],
+                             default='ACCORDIONS')
 
     @classmethod
     def register(cls):

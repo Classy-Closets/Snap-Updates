@@ -110,7 +110,7 @@ class ROOM_BUILDER_OT_Collect_Walls(Operator):
         ceiling.hide_viewport = True
         ceiling.sn_roombuilder.is_ceiling = True
 
-        bpy.ops.sn_object.add_room_lamp()
+        bpy.ops.sn_object.add_room_light()
 
         for obj in context.view_layer.objects:
             if obj.get('IS_BP_WALL'):
@@ -160,6 +160,7 @@ class ROOM_BUILDER_OT_draw_walls(Operator):
     obj_wall_meshes = []
 
     typed_value = ""
+    header_text = "(Esc, Right Click) = Cancel Command  :  (Left Click) = Place Wall"
 
     def char_from_number(self, number):
         ASCII_START = 97
@@ -290,6 +291,10 @@ class ROOM_BUILDER_OT_draw_walls(Operator):
 
     def modal(self, context, event):
         self.set_type_value(event)
+        wall_length_text = str(sn_unit.meter_to_active_unit(round(self.current_wall.obj_x.location.x, 4)))
+        wall_length_unit = '"' if context.scene.unit_settings.system == 'IMPERIAL' else 'mm'
+        context.area.header_text_set(
+            text=self.header_text + '   (Current Wall Length = ' + wall_length_text + wall_length_unit + ')')
         context.area.tag_redraw()
         self.mouse_x = event.mouse_x
         self.mouse_y = event.mouse_y
@@ -421,6 +426,7 @@ class ROOM_BUILDER_OT_draw_walls(Operator):
                 child.hide_viewport = True
 
     def cancel_drop(self, context):
+        context.area.header_text_set(None)
         if self.previous_wall:
             prev_right_angle = self.previous_wall.get_prompt("Right Angle")
             prev_right_angle.set_value(0)
@@ -684,7 +690,7 @@ class ROOM_BUILDER_OT_Add_Obstacle(Operator):
         self.obstacle.obj_bp.location.y = 0
         self.obstacle.draw_as_hidden_line()
 
-        Width = self.obstacle.get_var('dim_x', 'Width')
+        Width = self.obstacle.obj_x.snap.get_var('location.x', 'Width')
 
         self.dim_label = sn_types.Dimension()
         self.dim_label.parent(self.obstacle.obj_bp)
@@ -946,7 +952,7 @@ class ROOM_BUILDER_OT_Add_Floor_Obstacle(Operator):
             self.obstacle.obj_z.location.z = self.obstacle_height
         self.obstacle.obj_bp.location.y = self.y_location
 
-        Width = self.obstacle.get_var('dim_x', 'Width')
+        Width = self.obstacle.obj_x.snap.get_var('location.x', 'Width')
 
         self.dim_label = sn_types.Dimension()
         self.dim_label.parent(self.obstacle.obj_bp)
@@ -1694,24 +1700,34 @@ class ROOM_BUILDER_OT_Delete_Room(Operator):
     bl_idname = "sn_roombuilder.delete_room"
     bl_label = "Delete Room"
 
+    delete_room_file: BoolProperty(name="Delete Room File", default=False)
+
     def invoke(self, context, event):
         wm = context.window_manager
         return wm.invoke_props_dialog(self, width=400)
 
     def execute(self, context):
-        sn_utils.delete_obj_list(bpy.data.objects)
+        if self.delete_room_file:
+            bpy.ops.project_manager.delete_room("EXEC_DEFAULT")
+            bpy.ops.wm.read_homefile()
+        else:
+            sn_utils.delete_obj_list(bpy.data.objects)
+            props = context.scene.sn_roombuilder
 
-        props = context.scene.sn_roombuilder
-
-        for old_wall in props.walls:
-            props.walls.remove(0)
+            for old_wall in props.walls:
+                props.walls.remove(0)
 
         return {'FINISHED'}
 
     def draw(self, context):
+        wm = context.window_manager.sn_project
         layout = self.layout
         box = layout.box()
-        box.label(text="Are you sure you want to delete the room?")
+        if wm.current_file_project:
+            box.label(text="Project: " + wm.current_file_project)
+        if wm.current_file_room:
+            box.label(text="Room: " + wm.current_file_room)
+        box.label(text="Are you sure you want to delete this room?")
 
 
 class ROOM_BUILDER_OT_draw_new_room(Operator):

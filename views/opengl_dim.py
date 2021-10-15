@@ -535,6 +535,8 @@ def render_opengl(self, context):
         bgl.glReadPixels(0, 0, width, height,
                          bgl.GL_RGBA, bgl.GL_FLOAT, buffer)  # read image data
 
+    offscreen.free()
+
     img_result.pixels = buffer[:]
     img.gl_free()
 

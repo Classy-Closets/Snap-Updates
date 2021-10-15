@@ -25,7 +25,8 @@ class SN_WM_OT_message_box(bpy.types.Operator):
 
     def draw(self, context):
         layout = self.layout
-        layout.label(text=self.message, icon=self.icon)
+        for line in self.message.split('\n'):
+            layout.label(text=line, icon=self.icon)
 
     def execute(self, context):
         return {'FINISHED'}
@@ -81,6 +82,15 @@ class SN_WM_OT_load_snap_defaults(Operator):
         shutil.copyfile(src_userpref_file, dst_userpref_file)
         shutil.copyfile(src_startup_file, dst_startup_file)
 
+    def use_auto_set_scripts_dir(self):
+        bl_ver = "{}.{}".format(bpy.app.version[0], bpy.app.version[1])
+        bl_dir = os.path.dirname(bpy.app.binary_path)
+        startup_dir = os.path.join(bl_dir, bl_ver, "scripts", "startup")
+        src = os.path.join(sn_paths.SNAP_CONFIG_DIR, "set_scripts_path.py")
+        dst = os.path.join(startup_dir, "set_scripts_path.py")
+        shutil.copyfile(src, dst)
+        print("Found testing environment, using auto-set scripts directory:", dst)
+
     def execute(self, context):
         config_path = sn_paths.CONFIG_PATH
         app_template_path = sn_paths.APP_TEMPLATE_PATH
@@ -90,8 +100,10 @@ class SN_WM_OT_load_snap_defaults(Operator):
             menu_idname='USERPREF_MT_interface_theme_presets')
         self.copy_config_files(config_path)
         self.copy_config_files(app_template_path)
+        self.use_auto_set_scripts_dir()
         context.preferences.addons['snap'].preferences.franchise_location = franchise_location
         self.init_db()
+
         return {'FINISHED'}
 
     def invoke(self, context, event):

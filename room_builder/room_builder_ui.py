@@ -142,7 +142,11 @@ class ROOM_BUILDER_PT_Room_Builder(Panel):
                     row.operator('sn_roombuilder.new_custom_room', text="Draw New Room", icon='GREASEPENCIL')
                 
                 row.operator('sn_roombuilder.collect_walls', icon='FILE_REFRESH')
-                row.operator('sn_roombuilder.delete_room', text="Delete Room", icon='X')
+
+                if bpy.data.filepath:
+                    row.operator('sn_roombuilder.delete_room', text="Delete Room", icon='X').delete_room_file = True
+                else:
+                    row.operator('sn_roombuilder.delete_room', text="Delete Room", icon='X')
 
             # Adds background image functionality. Unsure if we are going to use
             # self.draw_custom_room_options(layout, context)
@@ -150,7 +154,7 @@ class ROOM_BUILDER_PT_Room_Builder(Panel):
             col = box.column()
             col.scale_y = 1.3
             if len(bpy.data.objects) > 0:
-                col.operator('sn_roombuilder.delete_room', text="Delete Room", icon='X')
+                col.operator('sn_roombuilder.delete_room', text="Delete Room", icon='X').delete_room_file = True
                 col.operator('sn_roombuilder.new_room', text="New Room", icon='PLUS')
             else:
                 col.operator('sn_roombuilder.build_room', text="Build Room", icon='SNAP_PEEL_OBJECT')

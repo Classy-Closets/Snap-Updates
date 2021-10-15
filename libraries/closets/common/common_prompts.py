@@ -62,9 +62,11 @@ def add_closet_carcass_prompts(assembly):
 
     # For adding individual opening prompts
     for i in range(1, assembly.opening_qty + 1):
+        assembly.add_prompt("Add Full Back " + str(i), 'CHECKBOX', False)
         assembly.add_prompt("CTF Opening " + str(i), 'CHECKBOX', False)
         assembly.add_prompt("Add " + str(i) + " Top Cleat", 'CHECKBOX', defaults.add_top_cleat)
         assembly.add_prompt("Add " + str(i) + " Bottom Cleat", 'CHECKBOX', defaults.add_bottom_cleat)
+        assembly.add_prompt("Use " + str(i) + " Custom Cleat Location", 'CHECKBOX', False)
         assembly.add_prompt("Cleat " + str(i) + " Location", 'DISTANCE', 0)
         assembly.add_prompt("Remove Bottom Hanging Shelf " + str(i),
                             'CHECKBOX',
@@ -104,7 +106,7 @@ def add_closet_carcass_prompts(assembly):
 def add_countertop_prompts(assembly):
     assembly.add_prompt("Deck Overhang", 'DISTANCE', sn_unit.inch(1.5))
     assembly.add_prompt("Side Deck Overhang", 'DISTANCE', sn_unit.inch(0.75))
-    assembly.add_prompt("Countertop Type", 'COMBOBOX', 0, ['Granite', 'HPL', 'Melamine'])
+    assembly.add_prompt("Countertop Type", 'COMBOBOX', 0, ['Melamine', 'HPL', 'Granite'])
     assembly.add_prompt("Countertop Thickness", 'COMBOBOX', 0, ['.75', '1.0'])
     assembly.add_prompt("Edge Type", 'COMBOBOX', 1, ['Waterfall', 'Flat Front', '180 Degree', 'Alder Miter'])
     assembly.add_prompt("HPL Material Name", 'TEXT', "")

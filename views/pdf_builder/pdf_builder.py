@@ -75,8 +75,11 @@ class Pdf_Builder(ABC):
         self.c.setFont("Calibri", 9)
         for field in form_info:
             lbl, val = field["label"], field["value"]
+            separator = ":"
+            if len(lbl) == 0:
+                separator = ""
             pos = field["position"][self.print_paper_size]
-            self.c.drawString(pos[0], pos[1], f'{lbl}: {val}')
+            self.c.drawString(pos[0], pos[1], f'{lbl}{separator} {val}')
 
     def draw_logo(self, logo: str) -> None:
         """Draw the Classy Closets logo in the canvas.

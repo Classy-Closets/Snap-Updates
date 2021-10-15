@@ -20,6 +20,27 @@ enum_items_kd_fitting = []
 enum_items_location_code = []
 
 
+def update_stain_color(self, context):
+    if not self.main_tabs == 'STAIN':
+        return
+    else:
+        mat_color_name = self.materials.get_mat_color().name
+        stain_colors = self.get_stain_colors()
+
+        if mat_color_name in stain_colors:
+            self.stain_color_index = self.stain_colors.find(mat_color_name)
+            return
+        if mat_color_name == "Cabinet Almond":
+            self.stain_color_index = self.stain_colors.find("Almond")
+            return
+        else:
+            self.stain_color_index = self.stain_colors.find("Oxford White")
+            bpy.ops.snap.message_box(
+                'INVOKE_DEFAULT',
+                message='"{}" is not an available stain color!'.format(mat_color_name),
+                icon='INFO')
+
+
 def update_material_and_edgeband_colors(self, context):
     mat_color_name = self.materials.get_mat_color().name
     mat_type = self.materials.get_mat_type()
@@ -31,12 +52,13 @@ def update_material_and_edgeband_colors(self, context):
     if mat_type.name == "Melamine":
         if mat_color_name in stain_colors:
             self.stain_color_index = self.stain_colors.find(mat_color_name)
+            return
+        if mat_color_name == "Cabinet Almond":
+            self.stain_color_index = self.stain_colors.find("Almond")
+            return
         else:
             self.stain_color_index = self.stain_colors.find("Oxford White")
-            bpy.ops.snap.message_box(
-                'INVOKE_DEFAULT',
-                message='"{}" is not an available stain color!'.format(mat_color_name),
-                icon='INFO')
+
     try:
         bpy.ops.closet_materials.poll_assign_materials()
     except Exception:
@@ -117,7 +139,8 @@ class SnapMaterialSceneProps(PropertyGroup):
                ('STAIN', "Stain", ""),
                ('MODERNODOOR', "Moderno Doors", ""),
                ('GLASS', "Glass", "")],
-        default='MATERIAL')
+        default='MATERIAL',
+        update=update_stain_color)
 
     use_custom_color_scheme: BoolProperty(
         name="Use Custom edge and color scheme",
@@ -288,6 +311,12 @@ class SnapMaterialSceneProps(PropertyGroup):
         color_name = self.materials.get_mat_color().name
         part_thickness = 0
 
+        if type_code == 15225 and (color_name != "Oxford White" and color_name != "Cabinet Almond"):  # Need to change type code for oversized materials that are not White or Almond to the Textured Type Code
+            type_code = 15150
+
+        if obj:
+            part_thickness = sn_unit.meter_to_inch(sn_utils.get_part_thickness(obj))
+
         if assembly:
             obj_props = assembly.obj_bp.sn_closets
 
@@ -312,6 +341,11 @@ class SnapMaterialSceneProps(PropertyGroup):
 
             glass_shelf_parts = [
                 obj_props.is_glass_shelf_bp
+            ]
+
+            countertop_parts = [
+                obj_props.is_countertop_bp,
+                obj_props.is_hpl_top_bp
             ]
 
             if any(door_drawer_parts):
@@ -342,16 +376,92 @@ class SnapMaterialSceneProps(PropertyGroup):
                     color_code = mat_type.colors[mat_name].color_code
 
             if any(drawer_box_parts):
-                if obj_props.is_drawer_bottom_bp:
-                    sku = 'PM-0000002'  # WHITE PAPER 3/8 G1
+                use_dovetail_construction = assembly.get_prompt("Use Dovetail Construction")
+                if use_dovetail_construction:
+                    if use_dovetail_construction.get_value():
+                        if obj_props.is_drawer_bottom_bp:
+                            sku = 'BB-0000004'  # WHITE PAPER 3/8 G1
+                        else:
+                            material_name = 'BBBB PREFINISH RIP ' + str(round(sn_unit.meter_to_inch(assembly.obj_y.location.y), 2))
+                            sku = sn_db.query_db(
+                                "SELECT\
+                                    SKU\
+                                FROM\
+                                    {CCItems}\
+                                WHERE\
+                                    ProductType IN ('BB') AND\
+                                    Name LIKE '%{material_name}%' \
+                                ;\
+                                ".format(CCItems="CCItems_" + bpy.context.preferences.addons['snap'].preferences.franchise_location, material_name=material_name)
+                            )
+
+                            if len(sku) == 0:
+                                # print("No SKU Found for: ", material_name)
+                                # print()
+                                return "Unknown"
+                            elif len(sku) == 1:
+                                # print("Found One SKU for: ", material_name)
+                                # print()
+                                return sku[0][0]
+                            else:
+                                print("Multiple SKUs found for: ", material_name)
+                                print(sku)
+                                print()
+                                return "Unknown"
+                    else:
+                        if obj_props.is_drawer_bottom_bp:
+                            sku = 'PM-0000002'  # WHITE PAPER 3/8 G1
+                        else:
+                            sku = 'PM-0000004'  # WHITE  PAPER 1/2 G2
                 else:
-                    sku = 'PM-0000004'  # WHITE  PAPER 1/2 G2
+                    if obj_props.is_drawer_bottom_bp:
+                        sku = 'PM-0000002'  # WHITE PAPER 3/8 G1
+                    else:
+                        sku = 'PM-0000004'  # WHITE  PAPER 1/2 G2
                 return sku
 
-        if obj:
-            part_thickness = sn_unit.meter_to_inch(sn_utils.get_part_thickness(obj))
+            if any(glass_shelf_parts):
+                glass_color = self.glass_colors[self.glass_color_index].name
+                part_thickness = round(part_thickness, 2)
+                sku = sn_db.query_db(
+                    "SELECT\
+                        SKU\
+                    FROM\
+                        {CCItems}\
+                    WHERE\
+                        ProductType IN ('GL') AND\
+                        Thickness == '{thickness}' AND\
+                        Name LIKE '%{glass_color}%'\
+                    ;\
+                    ".format(glass_color=glass_color, thickness=part_thickness, color_code=color_code, CCItems="CCItems_" + bpy.context.preferences.addons['snap'].preferences.franchise_location)
+                )
 
-        if part_thickness == 0.25 and not any(glass_shelf_parts):
+                if glass_color == 'None':
+                    print("Glass color not selected. Sku determined by thickness: {}".format(part_thickness))
+                    if part_thickness == 0.13:
+                        return 'GL-0000003'
+                    if part_thickness == 0.25:
+                        return 'GL-0000004'
+                    if part_thickness == 0.38:
+                        return 'GL-0000006'
+                    if part_thickness == 0.5:
+                        return "GL-0000008"
+                if len(sku) == 0:
+                    print("SKU match not found for selected glass parts - Glass Color: {} Material Thickness: {}".format(glass_color, part_thickness))
+                    print("Special order Sku returned: SO-0000001")
+                    return 'SO-0000001'
+                elif len(sku) == 1:
+                    return sku[0][0]
+                else:
+                    print("Multiple SKUs found for - Glass Color: {} Material Thickness: {}".format(glass_color, part_thickness))
+                    print("Default sku returned: " + str(sku[0][0]))
+                    return sku[0][0]
+
+            if any(countertop_parts):
+                if part_name is not None and 'Melamine' not in part_name:
+                    return 'SO-0000001'
+
+        if part_thickness == 0.25:
             if any(backing_parts) or obj_props.is_toe_kick_skin_bp:
                 shared_sku_colors = [
                     'Oxford White',
@@ -389,7 +499,7 @@ class SnapMaterialSceneProps(PropertyGroup):
                 print(sku)
                 return "Unknown"
 
-        if part_thickness == 0.375 and not any(glass_shelf_parts):
+        if part_thickness == 0.375:
             sku = sn_db.query_db(
                 "SELECT\
                     SKU\
@@ -415,7 +525,6 @@ class SnapMaterialSceneProps(PropertyGroup):
                 return "Unknown"
 
         if part_thickness == 0.75 or part_thickness == 0:
-            if not any(glass_shelf_parts):
                 sku = sn_db.query_db(
                     "SELECT\
                         SKU\
@@ -437,42 +546,6 @@ class SnapMaterialSceneProps(PropertyGroup):
                     print(sku)
                     return "Unknown"
 
-        if any(glass_shelf_parts):
-            glass_color = self.glass_colors[self.glass_color_index].name
-            part_thickness = round(part_thickness, 2)
-            sku = sn_db.query_db(
-                "SELECT\
-                    SKU\
-                FROM\
-                    {CCItems}\
-                WHERE\
-                    ProductType IN ('GL') AND\
-                    Thickness == '{thickness}' AND\
-                    Name LIKE '%{glass_color}%'\
-                ;\
-                ".format(glass_color=glass_color, thickness=part_thickness, color_code=color_code, CCItems="CCItems_" + bpy.context.preferences.addons['snap'].preferences.franchise_location)
-            )
-
-            if glass_color == 'None':
-                print("Glass color not selected. Sku determined by thickness: {}".format(part_thickness))
-                if part_thickness == 0.13:
-                    return 'GL-0000003'
-                if part_thickness == 0.25:
-                    return 'GL-0000004'
-                if part_thickness == 0.38:
-                    return 'GL-0000006'
-                if part_thickness == 0.5:
-                    return "GL-0000008"
-            if len(sku) == 0:
-                print("SKU match not found for selected glass parts - Glass Color: {} Material Thickness: {}".format(glass_color, part_thickness))
-                print("Special order Sku returned: SO-0000001")
-                return 'SO-0000001'
-            elif len(sku) == 1:
-                return sku[0][0]
-            else:
-                print("Multiple SKUs found for - Glass Color: {} Material Thickness: {}".format(glass_color, part_thickness))
-                print("Default sku returned: " + str(sku[0][0]))
-                return sku[0][0]
 
     def get_mat_inventory_name(self, sku=""):
         if sku:

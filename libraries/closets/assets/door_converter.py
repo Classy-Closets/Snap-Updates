@@ -189,7 +189,7 @@ def delete_objs(context):
             objs.remove(objs[obj.name], do_unlink=True)
         except Exception as e:
             print(e)
-        bpy.ops.object.delete(use_global=True)
+        bpy.ops.sn_object.delete(use_global=True)
         del obj
     if len(scene.objects) > 0:
         delete_objs(context)

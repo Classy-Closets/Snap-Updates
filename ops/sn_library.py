@@ -322,6 +322,7 @@ class SN_LIB_OT_drop_object_from_library(bpy.types.Operator):
             self.confirm_placement(context)
         self.obj.name = category + "." + self.obj.name
         bpy.ops.wm.popup_props('INVOKE_DEFAULT')
+        self.obj["ID_PROMPT"] = "wm.popup_props"
         context.view_layer.objects.active = self.obj
         context.area.tag_redraw()
         return {'FINISHED'}

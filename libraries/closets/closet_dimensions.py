@@ -4,6 +4,7 @@ import mathutils
 from snap.views import opengl_dim
 from snap.views.view_ops import hide_dim_handles
 from snap import sn_types, sn_unit, sn_utils
+from snap.libraries.closets.data import data_drawers
 from bpy.app.handlers import persistent
 from bpy.utils import register_class, unregister_class
 from . import closet_props as props_closet
@@ -12,6 +13,8 @@ from bpy.types import Menu, PropertyGroup, Panel, Operator
 from bpy.props import (BoolProperty,
                        PointerProperty,
                        EnumProperty)
+
+tagged_sss_list = []
 
 def spread(arg):
     ret = []
@@ -36,7 +39,7 @@ def get_object_dimension_props(obj):
 
 
 def scene_assemblies(context):
-    for obj in bpy.context.scene.collection.objects:
+    for obj in bpy.data.objects:
         if obj.get("IS_BP_ASSEMBLY"):
             assembly = sn_types.Assembly(obj)
             if props_closet.part_is_not_hidden(assembly):
@@ -85,8 +88,13 @@ def scene_label_props(scenes, option):
         scene.snap_closet_dimensions.slanted_shoe_shelves = option
         scene.snap_closet_dimensions.double_jewelry = option
         scene.snap_closet_dimensions.locks = option
+        scene.snap_closet_dimensions.dog_ear = option
         scene.snap_closet_dimensions.walk_space = option
+        scene.snap_closet_dimensions.third_line_holes = option
+        scene.snap_closet_dimensions.wall_cleats = option
 
+def clear_labels_lists():
+    tagged_sss_list.clear()
 
 class SNAP_OT_Select_All(Operator):
     bl_idname = "snap_closet_dimensions.select_all"
@@ -180,7 +188,10 @@ class SNAP_OT_Auto_Dimension(Operator):
 
         for item in bpy.data.objects:
             if item.get('IS_VISDIM_A') or item.get('IS_VISDIM_B'):
-                bpy.data.objects.remove(item, do_unlink=True)
+                if sn_utils.get_obstacle_bp(item):
+                    continue
+                else:
+                    bpy.data.objects.remove(item, do_unlink=True)
 
         for obj in context.scene.collection.objects:
             props = get_object_dimension_props(obj)
@@ -690,11 +701,7 @@ class SNAP_OT_Auto_Dimension(Operator):
             if item == partition:
                 return i
 
-    def partition_height(self, context, product):
-        is_lsh = 'l shelves' in product.name.lower()
-        is_csh = 'corner shelves' in product.name.lower()
-        if is_lsh or is_csh:
-            return
+    def get_partition_list(self, product):
         partition_list = []
         for item in product.children:
             panel = item.sn_closets.is_panel_bp
@@ -711,38 +718,64 @@ class SNAP_OT_Auto_Dimension(Operator):
                                                z_pos_inch,
                                                cutpart,
                                                part_assy))
+        return partition_list
+
+    def get_partition_height_list(self, wall_bp):
+        partition_list = []
+        for product in wall_bp.children:
+            is_lsh = 'l shelves' in product.name.lower()
+            is_csh = 'corner shelves' in product.name.lower()
+            if is_lsh or is_csh:
+                continue
+            elif not is_lsh and not is_csh:
+                for item in product.children:
+                    if item.sn_closets.is_panel_bp:
+                        for cutpart in item.children:
+                            has_cutpart = cutpart.type == "MESH"
+                            if has_cutpart and not cutpart.hide_viewport:
+                                part_assy = sn_types.Assembly(item)
+                                hang_opng_x_pos = product.location.x
+                                x_pos = hang_opng_x_pos + item.location.x
+                                x_pos_inch = self.to_inch(x_pos)
+                                z_pos_inch = self.to_inch(item.location.z)
+                                partition_list.append((x_pos_inch,
+                                                       z_pos_inch,
+                                                       cutpart,
+                                                       part_assy))
+        return partition_list
+
+    def partition_height(self, wall_bp):
+        partition_list = self.get_partition_height_list(wall_bp)
         overlaps = self.find_partitions_overlapping(partition_list)
-        if overlaps is None:
-            for x, z, cutpart, assy in partition_list:
-                self.apply_partition_height_label(cutpart)
+        if overlaps is None: 
+            for _, _, mesh, _ in partition_list:
+                self.apply_partition_height_label(mesh)
         elif overlaps is not None:
-            for i, (x, z, cutpart, assy) in enumerate(partition_list):
+            for _, _, mesh, _ in partition_list:
                 skip = []
                 for overlap in overlaps:
-                    order = self.find_partition_order(cutpart.parent)
-                    if cutpart.name == overlap.name:
-                        skip.append(cutpart)
+                    partition = mesh.parent
+                    order = self.find_partition_order(partition)
+                    if mesh.name == overlap.name:
+                        skip.append(mesh)
                         if order == 0:
-                            self.apply_partition_height_label(cutpart, "right")
+                            self.apply_partition_height_label(mesh, "right")
                         if order != 0:
-                            self.apply_partition_height_label(cutpart, "left")
-                if cutpart not in skip:
-                    self.apply_partition_height_label(cutpart)
+                            self.apply_partition_height_label(mesh, "left")
+                if mesh not in skip:
+                    self.apply_partition_height_label(mesh)
     
     def corner_shelves_l_shelves(self, item):
-        is_lsh = 'l shelves' in item.name.lower()
-        is_csh = 'corner shelves' in item.name.lower()
-        if is_lsh or is_csh:
-            assy = sn_types.Assembly(item)
-            has_top_kd = assy.get_prompt("Add Top KD").get_value()
-            if has_top_kd:
-                self.csh_lsh_top_kd_lbl(item, assy)
-            self.csh_lsh_botom_kd_lbl(item, assy)
-            right_depth_pmpt = assy.get_prompt("Right Depth")
-            right_depth = right_depth_pmpt.distance_value
-            self.csh_lsh_width(item, assy)
-            self.csh_lsh_depth(item, right_depth)
-            self.csh_lsh_right_partition(item, assy)
+        assy = sn_types.Assembly(item)
+        has_top_kd = assy.get_prompt("Add Top KD").get_value()
+        if has_top_kd:
+            self.csh_lsh_top_kd_lbl(item, assy)
+        self.csh_lsh_botom_kd_lbl(item, assy)
+        right_depth_pmpt = assy.get_prompt("Right Depth")
+        right_depth = right_depth_pmpt.distance_value
+        self.csh_lsh_width(item, assy)
+        self.csh_lsh_depth(item, right_depth)
+        self.csh_lsh_right_partition(item, assy)
 
     def csh_lsh_right_partition(self, item, assy):
         for partition in item.children:
@@ -762,11 +795,13 @@ class SNAP_OT_Auto_Dimension(Operator):
                     dim.set_label(label)
 
     def csh_lsh_top_kd_lbl(self, item, assy):
+        tks = [tk for tk in item.children if 'toe kick' in tk.name.lower()]
+        if len(tks) == 0:
+            return
+        the_tk = tks[0]
         tk_height = 0
-        for tk in item.children:
-            if 'toe kick' in tk.name.lower():
-                tk_assy = sn_types.Assembly(tk)
-                tk_height = tk_assy.obj_y.location.y
+        tk_assy = sn_types.Assembly(the_tk)
+        tk_height = tk_assy.obj_z.location.z
         width = assy.obj_x.location.x
         height = (assy.obj_z.location.z + tk_height) - sn_unit.inch(0.5)
         dim = self.add_tagged_dimension(item)
@@ -777,11 +812,13 @@ class SNAP_OT_Auto_Dimension(Operator):
 
 
     def csh_lsh_botom_kd_lbl(self, item, assy):
+        tks = [tk for tk in item.children if 'toe kick' in tk.name.lower()]
+        if len(tks) == 0:
+            return
+        the_tk = tks[0]
         tk_height = 0
-        for tk in item.children:
-            if 'toe kick' in tk.name.lower():
-                tk_assy = sn_types.Assembly(tk)
-                tk_height = tk_assy.obj_y.location.y
+        tk_assy = sn_types.Assembly(the_tk)
+        tk_height = tk_assy.obj_z.location.z
         width = assy.obj_x.location.x
         height = tk_height
         dim = self.add_tagged_dimension(item)
@@ -802,22 +839,27 @@ class SNAP_OT_Auto_Dimension(Operator):
         dim.set_label(label)
 
     def csh_lsh_depth(self, item, right_depth):
-        for stringer in item.children:
-            if 'right kick stringer' in stringer.name.lower():
-                st_assy = sn_types.Assembly(stringer)
-                width = st_assy.obj_x.location.x
-                depth = st_assy.obj_y.location.y + sn_unit.inch(0.75)
-                height = st_assy.obj_z.location.z 
-                label = self.to_inch_lbl(right_depth)
-                rotation = (0, 45, 90)
-                hashmark = sn_types.Line(sn_unit.inch(6), rotation)
-                hashmark.parent(stringer)
-                hashmark.start_x(value=width)
-                hashmark.start_y(value=depth)
-                hashmark.start_z(value=height)
-                dim = self.add_tagged_dimension(hashmark.end_point)
-                dim.start_z(value=sn_unit.inch(2))
-                dim.set_label(label)
+        correct_ptt = []
+        for partition in item.children:
+            is_partition = 'partition' in partition.name.lower()
+            is_right_ptt = partition.location[0] != 0
+            if is_partition and is_right_ptt:
+                for mesh in partition.children:
+                    if mesh.type == 'MESH':
+                        correct_ptt.append(partition)
+        for part in correct_ptt:
+            st_assy = sn_types.Assembly(part)
+            depth = st_assy.obj_y.location.y 
+            label = self.to_inch_lbl(right_depth)
+            rotation = (0, 135, 0)
+            hashmark = sn_types.Line(sn_unit.inch(6), rotation)
+            hashmark.parent(part)
+            hashmark.start_x(value=sn_unit.inch(0.75))
+            hashmark.start_y(value=depth)
+            hashmark.start_z(value=0)
+            dim = self.add_tagged_dimension(hashmark.end_point)
+            dim.start_z(value=sn_unit.inch(2))
+            dim.set_label(label)
 
     def find_partitions_overlapping(self, partition_list):
         partition_list = sorted(partition_list, key=lambda tup: tup[0])
@@ -844,7 +886,7 @@ class SNAP_OT_Auto_Dimension(Operator):
                     partition_overlaps.append(other_partition[2])
                     partition_overlaps.append(partition[2])
         if len(partition_overlaps) > 0:
-            return partition_overlaps
+            return list(set(partition_overlaps))
         return None
     
     def apply_partition_height_label(self, partition, displacement=None):
@@ -854,9 +896,9 @@ class SNAP_OT_Auto_Dimension(Operator):
         dim.start_z(value=sn_unit.inch(-1))
         dim.start_x(value=(partition.dimensions[0] / 2) - sn_unit.inch(2))
         if displacement == "left":
-            dim.start_z(value=sn_unit.inch(-1))
+            dim.start_z(value=sn_unit.inch(3))
         if displacement == "right":
-            dim.start_z(value=sn_unit.inch(-7))
+            dim.start_z(value=sn_unit.inch(-2.25))
         dim.start_y(value=0)
         dim.anchor.name = 'PARTHGT'
         dim.end_point.name = 'PARTHGT'
@@ -893,7 +935,12 @@ class SNAP_OT_Auto_Dimension(Operator):
         opening_assembly = sn_types.Assembly(opening)
         width = opening_assembly.obj_x.location.x
         if width == 0:
-            return
+            cage = opening_assembly.get_cage()
+            if cage:
+                width = cage.dimensions.x
+                cage.hide_viewport = True
+            else:
+                return
         depth = abs(opening_assembly.obj_y.location.y)
         width_str = self.to_inch_lbl(width)
         parent_assembly = sn_types.Assembly(opening.parent)
@@ -922,7 +969,7 @@ class SNAP_OT_Auto_Dimension(Operator):
         return None
 
     def find_matching_partition_cutpart(self, opening):
-        tolerance = sn_unit.inch(0.75)
+        tolerance = sn_unit.inch(6)
         hanging_opening = opening.parent
         for item in hanging_opening.children:
             if 'partition' in item.name.lower():
@@ -1058,6 +1105,7 @@ class SNAP_OT_Auto_Dimension(Operator):
             return False
         elif openings_count == 1:
             measures = []
+            start_list = []
             for openings in opng_data.values():
                 opengs_list = openings["openings"]
                 positions = []
@@ -1065,11 +1113,15 @@ class SNAP_OT_Auto_Dimension(Operator):
                     x_loc = opng[1]["x_loc"]
                     positions.append(x_loc)
                 measures.append(positions)
+                start_list.append(openings["start"])
             number_diff_measures = len(list(set(spread(measures))))
+            number_diff_startings = len(list(set(start_list)))
             opening_count_set = list(set(opng_qty_list))[0]
-            if opening_count_set == number_diff_measures:
+            opng_meas_rule = opening_count_set == number_diff_measures
+            start_loc_rule = number_diff_startings > 1
+            if opng_meas_rule and not start_loc_rule:
                 return True
-            elif opening_count_set != number_diff_measures:
+            elif not opng_meas_rule or start_loc_rule:
                 return False
 
     def has_overlapping_hanging_opening(self, opng_data):
@@ -1210,107 +1262,101 @@ class SNAP_OT_Auto_Dimension(Operator):
         return hashmark_obj
 
     def apply_file_drawer_labels(self, label_dict):
-        for part, label in label_dict.items():
-            part_dims = part.dimensions
-            # 1st line -> Type: F2B or LAT
-            dim_label = ""
-            box_label = None
+        for part, info in label_dict.items():
+            label, part_dims = info
+            # 2nd line -> Type: F2B or LAT
+            dim_label = ''
+            box_label = ' '
             f2b_file_drawer = label[0] == 0
             lat_file_drawer = label[0] == 1
             letter = label[1] == 0
             legal = label[1] == 1
             if f2b_file_drawer:
-                dim_label = "F2B "
+                dim_label = 'F2B '
             elif lat_file_drawer:
-                dim_label = "Lat. "
+                dim_label = 'Lat. '
             if letter:
-                dim_label += "Letter"
+                dim_label += 'Letter'
             elif legal:
-                dim_label += "legal"
-            if lat_file_drawer and letter:
-                box_label = "14\" D box"
-            elif lat_file_drawer and legal:
-                box_label = "17\" D box"
-            dim = self.add_tagged_dimension(part)
-            dim.start_x(value=(part_dims[0] / 2))
-            dim.start_y(value=(part_dims[1] / 2) + sn_unit.inch(0.75))
-            dim.start_z(value=0)
-            dim.set_label("FILE")
-            # 2nd line -> Size: Legal or Letter
-            dim = self.add_tagged_dimension(part)
-            dim.start_x(value=(part_dims[0] / 2) - sn_unit.inch(2.5))
-            dim.start_y(value=(part_dims[1] / 2) + sn_unit.inch(0.75))
-            dim.start_z(value=0)
-            dim.set_label(dim_label)
+                dim_label += 'Legal'
+
             # 3rd line -> Drawer box size
-            if box_label is not None:
-                dim = self.add_tagged_dimension(part)
-                dim.start_x(value=(part_dims[0] / 2) - sn_unit.inch(4.5))
-                dim.start_y(value=(part_dims[1] / 2) + sn_unit.inch(0.75))
-                dim.start_z(value=0)
-                dim.set_label(box_label)
+            if lat_file_drawer and letter:
+                box_label = '14" D box'
+            elif lat_file_drawer and legal:
+                box_label = '17" D box'
 
+            dim = self.add_tagged_dimension(part)
+            dim.start_x(value=(part_dims[0] / 2) - sn_unit.inch(2.25))
+            dim.start_y(value=(part_dims[1] / 2) + sn_unit.inch(0.75))
+            dim.set_label(f'FILE|{dim_label}|{box_label}')
 
-    def file_drawer_labeling(self, context, item):
-        drawer_data_dict = {}
-        candidate_cutparts = {}
-        join_dict = {}
-        for drawers in item.children:
-            if drawers.sn_closets.is_drawer_stack_bp:
-                drawer_data_dict[drawers.name] = {}
-                candidate_cutparts[drawers.name] = {}
-                drwr_ins_dict = drawer_data_dict[drawers.name]
-                assembly = sn_types.Assembly(drawers)
-                drawer_qty = sn_types.Assembly(
-                    drawers).get_prompt("Drawer Quantity").get_value()
-                any_file_rail = False
-                for i in range(1, drawer_qty):
-                    has_file_rail = assembly.get_prompt(
-                        "Use File Rail " + str(i)).get_value()
-                    if has_file_rail:
-                        any_file_rail = True
-                        rail_type = assembly.get_prompt(
-                            "File Rail Type " + str(i)).get_value()
-                        rail_direction = assembly.get_prompt(
-                            "File Rail Direction " + str(i)).get_value()
-                        drwr_ins_dict[i] = (
-                            rail_direction, rail_type)
-            for face_bp in drawers.children:
-                if "IS_BP_ASSEMBLY" and 'Face' in face_bp.name and any_file_rail:
-                    for face in face_bp.children:
-                        if 'CUTPART' and not face.hide_viewport:
-                            face_height = self.get_object_global_location(face)[
-                                2]
-                            face_height = self.to_inch(face_height)
-                            candidate_cutparts[drawers.name][face_height] = face
-            if drawers.name in candidate_cutparts:
-                candidate_cutparts[drawers.name] = sorted(
-                    candidate_cutparts[drawers.name].items(), reverse=True)
-        if len(drawer_data_dict) > 0:
-            for dd_key, dd_value in drawer_data_dict.items():
-                for d_key, d_value in dd_value.items():
-                    ins_drw = candidate_cutparts[dd_key]
-                    match_cpart_tuple = ins_drw[d_key - 1]
-                    match_cpart = match_cpart_tuple[1]
-                    join_dict[match_cpart] = d_value
-        self.apply_file_drawer_labels(join_dict)
+    def file_drawer_labeling(self, drw_stck_assy):
+        file_drawer_info = {}
+
+        drw_faces = [obj for obj in drw_stck_assy.obj_bp.children
+                     if obj.sn_closets.is_drawer_front_bp]
+        drw_faces.sort(key=lambda x: x.location.z)
+
+        drw_boxes = [obj for obj in drw_stck_assy.obj_bp.children
+                     if obj.sn_closets.is_drawer_box_bp]
+
+        for face in drw_faces:
+            boxes = []
+            face_assy = sn_types.Assembly(face)
+            face_x = face_assy.obj_x.location.x
+            face_y = face_assy.obj_y.location.y
+            face_z = face_assy.obj_z.location.z
+            face_dims = (face_x, face_y, face_z)
+
+            face_loc_z = face.location.z
+            face_top = face_loc_z + face_x
+
+            for box in drw_boxes:
+                if face_loc_z <= box.location.z <= face_top:
+                    boxes.append(box)
+
+            if len(boxes) == 1:
+                [sgl_box] = boxes
+                box_assy = sn_types.Assembly(sgl_box)
+                file_rail = box_assy.get_prompt('Use File Rail').get_value()
+
+                if file_rail:
+                    type_pmt = box_assy.get_prompt('File Rail Type')
+                    dir_pmt = box_assy.get_prompt('File Rail Direction')
+                    rail_type = type_pmt.get_value()
+                    rail_direction = dir_pmt.get_value()
+                    rail_info = (rail_direction, rail_type)
+                    file_drawer_info[face] = (rail_info, face_dims)
+
+        self.apply_file_drawer_labels(file_drawer_info)
 
     def apply_topshelf_exposed_lbl(self, topshelf_obj, location):
         topshelf_assy = sn_types.Assembly(topshelf_obj)
         width = topshelf_assy.obj_x.location.x
         depth = topshelf_assy.obj_y.location.y
         height = abs(topshelf_assy.obj_z.location.z)
-        loc_x, loc_z = 0, 0 
+        loc_x, loc_z = 0, 0
         rotation = (0, 0, 0)
-        if location == 'LEFT':
-            loc_x, loc_z = 0, -height
-            rotation = (0, 225, 0)
-        elif location == 'RIGHT':
-            loc_x, loc_z = width, -height
-            rotation = (0, 135, 0)
-        elif location == 'BACK':
-            loc_x, loc_z = width / 2, -height
-            rotation = (0, 225, 0)
+
+        if topshelf_obj.parent.sn_closets.is_closet_top_bp:
+            if location == 'LEFT':
+                loc_x, loc_z = 0, -height
+                rotation = (0, 225, 0)
+            elif location == 'RIGHT':
+                loc_x, loc_z = width, -height
+                rotation = (0, 135, 0)
+            elif location == 'BACK':
+                loc_x, loc_z = width / 2, -height
+                rotation = (0, 225, 0)
+        else:
+            if location == 'LEFT':
+                loc_x, loc_z = 0, -height
+                rotation = (0, -45, 0)
+            elif location == 'RIGHT':
+                loc_x, loc_z = width, -height
+                rotation = (0, 45, 0)
+
         hashmark = sn_types.Line(sn_unit.inch(6), rotation)
         hashmark.start_x(value=loc_x)
         hashmark.start_z(value=loc_z)
@@ -1320,51 +1366,55 @@ class SNAP_OT_Auto_Dimension(Operator):
         dim.start_z(value=sn_unit.inch(2))
         dim.set_label("Exp.")
 
-
     def topshelf_exposed_labels(self, topshelf_obj):
         topshelf_assy = sn_types.Assembly(topshelf_obj)
-        exposed_left = topshelf_assy.get_prompt("Exposed Left").get_value() 
-        exposed_right = topshelf_assy.get_prompt("Exposed Right").get_value() 
-        exposed_back = topshelf_assy.get_prompt("Exposed Back").get_value()
-        if exposed_left:
-            self.apply_topshelf_exposed_lbl(topshelf_obj, 'LEFT')
-        if exposed_right:
-            self.apply_topshelf_exposed_lbl(topshelf_obj, 'RIGHT')
-        if exposed_back:
-            self.apply_topshelf_exposed_lbl(topshelf_obj, 'BACK')
-        
+        exposed_l_pmt = topshelf_assy.get_prompt("Exposed Left")
+        exposed_r_pmt = topshelf_assy.get_prompt("Exposed Right")
+        exposed_b_pmt = topshelf_assy.get_prompt("Exposed Back")
 
-    def topshelf_depth(self, context, item):
-        for tshelf in item.children:
-            if 'top shelf' in tshelf.name.lower():
-                for topshelf in tshelf.children:
-                    if 'topshelf' in topshelf.name.lower():
-                        ts_assembly = sn_types.Assembly(topshelf)
-                        ts_width = ts_assembly.obj_x.location.x
-                        ts_depth = ts_assembly.obj_y.location.y
-                        ts_height = ts_assembly.obj_z.location.z
-                        offset = ts_width / 2
-                        rotation = (0, 135, 0)
-                        hashmark = sn_types.Line(sn_unit.inch(6), rotation)
-                        hashmark.start_x(value=offset)
-                        hashmark.start_z(value=ts_height)
-                        hashmark.parent(topshelf)
-                        dim = self.add_tagged_dimension(hashmark.end_point)
-                        dim.start_x(value=0)
-                        dim.start_z(value=sn_unit.inch(2))
-                        dim.set_label(self.to_inch_lbl(ts_depth))
-                        self.topshelf_exposed_labels(topshelf)
+        if exposed_l_pmt and exposed_l_pmt.get_value():
+            self.apply_topshelf_exposed_lbl(topshelf_obj, 'LEFT')
+        if exposed_r_pmt and exposed_r_pmt.get_value():
+            self.apply_topshelf_exposed_lbl(topshelf_obj, 'RIGHT')
+        if exposed_b_pmt and exposed_b_pmt.get_value():
+            self.apply_topshelf_exposed_lbl(topshelf_obj, 'BACK')
+
+    def topshelf_depth(self, ts_assembly):
+        obj_bp = ts_assembly.obj_bp
+        ts_width = ts_assembly.obj_x.location.x
+        ts_depth = ts_assembly.obj_y.location.y
+        ts_height = ts_assembly.obj_z.location.z
+
+        if obj_bp.parent.sn_closets.is_closet_top_bp:
+            rotation = (0, 135, 0)
+        else:
+            rotation = (0, 45, 0)
+
+        offset_x = ts_width / 2
+        offset_y = ts_depth / 2
+        hashmark = sn_types.Line(sn_unit.inch(6), rotation)
+        hashmark.start_x(value=offset_x)
+        hashmark.start_y(value=offset_y)
+        hashmark.start_z(value=ts_height)
+        hashmark.parent(obj_bp)
+        dim = self.add_tagged_dimension(hashmark.end_point)
+        dim.start_z(value=sn_unit.inch(2))
+        dim.set_label(self.to_inch_lbl(abs(ts_depth)))
+        self.topshelf_exposed_labels(obj_bp)
 
     def is_labeled_toe_kick(self, toe_kick_assy):
         toe_kick = toe_kick_assy.obj_bp
         parent_obj = toe_kick.parent
+        grandparent_obj = parent_obj.parent
         if not toe_kick.sn_closets.is_toe_kick_skin_bp:
-            hanging_tk = (parent_obj.sn_closets.is_toe_kick_insert_bp and
+            hanging_tk = (grandparent_obj and
+                          'section' in grandparent_obj.name.lower() and
                           'front' in toe_kick.name.lower())
 
             corner_tk = 'angle' in toe_kick.name.lower()
 
-            lshelf_tk = ('l shelves' in parent_obj.name.lower()
+            lshelf_tk = (grandparent_obj and
+                         'l shelves' in grandparent_obj.name.lower()
                          and not ('stringer' in toe_kick.name.lower()
                                   or 'back' in toe_kick.name.lower()))
 
@@ -1389,7 +1439,7 @@ class SNAP_OT_Auto_Dimension(Operator):
         parent_assy = sn_types.Assembly(parent_obj)
         lbl_text = 'TK'
         lbl_tgt = toe_kick
-        skin_pmt = None
+        skin_pmt = parent_assy.get_prompt('Has TK Skin')
         toe_kick_x = toe_kick_assy.obj_x
         toe_kick_y = toe_kick_assy.obj_y
 
@@ -1397,9 +1447,6 @@ class SNAP_OT_Auto_Dimension(Operator):
         height = toe_kick_y.location.y
 
         lbl_loc = (width / 2, height / 2, 0)
-
-        if tk_type == 'hanging_tk':
-            skin_pmt = parent_assy.get_prompt('Has TK Skin')
 
         if tk_type == 'lshelf_tk':
             wall = sn_utils.get_parent_assembly_bp(toe_kick)
@@ -1441,55 +1488,24 @@ class SNAP_OT_Auto_Dimension(Operator):
         lbl.anchor.location = lbl_loc
         lbl.set_label(lbl_text)
 
-    def toe_kick_dimension(self, item, wall_bp):
-        for toekick in item.children:
-            if 'toe kick' in toekick.name.lower():
-                tk_height = None
-                label = ""
-                tk_assy = sn_types.Assembly(toekick)
-                if 'section' in item.name.lower():
-                    tk_height = tk_assy.obj_z.location.z
-                elif 'corner shelves' in item.name.lower():
-                    tk_height = tk_assy.obj_y.location.y
-                elif 'l shelves' in item.name.lower():
-                    tk_height = tk_assy.obj_y.location.y
-                if tk_height is not None:
-                    label = self.to_inch_lbl(tk_height)
-                    dim = self.add_tagged_dimension(wall_bp)
-                    dim.start_x(value=0 - sn_unit.inch(2))
-                    dim.start_y(value=0)
-                    dim.start_z(value=0)
-                    dim.end_z(value=tk_height)
-                    dim.set_label(" ")
-                    text = self.add_tagged_dimension(dim.anchor)
-                    text.start_x(value=-sn_unit.inch(3))
-                    text.start_z(value=tk_height / 2)
-                    text.set_label(label)
+    def toe_kick_garage_leg_dimension(self, assembly):
+        assy_bp = assembly.obj_bp
+        wall_bp = sn_utils.get_parent_assembly_bp(assy_bp)
+        dim_name = 'TKGL_HGT'
+        dim_exists = any([dim_name in c.name for c in wall_bp.children])
 
-    def garage_legs(self, item, wall_bp):
-        for garage_leg in item.children:
-            if 'garage leg' in garage_leg.name.lower():
-                gl_height = None
-                label = ""
-                tk_assy = sn_types.Assembly(garage_leg)
-                if 'section' in item.name.lower():
-                    gl_height = tk_assy.obj_z.location.z
-                elif 'corner shelves' in item.name.lower():
-                    gl_height = tk_assy.obj_y.location.y
-                elif 'l shelves' in item.name.lower():
-                    gl_height = tk_assy.obj_y.location.y
-                if gl_height is not None:
-                    label = self.to_inch_lbl(gl_height)
-                    dim = self.add_tagged_dimension(wall_bp)
-                    dim.start_x(value=0 - sn_unit.inch(2))
-                    dim.start_y(value=0)
-                    dim.start_z(value=0)
-                    dim.end_z(value=gl_height)
-                    dim.set_label(" ")
-                    text = self.add_tagged_dimension(dim.anchor)
-                    text.start_x(value=-sn_unit.inch(3))
-                    text.start_z(value=gl_height / 2)
-                    text.set_label(label)
+        if not dim_exists:
+            assy_height = assembly.obj_z.location.z
+            label = self.to_inch_lbl(assy_height)
+            dim = self.add_tagged_dimension(wall_bp)
+            dim.anchor.name = dim_name
+            dim.start_x(value=-sn_unit.inch(2))
+            dim.end_z(value=assy_height)
+            dim.set_label(' ')
+            text = self.add_tagged_dimension(dim.anchor)
+            text.start_x(value=-sn_unit.inch(3))
+            text.start_z(value=assy_height / 2)
+            text.set_label(label)
 
     def toe_kick_skins_label(self, assembly):
         tk_skin = assembly.obj_bp
@@ -1497,29 +1513,33 @@ class SNAP_OT_Auto_Dimension(Operator):
         lbl_y = assembly.obj_y.location.y / 2
         lbl = self.add_tagged_dimension(tk_skin)
         lbl.set_label('1/4" TK Skin')
-
-        """
-        HACK: For some reason the opengl text doesn't render correctly when
-        setting the handles' position normally on this assembly, but a
-        matrix_world match achieves the desired effect.
-        """
-        lbl_loc = (lbl_x, lbl_y, 0)
-        sn_utils.copy_world_loc(tk_skin, lbl.anchor, lbl_loc)
-        sn_utils.copy_world_rot(tk_skin, lbl.anchor)
-        sn_utils.copy_world_loc(tk_skin, lbl.end_point, lbl_loc)
-        sn_utils.copy_world_rot(tk_skin, lbl.end_point)
+        lbl.start_x(value=lbl_x)
+        lbl.start_y(value=lbl_y)
 
     def fullback_labeling(self, assembly):
         fullback_obj = assembly.obj_bp
         fullback_x = assembly.obj_x.location.x
         fullback_y = assembly.obj_y.location.y
         full_back_size = abs(self.to_inch(assembly.obj_z.location.z))
+        fullback_props = fullback_obj.sn_closets
+        use_unique_mat = fullback_props.use_unique_material
         label = ''
 
         if full_back_size == 0.25:
             label = 'F/B|1/4'
         if full_back_size == 0.75:
             label = 'F/B|3/4'
+
+        if use_unique_mat:
+            mat_type = fullback_props.unique_mat_types
+            if mat_type == 'MELAMINE':
+                label += f'|{fullback_props.unique_mat_mel}'
+            elif mat_type == 'TEXTURED_MELAMINE':
+                label += f'|{fullback_props.unique_mat_tex_mel}'
+            elif mat_type == 'VENEER':
+                veneer_mat = fullback_props.unique_mat_veneer
+                veneer_txt = veneer_mat.split()[0]
+                label += f'|{veneer_txt.lower().capitalize()}'
 
         lbl_x = fullback_x / 2 + sn_unit.inch(2)
         lbl_y = fullback_y / 2
@@ -1528,56 +1548,54 @@ class SNAP_OT_Auto_Dimension(Operator):
         dim.start_y(value=lbl_y)
         dim.set_label(label)
 
+    
     def slanted_shoes_shelves(self, item):
-        for candidate in item.children:
-            candidate_name = candidate.name.lower()
-            slanted = 'slanted' in candidate_name
-            shoe = 'shoe' in candidate_name
-            shelf = 'shelf' in candidate_name
-            if slanted and shoe and shelf:
-                sss_assembly = sn_types.Assembly(candidate)
-                #
-                shelf_lip_prompt = sss_assembly.get_prompt("Shelf Lip Type")
-                shelf_qty_prompt = sss_assembly.get_prompt("Adj Shelf Qty")
-                shelf_offset_prompt = sss_assembly.get_prompt(
-                    "Distance Between Shelves")
-                shf_lip_val = shelf_lip_prompt.get_value()
-                shelf_lip = shelf_lip_prompt.combobox_items[shf_lip_val].name
-                shelf_offset = float(shelf_offset_prompt.get_value())
-                shelf_qty = int(shelf_qty_prompt.get_value())
-                #
-                z_offset = (shelf_qty - 1) * shelf_offset
-                width = sss_assembly.obj_x.location.x
-                x_offset = width / 2
-                label = f'SSS {shelf_lip} Lip'
-                rotation = (0, 45, 0)
-                hashmark = sn_types.Line(sn_unit.inch(6), rotation)
-                hashmark.parent(candidate)
-                hashmark.start_x(value=x_offset)
-                hashmark.start_z(value=z_offset)
-                dim = self.add_tagged_dimension(hashmark.end_point)
-                dim.start_z(value=sn_unit.inch(2))
-                dim.set_label(label)
+        if item in tagged_sss_list:
+            return
+        sss_assembly = sn_types.Assembly(item)
+        shelf_lip_prompt = sss_assembly.get_prompt("Shelf Lip Type")
+        shelf_qty_prompt = sss_assembly.get_prompt("Adj Shelf Qty")
+        shelf_offset_prompt = sss_assembly.get_prompt(
+            "Distance Between Shelves")
+        shf_lip_val = shelf_lip_prompt.get_value()
+        shelf_lip = shelf_lip_prompt.combobox_items[shf_lip_val].name
+        shelf_offset = float(shelf_offset_prompt.get_value())
+        shelf_qty = int(shelf_qty_prompt.get_value())
+        #
+        z_offset = (shelf_qty - 1) * shelf_offset
+        width = sss_assembly.obj_x.location.x
+        x_offset = width / 2
+        label = f'SSS {shelf_lip} Lip'
+        rotation = (0, 45, 0)
+        hashmark = sn_types.Line(sn_unit.inch(6), rotation)
+        hashmark.parent(item)
+        hashmark.start_x(value=x_offset)
+        hashmark.start_z(value=z_offset)
+        dim = self.add_tagged_dimension(hashmark.end_point)
+        dim.start_z(value=sn_unit.inch(2))
+        dim.set_label(label)
+        tagged_sss_list.append(item)
 
     def jewelry_drawer_labeling(self, assembly):
-        drawer_box_obj = assembly.obj_bp
-        parent_assembly = sn_types.Assembly(drawer_box_obj.parent)
-        hshmk_len = sn_unit.inch(4)
-        hshmk_x = parent_assembly.obj_x.location.x
-        dbl_drawer = False
-        for d in drawer_box_obj.animation_data.drivers:
-            d_vars = d.driver.variables
-            for v in d_vars:
-                if v.name == 'DBH' or v.name == 'LDBH':
-                    dbl_drawer = True
-        if dbl_drawer:
-            hshmk = sn_types.Line(hshmk_len, (0, 45, 0))
-            hshmk.parent(drawer_box_obj)
-            hshmk.start_x(value=hshmk_x)
-            lbl = self.add_tagged_dimension(hshmk.anchor)
-            lbl.set_label('Db Jwlry')
-            lbl.start_x(value=sn_unit.inch(2))
-            lbl.start_z(value=hshmk_len + sn_unit.inch(3.5))
+        drawer_stack = data_drawers.Drawer_Stack(assembly.obj_bp)
+        drawer_quantity = drawer_stack.get_prompt("Drawer Quantity")
+
+        for drawer_num in range(1, drawer_quantity.get_value()):
+            use_dbl_drawer = drawer_stack.get_prompt("Use Double Drawer " + str(drawer_num))
+
+            if use_dbl_drawer.get_value():
+                drawer_front = drawer_stack.get_drawer_front(drawer_num)
+                hshmk_x = drawer_front.obj_x.location.x / 2
+                hshmk_len = sn_unit.inch(4)
+                hshmk = sn_types.Line(hshmk_len, (0, 45, 0))
+                hshmk.parent(drawer_front.obj_bp)
+                hshmk.start_x(value=hshmk_x)
+                hshmk.end_y(value=-hshmk_len)
+                lbl = self.add_tagged_dimension(hshmk.anchor)
+                lbl.set_label('Db Jwlry')
+                lbl.start_x(value=sn_unit.inch(2))
+                lbl.start_y(value=-hshmk_len * 2)
+                lbl.start_z(value=hshmk_len)
 
     def lock_labeling(self, assembly):
         lock_obj = assembly.obj_bp
@@ -1652,82 +1670,98 @@ class SNAP_OT_Auto_Dimension(Operator):
         lbl.anchor.location = lbl_loc
         lbl.set_label(lbl_str)
 
-    def filler_labeling(self, context, item):
-        for child in item.children:
-            if 'filler' in child.name.lower():
-                for cc in child.children:
-                    if cc.type == 'MESH' and not cc.hide_viewport:
-                        filler_assy = sn_types.Assembly(child)
-                        filler_measure = filler_assy.obj_y.location.y
-                        filler_amount = self.to_inch_lbl(abs(filler_measure))
-                        z_offset = child.location[2] + sn_unit.inch(3)
-                        # Filler Measure
-                        # NOTE to change Z-position change X values
-                        #      to change X-position change Y values
-                        filler_dim = self.add_tagged_dimension(child)
-                        filler_dim.start_x(value=0 - z_offset)
-                        filler_dim.start_y(value=filler_measure / 2)
-                        filler_dim.start_z(value=0)
-                        filler_dim.set_label(filler_amount)
-                        # Filler Label
-                        filler_lbl = self.add_tagged_dimension(child)
-                        filler_lbl.start_x(value=0 - z_offset - sn_unit.inch(3))
-                        filler_lbl.start_y(value=filler_measure / 2)
-                        filler_lbl.start_z(value=0)
-                        filler_lbl.set_label("Filler")
+    def filler_labeling(self, filler, position='down'):
+        filler_assy = sn_types.Assembly(filler)
+        filler_bp = filler_assy.obj_bp
+        filler_measure = filler_assy.obj_y.location.y
+        filler_amount = self.to_inch_lbl(abs(filler_measure))
+        z_offset = 0
+        if position == 'down':
+            z_offset = -(filler_bp.location.z + sn_unit.inch(4.5))
+        elif position == 'up':
+            z_offset = filler_assy.obj_x.location.x + sn_unit.inch(4.5)
+        lbl_txt = f'{filler_amount}|Filler'
+        # Filler Measure
+        # NOTE to change Z-position change X values
+        #      to change X-position change Y values
+        filler_lbl = self.add_tagged_dimension(filler_bp)
+        filler_lbl.start_x(value=z_offset)
+        filler_lbl.start_y(value=filler_measure / 2)
+        filler_lbl.set_label(lbl_txt)
 
-    def txt_label(self, body, font, size, align_x, align_y, context):
-        label_curve = bpy.data.curves.new(type='FONT', name=body)
-        label_curve.fill_mode = 'FRONT'
-        label_curve.body = body
-        label_curve.font = font
-        label_curve.size = size
-        label_curve.align_x = align_x
-        label_curve.align_y = align_y
-        label = bpy.data.objects.new('LABEL.' + body, label_curve)
-        context.scene.collection.objects.link(label)
-        return label
+    def upper_lower_filler_labeling(self, wall_bp):
+        MAX_FILLERS = 2
+        left_fillers = []
+        right_fillers = []
+        tag = 'section'
+        sections = (sec for sec in wall_bp.children if tag in sec.name.lower())
+        for section in sections:
+            for filler in section.children:
+                is_filler = filler.sn_closets.is_filler_bp
+                not_capping = 'capping' not in filler.name.lower()
+                left = 'left' in filler.name.lower()
+                right = 'right' in filler.name.lower()
+                if is_filler and not_capping:
+                    z_loc = filler.location[2]
+                    width = abs(sn_types.Assembly(filler).obj_y.location.y)
+                    width_in = self.to_inch(width)
+                    if left and width_in > 0:
+                        left_fillers.append((z_loc, width_in, filler))
+                    elif right and width_in > 0:
+                        right_fillers.append((z_loc, width_in, filler))
+        fillers_list = [left_fillers, right_fillers]
+        for fillers in fillers_list:
+            fillers = sorted(fillers, key=lambda tup: tup[0])
+            fillers_meas_qty = len(list(set([fil[1] for fil in fillers])))
+            if fillers_meas_qty == 1:
+                # apply just the first one as they are the same
+                desired_filler = fillers[0][2]
+                self.filler_labeling(desired_filler, 'down')
+            elif fillers_meas_qty > 1:
+                lower, upper = fillers[:MAX_FILLERS]
+                self.filler_labeling(lower[2], 'down')
+                self.filler_labeling(upper[2], 'up')
 
-    def capping_bottom_label(self, item):
-        for n_item in item.children:
-            props = n_item.sn_closets
-            if props.is_closet_bottom_bp:
-                cp_btm_insert = sn_types.Assembly(n_item)
-                exp_l = cp_btm_insert.get_prompt('Exposed Left')
-                exp_r = cp_btm_insert.get_prompt('Exposed Right')
-                [cp_btm_bp] = [obj for obj in n_item.children
-                               if 'IS_BP_ASSEMBLY' in obj]
 
-                # Main capping bottom label
-                cp_btm_assy = sn_types.Assembly(cp_btm_bp)
-                cp_btm_width = cp_btm_assy.obj_x.location.x
-                cp_btm_depth = cp_btm_assy.obj_y.location.y
-                hshmk_size = sn_unit.inch(2)
-                label_off = sn_unit.inch(2.5)
-                hshmk_rot = (0, -45, 0)
-                hshmk = sn_types.Line(hshmk_size, hshmk_rot)
-                hshmk.parent(cp_btm_bp)
-                hshmk.start_x(value=cp_btm_width / 2)
-                label_str = f'Cap. Bttm {self.to_inch_lbl(cp_btm_depth)}'
-                label = self.add_tagged_dimension(hshmk.end_point)
-                label.start_z(value=label_off)
-                label.set_label(label_str)
+    def capping_bottom_label(self, assembly):
+        assy_bp = assembly.obj_bp
+        [cp_btm_bp] = [obj for obj in assy_bp.children
+                       if obj.get('IS_BP_ASSEMBLY')]
 
-                # Exposed edges labels
-                if exp_l and exp_l.get_value():
-                    hshmk_exp_l = sn_types.Line(hshmk_size, hshmk_rot)
-                    hshmk_exp_l.parent(cp_btm_bp)
-                    label_exp_l = self.add_tagged_dimension(hshmk_exp_l.end_point)
-                    label_exp_l.start_z(value=label_off)
-                    label_exp_l.set_label('Exp.')
+        # Main capping bottom label
+        cp_btm_assy = sn_types.Assembly(cp_btm_bp)
+        exp_l = cp_btm_assy.get_prompt('Exposed Left')
+        exp_r = cp_btm_assy.get_prompt('Exposed Right')
+        cp_btm_width = cp_btm_assy.obj_x.location.x
+        cp_btm_depth = cp_btm_assy.obj_y.location.y
 
-                if exp_r and exp_r.get_value():
-                    hshmk_exp_r = sn_types.Line(hshmk_size, (0, 45, 0))
-                    hshmk_exp_r.parent(cp_btm_bp)
-                    hshmk_exp_r.start_x(value=cp_btm_width)
-                    label_exp_r = self.add_tagged_dimension(hshmk_exp_r.end_point)
-                    label_exp_r.start_z(value=label_off)
-                    label_exp_r.set_label('Exp.')
+        hshmk_size = sn_unit.inch(2)
+        label_off = sn_unit.inch(2.5)
+        hshmk_rot = (0, -45, 0)
+        hshmk = sn_types.Line(hshmk_size, hshmk_rot)
+        hshmk.parent(cp_btm_bp)
+        hshmk.start_x(value=cp_btm_width / 2)
+        label_str = f'Cap. Bttm {self.to_inch_lbl(cp_btm_depth)}'
+
+        label = self.add_tagged_dimension(hshmk.end_point)
+        label.start_z(value=label_off)
+        label.set_label(label_str)
+
+        # Exposed edges labels
+        if exp_l and exp_l.get_value():
+            hshmk_exp_l = sn_types.Line(hshmk_size, hshmk_rot)
+            hshmk_exp_l.parent(cp_btm_bp)
+            label_exp_l = self.add_tagged_dimension(hshmk_exp_l.end_point)
+            label_exp_l.start_z(value=label_off)
+            label_exp_l.set_label('Exp.')
+
+        if exp_r and exp_r.get_value():
+            hshmk_exp_r = sn_types.Line(hshmk_size, (0, 45, 0))
+            hshmk_exp_r.parent(cp_btm_bp)
+            hshmk_exp_r.start_x(value=cp_btm_width)
+            label_exp_r = self.add_tagged_dimension(hshmk_exp_r.end_point)
+            label_exp_r.start_z(value=label_off)
+            label_exp_r.set_label('Exp.')
 
     def add_glass_cutpart_dim(self, assembly, part, thickness):
         setback = 0.25
@@ -1757,23 +1791,21 @@ class SNAP_OT_Auto_Dimension(Operator):
             dim.set_label(label)
 
     def glass_shelves(self, item):
+        shelves = item.parent
         thickness_dict = {
             0: '1/4"',
             1: '3/8"',
             2: '1/2"'
         }
-        for child in item.children:
-            shelves = 'shelves' in child.name.lower()
+        assy = sn_types.Assembly(shelves)
+        glass_prompt_th = assy.get_prompt("Glass Shelf Thickness")
+        thickness = thickness_dict[glass_prompt_th.get_value()]
+        for child in shelves.children:
             glass = 'glass' in child.name.lower()
-            if shelves and glass:
-                assy = sn_types.Assembly(child)
-                glass_prompt_th = assy.get_prompt("Glass Shelf Thickness")
-                thickness = thickness_dict[glass_prompt_th.get_value()]
-                for cc in child.children:
-                    if cc.sn_closets.is_glass_shelf_bp:
-                        for part in cc.children:
-                            if part.type == "MESH":
-                                self.add_glass_cutpart_dim(cc, part, thickness)
+            shf = 'shelf' in child.name.lower()
+            for shelf in child.children:
+                if shelf.type == "MESH" and glass and shf:
+                    self.add_glass_cutpart_dim(child, shelf, thickness)
 
     # Its to figure out if has variable children
     variable_sections_list = []
@@ -1803,27 +1835,22 @@ class SNAP_OT_Auto_Dimension(Operator):
                     dim.start_z(value=-sn_unit.inch(7) - n_item.location.z)
                     dim.set_label("Var.")
 
-    def valances(self, item):
-        for candidate in item.children:
-            valance = 'valance' in candidate.name.lower()
-            if valance:
-                valance_assembly = sn_types.Assembly(candidate)
-                width = valance_assembly.obj_x.location.x
-                height = valance_assembly.get_prompt(
-                    "Molding Height").get_value()
-                location = valance_assembly.get_prompt(
-                    "Molding Location").get_value()
-                x_offset = width / 2
-                z_offset = -(abs(height) + abs(location))
-                rotation = (135, 0, 90)
-                label = "Valance " + self.to_inch_lbl(abs(height))
-                hashmark = sn_types.Line(sn_unit.inch(2), rotation)
-                hashmark.parent(candidate)
-                hashmark.start_x(value=x_offset)
-                hashmark.start_z(value=z_offset)
-                dim = self.add_tagged_dimension(hashmark.end_point)
-                dim.start_z(value=sn_unit.inch(2))
-                dim.set_label(label)
+    def valances_labeling(self, assembly):
+        valance_obj = assembly.obj_bp
+        width = assembly.obj_x.location.x
+        height = assembly.get_prompt('Molding Height').get_value()
+        location = assembly.get_prompt('Molding Location').get_value()
+        x_offset = width / 2
+        z_offset = -(abs(height) + abs(location))
+        rotation = (135, 0, 90)
+        label = f'Valance {self.to_inch_lbl(abs(height))}'
+        hashmark = sn_types.Line(sn_unit.inch(2), rotation)
+        hashmark.parent(valance_obj)
+        hashmark.start_x(value=x_offset)
+        hashmark.start_z(value=z_offset)
+        dim = self.add_tagged_dimension(hashmark.end_point)
+        dim.start_z(value=sn_unit.inch(2))
+        dim.set_label(label)
 
     def blind_corner_panel_labels(self, bcp):
         bcp_obj = bcp.obj_bp
@@ -1884,30 +1911,28 @@ class SNAP_OT_Auto_Dimension(Operator):
                 gap_lbl.start_x(value=gap_lbl_x)
                 gap_lbl.start_y(value=gap_lbl_y)
 
-    def flat_crown(self, context, item):
-        wall = sn_types.Assembly(item.parent)
-        assy = sn_types.Assembly(item)
+    def flat_crown(self, item):
+        wall = sn_types.Assembly(item.parent.parent)
+        assy = sn_types.Assembly(item.parent)
         hang_h = assy.obj_z.location.z
         tkd_vo = assy.get_prompt('Top KD 1 Vertical Offset')
         labels = []
         tkh_str = ''
-        for p in item.children:
-            if p.sn_closets.is_flat_crown_bp and p.snap.type_group == 'INSERT':
-                fc_prod = sn_types.Assembly(p)
-                ext_ceil = fc_prod.get_prompt('Extend To Ceiling')
-                tkh = fc_prod.get_prompt('Top KD Holes Down')
-                if ext_ceil and ext_ceil.get_value() and tkh and tkd_vo:
-                    if tkh.get_value() == 'One':
-                        tkh_str = 'Top KD|Down 1 Hole'
-                    elif tkh.get_value() == 'Two':
-                        tkh_str = 'Top KD|Down 2 Holes'
-                    hang_h -= tkd_vo.get_value()
-                for a in p.children:
-                    if a.get("IS_BP_ASSEMBLY") and 'Flat Crown' in a.name:
-                        fc_assy = sn_types.Assembly(a)
-                        fc_h = fc_assy.obj_y.location.y
-                        fc_str = 'Flat Crown %s' % self.to_inch_lbl(fc_h)
-                        labels.append((fc_str, fc_h))
+        fc_prod = sn_types.Assembly(item)
+        ext_ceil = fc_prod.get_prompt('Extend To Ceiling')
+        tkh = fc_prod.get_prompt('Top KD Holes Down')
+        if ext_ceil and ext_ceil.get_value() and tkh and tkd_vo:
+            if tkh.get_value() == 1:
+                tkh_str = 'Top KD|Down 1 Hole'
+            elif tkh.get_value() == 2:
+                tkh_str = 'Top KD|Down 2 Holes'
+            hang_h -= tkd_vo.get_value()
+        for a in item.children:
+            if a.get("IS_BP_ASSEMBLY") and 'Flat Crown' in a.name:
+                fc_assy = sn_types.Assembly(a)
+                fc_h = fc_assy.obj_y.location.y
+                fc_str = 'Flat Crown %s' % self.to_inch_lbl(fc_h)
+                labels.append((fc_str, fc_h))
 
         labels = list(dict.fromkeys(labels))
         if tkh_str:
@@ -1920,28 +1945,72 @@ class SNAP_OT_Auto_Dimension(Operator):
             lbl.start_x(value=sn_unit.inch(-20))
             lbl.start_z(value=lbl_z)
 
-    def light_rails(self, item):
-        for candidate in item.children:
-            light = 'light' in candidate.name.lower()
-            rail = 'rail' in candidate.name.lower()
-            if light and rail:
-                light_rail_assembly = sn_types.Assembly(candidate)
-                width = light_rail_assembly.obj_x.location.x
-                height = light_rail_assembly.get_prompt(
-                    "Molding Height").get_value()
-                location = light_rail_assembly.get_prompt(
-                    "Molding Location").get_value()
-                x_offset = width / 2
-                z_offset = -(abs(height) + abs(location))
-                rotation = (135, 0, 90)
-                label = "Light Rails " + self.to_inch_lbl(abs(height))
-                hashmark = sn_types.Line(sn_unit.inch(2), rotation)
-                hashmark.parent(candidate)
-                hashmark.start_x(value=x_offset)
-                hashmark.start_z(value=z_offset)
-                dim = self.add_tagged_dimension(hashmark.end_point)
-                dim.start_z(value=sn_unit.inch(2))
-                dim.set_label(label)
+    def light_rails_labeling(self, assembly):
+        light_rail_obj = assembly.obj_bp
+        width = assembly.obj_x.location.x
+        height = assembly.get_prompt('Molding Height').get_value()
+        location = assembly.get_prompt('Molding Location').get_value()
+        x_offset = width / 2
+        z_offset = -(abs(height) + abs(location))
+        rotation = (135, 0, 90)
+        label = f'Light Rails {self.to_inch_lbl(abs(height))}'
+        hashmark = sn_types.Line(sn_unit.inch(2), rotation)
+        hashmark.parent(light_rail_obj)
+        hashmark.start_x(value=x_offset)
+        hashmark.start_z(value=z_offset)
+        dim = self.add_tagged_dimension(hashmark.end_point)
+        dim.start_z(value=sn_unit.inch(2))
+        dim.set_label(label)
+
+    def wall_cleat_dimensions(self, assy):
+        obj = assy.obj_bp
+        labeled_cleat = None
+        width = 0
+        height = 0
+        all_cleats = [sn_types.Assembly(c) for c in obj.children
+                      if 'cleat' in c.name.lower()]
+
+        for cleat_assy in all_cleats:
+            hide_pmt = cleat_assy.get_prompt('Hide')
+            if hide_pmt and not hide_pmt.get_value():
+                labeled_cleat = cleat_assy
+
+        if labeled_cleat:
+            dim_offset = sn_unit.inch(2)
+            cleat_aff_dist = labeled_cleat.obj_bp.matrix_world.translation.z
+            width = labeled_cleat.obj_x.location.x
+
+            if obj.sn_closets.is_accessory_bp:
+                height = labeled_cleat.obj_z.location.z
+                dim_w_anchor_loc = (0, 0, -dim_offset)
+                dim_h_end_loc = (0, 0, height)
+                aff_dim_anchor_loc = (0, 0, -cleat_aff_dist)
+                aff_dim_end_loc = (0, 0, cleat_aff_dist)
+
+            else:
+                height = labeled_cleat.obj_y.location.y
+                dim_w_anchor_loc = (0, dim_offset, 0)
+                dim_h_end_loc = (0, height, 0)
+                aff_dim_anchor_loc = (0, cleat_aff_dist, 0)
+                aff_dim_end_loc = (0, -cleat_aff_dist, 0)
+
+            dim_w = self.add_tagged_dimension(labeled_cleat.obj_bp)
+            dim_w.set_horizontal_line_txt_pos('BOTTOM')
+            lbl_w = self.to_inch_lbl(width)
+            dim_w.anchor.location = dim_w_anchor_loc
+            dim_w.end_x(value=width)
+            dim_w.set_label(lbl_w)
+
+            dim_h = self.add_tagged_dimension(labeled_cleat.obj_bp)
+            lbl_h = self.to_inch_lbl(abs(height))
+            dim_h.start_x(value=-dim_offset)
+            dim_h.end_point.location = dim_h_end_loc
+            dim_h.set_label(lbl_h)
+
+            aff_dim = self.add_tagged_dimension(labeled_cleat.obj_bp)
+            aff_dim.anchor.location = aff_dim_anchor_loc
+            aff_dim.end_point.location = aff_dim_end_loc
+            aff_dim.set_label(self.to_inch_lbl(cleat_aff_dist))
 
     def countertop_hashmark(self, context, item):
         material_name = ""
@@ -1950,50 +2019,48 @@ class SNAP_OT_Auto_Dimension(Operator):
             1: 'HPL',
             2: 'Granite'
         }
-        for n_item in item.children:
-            if n_item.sn_closets.is_counter_top_insert_bp:
-                ctop_assembly = sn_types.Assembly(n_item)
-                ctop_mat_pmpt = ctop_assembly.get_prompt("Countertop Type")
-                ctop_mat_option = ctop_mat_pmpt.get_value()
-                material_str = material_dict.get(ctop_mat_option)
-                width = abs(ctop_assembly.obj_x.location.x)
-                counter_top_width = 0
-                counter_top_depth = 0
-                counter_top_height = 0
-                # n_item is at CTOP INSERT level
-                for k_item in n_item.children:
-                    for x_item in k_item.children:
-                        if not x_item.hide_viewport and 'hashmark' not in x_item.name.lower():
-                            for sibling in x_item.parent.children:
-                                if sibling.get("obj_x"):
-                                    counter_top_width = abs(sibling.location.x)
-                                if sibling.get("obj_y"):
-                                    counter_top_depth = abs(sibling.location.y)
-                                if sibling.get("obj_z"):
-                                    counter_top_height = abs(sibling.location.z)
-                context_material = material_name
-                material = ""
-                if material_str is not None:
-                    material += material_str
-                if not None:
-                    material += context_material
-                material += " "
-                for spec_group in context.scene.snap.spec_groups:
-                    material += spec_group.materials["Countertop_Surface"].item_name
-                x_offset = width / 2
-                z_offset = counter_top_height
-                hashmark = sn_types.Line(sn_unit.inch(3), (0, 45, 0))
-                hashmark.parent(n_item)
-                hashmark.start_x(value=x_offset)
-                hashmark.start_z(value=z_offset)
-                counter_top_width_str = self.to_inch_lbl(counter_top_width)
-                counter_top_depth_str = self.to_inch_lbl(counter_top_depth)
-                # Countertop Dimensions
-                label = (material + " C.T. " + counter_top_width_str +
-                         " x " + counter_top_depth_str)
-                ctop_dim = self.add_tagged_dimension(hashmark.end_point)
-                ctop_dim.start_z(value=sn_unit.inch(2))
-                ctop_dim.set_label(label)
+        ctop_assembly = sn_types.Assembly(item)
+        ctop_mat_pmpt = ctop_assembly.get_prompt("Countertop Type")
+        ctop_mat_option = ctop_mat_pmpt.get_value()
+        material_str = material_dict.get(ctop_mat_option)
+        width = abs(ctop_assembly.obj_x.location.x)
+        counter_top_width = 0
+        counter_top_depth = 0
+        counter_top_height = 0
+        # item is at CTOP INSERT level
+        for k_item in item.children:
+            for x_item in k_item.children:
+                if not x_item.hide_viewport and 'hashmark' not in x_item.name.lower():
+                    for sibling in x_item.parent.children:
+                        if sibling.get("obj_x"):
+                            counter_top_width = abs(sibling.location.x)
+                        if sibling.get("obj_y"):
+                            counter_top_depth = abs(sibling.location.y)
+                        if sibling.get("obj_z"):
+                            counter_top_height = abs(sibling.location.z)
+        context_material = material_name
+        material = ""
+        if material_str is not None:
+            material += material_str
+        if not None:
+            material += context_material
+        material += " "
+        for spec_group in context.scene.snap.spec_groups:
+            material += spec_group.materials["Countertop_Surface"].item_name
+        x_offset = width / 2
+        z_offset = counter_top_height
+        hashmark = sn_types.Line(sn_unit.inch(3), (0, 45, 0))
+        hashmark.parent(item)
+        hashmark.start_x(value=x_offset)
+        hashmark.start_z(value=z_offset)
+        counter_top_width_str = self.to_inch_lbl(counter_top_width)
+        counter_top_depth_str = self.to_inch_lbl(counter_top_depth)
+        # Countertop Dimensions
+        label = (material + " C.T. " + counter_top_width_str +
+                    " x " + counter_top_depth_str)
+        ctop_dim = self.add_tagged_dimension(hashmark.end_point)
+        ctop_dim.start_z(value=sn_unit.inch(2))
+        ctop_dim.set_label(label)
 
     def ctop_exposed_dim(self, parent, location, rotation):
         mark = sn_types.Line(sn_unit.inch(3), rotation)
@@ -2004,47 +2071,45 @@ class SNAP_OT_Auto_Dimension(Operator):
         dim.set_label("Exp.")
 
     def countertop_exposed_label(self, item):
-        for n_item in item.children:
-            if n_item.sn_closets.is_counter_top_insert_bp:
-                ctop_assembly = sn_types.Assembly(n_item)
-                ctop_exposed_left = ctop_assembly.get_prompt("Exposed Left")
-                ctop_exposed_right = ctop_assembly.get_prompt("Exposed Right")
-                ctop_exposed_back = ctop_assembly.get_prompt("Exposed Back")
-                extended_left = ctop_assembly.get_prompt("Extend Left Amount")
-                extended_right = ctop_assembly.get_prompt(
-                    "Extend Right Amount")
-                width = abs(ctop_assembly.obj_x.location.x)
-                counter_top_height = 0
-                # n_item is at CTOP INSERT level
-                for k_item in n_item.children:
-                    for x_item in k_item.children:
-                        if not x_item.hide_viewport and 'hashmark' not in x_item.name.lower():
-                            for sibling in x_item.parent.children:
-                                if sibling.get("obj_z"):
-                                    counter_top_height = abs(
-                                        sibling.location.z)
-                z_offset = counter_top_height
-                if ctop_exposed_left.get_value() is True:
-                    extension = 0
-                    if extended_left is not None:
-                        extension = extended_left.get_value()
-                    offset = -extension
-                    location = (offset, 0, z_offset)
-                    rotation = (0, -45, 0)
-                    self.ctop_exposed_dim(n_item, location, rotation)
-                if ctop_exposed_right.get_value() is True:
-                    extension = 0
-                    if extended_right is not None:
-                        extension = extended_right.get_value()
-                    offset = width + extension
-                    location = (offset, 0, z_offset)
-                    rotation = (0, 45, 0)
-                    self.ctop_exposed_dim(n_item, location, rotation)
-                if ctop_exposed_back.get_value() is True:
-                    offset = width / 4
-                    location = (offset, 0, z_offset)
-                    rotation = (0, -45, 0)
-                    self.ctop_exposed_dim(n_item, location, rotation)
+        ctop_assembly = sn_types.Assembly(item)
+        ctop_exposed_left = ctop_assembly.get_prompt("Exposed Left")
+        ctop_exposed_right = ctop_assembly.get_prompt("Exposed Right")
+        ctop_exposed_back = ctop_assembly.get_prompt("Exposed Back")
+        extended_left = ctop_assembly.get_prompt("Extend Left Amount")
+        extended_right = ctop_assembly.get_prompt(
+            "Extend Right Amount")
+        width = abs(ctop_assembly.obj_x.location.x)
+        counter_top_height = 0
+        # item is at CTOP INSERT level
+        for k_item in item.children:
+            for x_item in k_item.children:
+                if not x_item.hide_viewport and 'hashmark' not in x_item.name.lower():
+                    for sibling in x_item.parent.children:
+                        if sibling.get("obj_z"):
+                            counter_top_height = abs(
+                                sibling.location.z)
+        z_offset = counter_top_height
+        if ctop_exposed_left.get_value() is True:
+            extension = 0
+            if extended_left is not None:
+                extension = extended_left.get_value()
+            offset = -extension
+            location = (offset, 0, z_offset)
+            rotation = (0, -45, 0)
+            self.ctop_exposed_dim(item, location, rotation)
+        if ctop_exposed_right.get_value() is True:
+            extension = 0
+            if extended_right is not None:
+                extension = extended_right.get_value()
+            offset = width + extension
+            location = (offset, 0, z_offset)
+            rotation = (0, 45, 0)
+            self.ctop_exposed_dim(item, location, rotation)
+        if ctop_exposed_back.get_value() is True:
+            offset = width / 4
+            location = (offset, 0, z_offset)
+            rotation = (0, -45, 0)
+            self.ctop_exposed_dim(item, location, rotation)
 
     def ct_overhang_label(self, assembly):
         obj_bp = assembly.obj_bp
@@ -2185,15 +2250,22 @@ class SNAP_OT_Auto_Dimension(Operator):
                                     assy = sn_types.Assembly(k_item)
                                     topshelf_thickness = abs(
                                                 assy.obj_z.location.z)
+
+        # Get world location z from each partition obj_x
+        obj_bp = hanging_assy.obj_bp
+        partitions = [sn_types.Assembly(obj) for obj in obj_bp.children if obj.sn_closets.is_panel_bp]
+        partition_world_heights = [p.obj_x.matrix_world.translation.z for p in partitions]
+        tallest_partition_height = max(partition_world_heights)
+
         hanging = hanging_height > 0
         ctop = ctop_thickness == 0
         tshelf = topshelf_thickness == 0
         if hanging and ctop and tshelf:
-            build_height_dim = hanging_height
+            build_height_dim = tallest_partition_height
         elif ctop_thickness > 0:
             build_height_dim = (countertop_height + ctop_thickness)
         elif topshelf_thickness > 0:
-            build_height_dim = (hanging_height + topshelf_thickness)
+            build_height_dim = (tallest_partition_height + topshelf_thickness)
         bh_dims.append(build_height_dim)
 
 
@@ -2203,7 +2275,7 @@ class SNAP_OT_Auto_Dimension(Operator):
         for tk in item.children:
             if 'toe kick' in tk.name.lower():
                 tk_assy = sn_types.Assembly(tk)
-                tk_height = tk_assy.obj_y.location.y
+                tk_height = tk_assy.obj_z.location.z
         lsh_assy = sn_types.Assembly(item)
         tsh = lsh_assy.get_prompt("Add Top Shelf").get_value()
         if tsh:
@@ -2255,9 +2327,9 @@ class SNAP_OT_Auto_Dimension(Operator):
                 dim.start_z(value=sn_unit.inch(2))
                 dim.set_label(self.to_inch_lbl(depth))
 
-    def get_door_size(self, door_mesh):
+    def get_door_size(self, door_height_metric):
         label = ""
-        door_height = self.to_inch_str(door_mesh.dimensions[0])
+        door_height = self.to_inch_str(door_height_metric)
         if door_height in common_lists.DOOR_SIZES_DICT.keys():
             label = common_lists.DOOR_SIZES_DICT[door_height]
         else:
@@ -2268,7 +2340,7 @@ class SNAP_OT_Auto_Dimension(Operator):
                     qry_result = True
                     label = value
             if not qry_result:
-                label = str(opengl_dim.format_distance(door_height))
+                label = str(opengl_dim.format_distance(float(door_height)))
         return label
 
     def get_drawer_size_by_dim(self, drawer_height):
@@ -2307,6 +2379,83 @@ class SNAP_OT_Auto_Dimension(Operator):
                 return True
         return False
 
+    def opening_panels(self, section):
+        """
+        Returns a dictionary of openings and their adjacent panels,
+        sorted left to right.
+        """
+        opns_sides = {}
+        panels = [c for c in section.children if c.sn_closets.is_panel_bp and
+                  not c.sn_closets.is_blind_corner_panel_bp]
+        opns = [c for c in section.children if c.snap.type_group == 'OPENING']
+
+        opns.sort(key=lambda x: x.location.x)
+        panels.sort(key=lambda x: x.location.x)
+
+        for i, opn in enumerate(opns):
+            opns_sides[opn] = [panels[i], panels[i + 1]]
+
+        return opns_sides
+
+    def extra_drilling_labeling(self, section):
+        opns_sides = self.opening_panels(section)
+
+        for opening, sides in opns_sides.items():
+            opn_assy = sn_types.Assembly(opening)
+            opn_w = opn_assy.obj_x.location.x
+            opn_h = opn_assy.obj_z.location.z
+
+            panel_l, panel_r = sides
+            holes_l = False
+            holes_r = False
+
+            for side in sides:
+                panel_part = sn_types.Part(side)
+                [cutpart] = panel_part.get_cutparts()
+                mach_tks = cutpart.snap.mp.machine_tokens
+
+                if side == panel_l:
+                    holes_l = any(['Mid Right' in m.name for m in mach_tks])
+                if side == panel_r:
+                    holes_r = any(['Mid Left' in m.name for m in mach_tks])
+
+            if holes_l and holes_r:
+                lbl = self.add_tagged_dimension(opening)
+                lbl.start_x(value=opn_w/2)
+                lbl.start_z(value=opn_h/2)
+                lbl.anchor.rotation_euler.y = -math.radians(45)
+                lbl.set_label('3 Lines of Holes')
+
+    def add_dog_ear_label(self, closet):
+        closet_assembly = sn_types.Assembly(obj_bp=closet)
+        active_prompt = closet_assembly.get_prompt("Dog Ear Active")
+        if not active_prompt:
+            return
+        if not active_prompt.get_value():
+            return
+        partition_list = self.get_partition_list(closet)
+        dog_ear_depth =\
+            closet_assembly.get_prompt(
+                "Front Angle Depth").get_value()
+        for _, _, panel, _ in partition_list:
+            if round(abs(panel.dimensions[1]), 2) <= round(dog_ear_depth, 2):
+                continue
+            x_loc = panel.dimensions[0] + 0.1
+            dim = self.add_tagged_dimension(panel)
+            dim.start_x(value=x_loc)
+            dim.start_y(value=0)
+            dim.start_z(value=0)
+            dim.anchor.name = 'PARTHGT'
+            dim.end_point.name = 'PARTHGT'
+            dim.set_label("DE")
+            hashmark = sn_types.Line(0.065, (0, 90, 0))
+            hashmark.parent(panel)
+            hashmark.start_x(value=abs(panel.dimensions[0]))
+            hashmark.start_y(value=0)
+            hashmark.start_z(value=0)
+            hashmark.anchor.name = 'PARTHGT'
+            hashmark.end_point.name = 'PARTHGT'
+
     def execute(self, context):
         self.clean_up_scene(context)
         scene_props = get_dimension_props()
@@ -2322,16 +2471,16 @@ class SNAP_OT_Auto_Dimension(Operator):
                 self.section_depths(wall_bp)
             if scene_props.section_widths:
                 self.section_widths(context, wall_bp)
+            if scene_props.partition_height:
+                self.partition_height(wall_bp)
+            if scene_props.filler:
+                self.upper_lower_filler_labeling(wall_bp)
             for child in wall_bp.children:
                 if child.snap.is_wall_mesh and scene_props.ceiling_height:
                     self.ceiling_height_dimension(child, bheight_offset)
 
                 if child.get("IS_BP_ASSEMBLY"):
                     # Shelves Options
-                    if scene_props.slanted_shoe_shelves:
-                        self.slanted_shoes_shelves(child)
-                    if scene_props.glass_shelves:
-                        self.glass_shelves(child)
                     if scene_props.shelf_setback:
                         self.stack_shelves_setback(child)
                         self.hangers_setback(child)
@@ -2339,38 +2488,16 @@ class SNAP_OT_Auto_Dimension(Operator):
                         # self.arrayed_shelves_section_depth_dimension(context,
                                                                     #  child)
 
-                    # Doors and Drawers Options
-                    if scene_props.file_drawers:
-                        self.file_drawer_labeling(context, child)
-
-                    # Molding Options
-                    if scene_props.valances:
-                        self.valances(child)
-                    if scene_props.light_rails:
-                        self.light_rails(child)
-                    if scene_props.flat_crown:
-                        self.flat_crown(context, child)
-                    if scene_props.capping_bottom:
-                        self.capping_bottom_label(child)
-
                     # General Options
-                    if scene_props.partition_height:
-                        self.partition_height(context, child)
-                    if scene_props.corner_shelves_l_shelves:
-                        self.corner_shelves_l_shelves(child)
-                    if scene_props.toe_kick_height:
-                        self.toe_kick_dimension(child, wall_bp)
-                    if scene_props.garage_legs:
-                        self.garage_legs(child, wall_bp)
-                    if scene_props.top_shelf_depth:
-                        self.topshelf_depth(context, child)
-                    if scene_props.filler:
-                        self.filler_labeling(context, child)
-                    if scene_props.countertop:
-                        self.countertop_hashmark(context, child)
-                        self.countertop_exposed_label(child)
                     if scene_props.variable:
                         self.variable_opening_label(child)
+                    if (scene_props.third_line_holes and
+                       'section' in child.name.lower()):
+                        self.extra_drilling_labeling(child)
+
+                    # Dog Ear
+                    if scene_props.dog_ear:
+                        self.add_dog_ear_label(child)
 
             self.wall_width_dimension(wall_bp)
 
@@ -2399,45 +2526,37 @@ class SNAP_OT_Auto_Dimension(Operator):
             #
             # We also label the doors once, if there is a left and right door, labeling the right one
             # To find if a door is left or right you look at it's assembly depth (VPDIMY)
-            if props.is_door_insert_bp and scene_props.door_face_height:
-                doors_objs = {"left": (None, None), "right": (None, None)}
-
-                for obj in assembly.obj_bp.children:
-                    if 'left' in obj.name.lower():
-                        for door_ch in obj.children:
-                            hidden = door_ch.hide_viewport
-                            if door_ch.type == 'MESH' and not hidden:
-                                doors_objs["left"] = (obj, door_ch)
-                    elif 'right' in obj.name.lower():
-                        for door_ch in obj.children:
-                            hidden = door_ch.hide_viewport
-                            if door_ch.type == 'MESH' and not hidden:
-                                doors_objs["right"] = (obj, door_ch)
-
-                left_door, left_mesh = doors_objs["left"]
-                right_door, right_mesh = doors_objs["right"]
-                has_left_door = left_door is not None
-                has_right_door = right_door is not None
-                label = ""
-                if has_left_door:
-                    label = self.get_door_size(left_mesh)
-                if has_right_door:
-                    label = self.get_door_size(right_mesh)
-                if has_left_door and has_right_door:
-                    dim = self.add_tagged_dimension(assembly.obj_bp)
-                    dim.start_x(
-                        value=(assembly.obj_x.location.x / 5) * 4)
-                    dim.start_z(value=(assembly.obj_z.location.z / 5) * 4)
-                    dim.set_label(label)
-                if not has_left_door or not has_right_door:
-                    dim = self.add_tagged_dimension(assembly.obj_bp)
-                    dim.start_x(
-                        value=(assembly.obj_x.location.x / 5) * 4)
-                    dim.start_z(value=(assembly.obj_z.location.z / 5) * 4)
-                    dim.set_label(label)
+            if props.is_door_bp and scene_props.door_face_height:
+                door_obj = assembly.obj_bp
+                door_assy = sn_types.Assembly(door_obj)
+                door_height = door_assy.obj_x.location.x
+                y_offset = (assembly.obj_y.location.y / 5) * 4
+                if 'left' in door_obj.name.lower():
+                    y_offset = (assembly.obj_y.location.y / 5) * 4
+                elif 'right' in door_obj.name.lower():
+                    y_offset = (assembly.obj_y.location.y / 5) * 1
+                label = self.get_door_size(door_height)
+                dim = self.add_tagged_dimension(door_obj)
+                dim.start_x(
+                    value=(assembly.obj_x.location.x / 5) * 4)
+                dim.start_y(value=y_offset)
+                dim.set_label(label)
 
             # DRAWER FRONT HEIGHT LABEL
-            if props.is_drawer_stack_bp and scene_props.label_drawer_front_height:
+            parent = assembly.obj_bp.parent
+            in_island = False
+            if parent:
+                in_island = assembly.obj_bp.parent.sn_closets.is_island
+
+            label_faces = (props.is_drawer_stack_bp and
+                           scene_props.label_drawer_front_height and not
+                           in_island)
+
+            label_file_drawers = (props.is_drawer_stack_bp and
+                                  scene_props.file_drawers and not
+                                  in_island)
+
+            if label_faces:  # noqa E501
                 drw_front_pmpt = None
                 drw_assy = sn_types.Assembly(assembly.obj_bp)
                 drawer_qty = drw_assy.get_prompt("Drawer Quantity").get_value()
@@ -2453,6 +2572,10 @@ class SNAP_OT_Auto_Dimension(Operator):
                         h_number = self.get_drawer_size_by_dim(drw_face_height)
                         drw_front_list.append((i, drw_face_height, h_number))
                 self.place_drawer_front_labels(drw_assy, drw_front_list)
+
+            # File Drawer Label
+            if label_file_drawers:
+                self.file_drawer_labeling(assembly)
 
             # HAMPER TYPE LABEL
             if props.is_hamper_insert_bp and scene_props.label_hamper_type:
@@ -2488,7 +2611,7 @@ class SNAP_OT_Auto_Dimension(Operator):
                 self.lock_labeling(assembly)
 
             # Jewelry Drawer Labels
-            if scene_props.double_jewelry and props.is_drawer_box_bp:
+            if scene_props.double_jewelry and props.is_drawer_stack_bp:
                 self.jewelry_drawer_labeling(assembly)
 
             # Countertop Insert Overhang Labels
@@ -2498,6 +2621,14 @@ class SNAP_OT_Auto_Dimension(Operator):
             # Blind Corner Panel Labels
             if scene_props.bc_panels and props.is_blind_corner_panel_bp:
                 self.blind_corner_panel_labels(assembly)
+
+            # Toe Kick Height Dimension
+            if scene_props.toe_kick_height and props.is_toe_kick_insert_bp:
+                self.toe_kick_garage_leg_dimension(assembly)
+
+            is_garage_leg = 'garage leg' in assembly.obj_bp.name.lower()
+            if scene_props.garage_legs and is_garage_leg:
+                self.toe_kick_garage_leg_dimension(assembly)
 
             # Toe Kick Labels
             if props.is_toe_kick_bp:
@@ -2518,10 +2649,74 @@ class SNAP_OT_Auto_Dimension(Operator):
                 if scene_props.ct_overhang:
                     self.ct_overhang_label(assembly)
 
+            # Wall cleats dimensions
+            accy_cleat = (props.is_accessory_bp and
+                          any(['cleat' in c.name.lower()
+                              for c in assembly.obj_bp.children]))
+            wall_cleat = 'wall cleat' in assembly.obj_bp.name.lower()
+
+            if scene_props.wall_cleats and (accy_cleat or wall_cleat):
+                self.wall_cleat_dimensions(assembly)
+
+            # Top Shelf labeling
+            is_top_shelf = 'topshelf' in assembly.obj_bp.name.lower()
+            if scene_props.top_shelf_depth and is_top_shelf:
+                self.topshelf_depth(assembly)
+
+            # SSS labeling
+            if scene_props.slanted_shoe_shelves and props.is_slanted_shelf_bp:
+                self.slanted_shoes_shelves(assembly.obj_bp.parent)
+
+            # Glass Shelves
+            if scene_props.glass_shelves and props.is_glass_shelf_bp:
+                self.glass_shelves(assembly.obj_bp)
+
+            # Countertop
+            if scene_props.countertop and props.is_counter_top_insert_bp:
+                self.countertop_hashmark(context, assembly.obj_bp)
+                self.countertop_exposed_label(assembly.obj_bp)
+
+            # Filler
+            # if scene_props.filler and props.is_filler_bp:
+            #     self.filler_labeling(assembly)
+
+            # Flat Crown
+            not_none_parent = assembly.obj_bp.parent is not None
+            flat_crown = scene_props.flat_crown and props.is_flat_crown_bp
+            if flat_crown and not_none_parent:
+                self.flat_crown(assembly.obj_bp)
+
+            # Capping Bottom Labeling
+            if scene_props.capping_bottom and props.is_closet_bottom_bp:
+                self.capping_bottom_label(assembly)
+
+            # Valances Labeling
+            is_valance = ('valance' in assembly.obj_bp.name.lower() and
+                          'flat' not in assembly.obj_bp.name.lower())
+            if scene_props.valances and is_valance:
+                self.valances_labeling(assembly)
+
+            # Light Rails Labeling
+            is_light_rail = 'light rail' in assembly.obj_bp.name.lower()
+            if scene_props.light_rails and is_light_rail:
+                self.light_rails_labeling(assembly)
+
+            # Partition Height
+            # if scene_props.partition_height and props.is_panel_bp:
+            #     self.partition_height(assembly.obj_bp)
+
+            # Corner Shelves and L-shelves
+            is_lsh = 'l shelves' in assembly.obj_bp.name.lower()
+            is_csh = 'corner shelves' in assembly.obj_bp.name.lower()
+            if scene_props.corner_shelves_l_shelves and (is_lsh or is_csh):
+                self.corner_shelves_l_shelves(assembly.obj_bp)
+
         if scene_props.walk_space:
             bpy.ops.sn_2d_views.draw_walk_space("INVOKE_DEFAULT")
 
         hide_dim_handles()
+        clear_labels_lists()
+        bpy.ops.sn_closets.update_drawer_boxes(add=False)
 
         return {'FINISHED'}
 
@@ -2610,6 +2805,13 @@ class SNAP_PROPS_2D_Dimensions(PropertyGroup):
                            default=True,
                            description="")
 
+    third_line_holes: BoolProperty(name="Add 3rd Line of Holes",
+                                   default=True,
+                                   description="")
+    wall_cleats: BoolProperty(name="Add Wall Cleats",
+                              default=True,
+                              description="")
+
     # Shelves
 
     glass_shelves: BoolProperty(name="Add Glass Shelves",
@@ -2674,6 +2876,11 @@ class SNAP_PROPS_2D_Dimensions(PropertyGroup):
                            default=True,
                            description="")
 
+    # Dog Ear
+    dog_ear: BoolProperty(name="Add Dog Ear",
+                          default=True,
+                          description="")
+
     # Walk Space
     walk_space: BoolProperty(name="Add Walk Space W/Island",
                              default=True,
@@ -2696,7 +2903,10 @@ class SNAP_PROPS_2D_Dimensions(PropertyGroup):
         general_box.prop(self, 'toe_kicks')
         general_box.prop(self, 'toe_kick_height')
         general_box.prop(self, 'variable')
+        general_box.prop(self, 'dog_ear')
+        general_box.prop(self, 'wall_cleats')
         general_box.prop(self, 'walk_space')
+        general_box.prop(self, 'third_line_holes')
 
     def draw_molding_options(self, layout):
         molding_box = layout.box()
@@ -2734,7 +2944,6 @@ class SNAP_PROPS_2D_Dimensions(PropertyGroup):
                  text="", icon='DOWNARROW_HLT')
         row = main_box.row(align=True)
         row.prop(self, 'auto_add_on_save', text="Auto Add on Save")
-        row.prop(self, 'include_accordions', text="Include Accordions")
 
         col = box.column(align=True)
         row = col.row(align=True)

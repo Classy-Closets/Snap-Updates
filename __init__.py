@@ -26,9 +26,11 @@ from . import ui
 from . import ops
 from . import views
 from . import library_manager
-
+from . import sn_updater
+from . import addon_updater_ops
 from snap.libraries import closets
 from snap.libraries import doors_and_windows
+from snap.libraries import appliances
 
 
 snap_icons = None
@@ -41,17 +43,20 @@ modules = (
     sn_import,
     closets,
     doors_and_windows,
+    appliances,
     material_manager,
     room_builder,
     project_manager,
     ui,
     ops,
     views,
-    library_manager
+    library_manager,
+    sn_updater
 )
 
 
 def register():
+    addon_updater_ops.register(bl_info)
 
     for mod in modules:
         mod.register()
@@ -66,6 +71,7 @@ def register():
 
 
 def unregister():
+    addon_updater_ops.unregister()
 
     for mod in reversed(modules):
         mod.unregister()

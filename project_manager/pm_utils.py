@@ -2,17 +2,11 @@ import bpy
 import os
 import re
 import xml.etree.ElementTree as ET
+import shutil
+import ctypes
+import snap
 
-
-def check_project_path():
-    print("checking project path...")
-
-    path = bpy.context.scene.project_info.project_path
-
-    if os.path.exists(path):
-        print("path exists")
-    else:
-        print("path DOES NOT exist")
+FILE_ATTRIBUTE_HIDDEN = 0x02
 
 
 def get_project_dir():
@@ -29,40 +23,125 @@ def load_project_info():
     print("Loading project info...")
 
 
+def set_file_attr_hidden(path):
+    ret = ctypes.windll.kernel32.SetFileAttributesW(path, FILE_ATTRIBUTE_HIDDEN)
+    if not ret:
+        raise ctypes.WinError()
+
+
+def create_hidden_folder(path):
+    hidden_folder = os.path.join(path, ".snap")
+    if not os.path.exists(hidden_folder):
+        os.makedirs(hidden_folder)
+        set_file_attr_hidden(hidden_folder)
+
+
+def hide_project_file(filepath):
+    filename = os.path.basename(filepath)
+    dir_name = os.path.dirname(filepath)
+    hidden_folder = os.path.join(dir_name, ".snap")
+    if os.path.exists(hidden_folder):
+        new_path = os.path.join(hidden_folder, filename)
+
+    shutil.move(filepath, new_path)
+    return new_path
+
+
 def reload_projects():
     wm = bpy.context.window_manager.sn_project
-    proj_dir = bpy.context.preferences.addons['snap'].preferences.project_dir
+    for project in wm.projects:
+        wm.projects.remove(0)
+    wm.project_index = 0
+    load_projects()
+
+
+def load_projects():
+    """ Loads all projects.
+    """
+    proj_dir = get_project_dir()
+    bl_path = bpy.data.filepath.split(os.path.sep)
+    current_project_name = ''
+    proj_dir_norm = os.path.normpath(proj_dir)
+    if bl_path[0] != '' and bl_path[-3] == os.path.basename(proj_dir_norm):
+        current_project_name = bl_path[-2]
+        current_bfile_name = bl_path[-1]
+    project_index = 0
+    current_project_index = None
+
+    wm = bpy.context.window_manager.sn_project
 
     if os.path.exists(proj_dir):
-        for root, dirs, files in os.walk(proj_dir):
-            for dir in dirs:
-                for root, dirs, files in os.walk(os.path.join(proj_dir, dir)):
-                    for file in files:
-                        fname, ext = file.split(".")
-                        if ext == "ccp":
-                            tree = ET.parse(os.path.join(proj_dir, dir, file))
-                            root = tree.getroot()
+        for dir_name, sub_dirs, files in os.walk(proj_dir):
+            snap_dir = None
+            ccp_path = None
 
-                            for elm in root.findall("ProjectInfo"):
-                                items = list(elm)
+            if os.path.basename(dir_name) == ".snap":
+                snap_dir = dir_name
 
-                                for item in items:
-                                    if item.tag == 'name':
-                                        proj_name = item.text
+            for filename in files:
+                _, ext = os.path.splitext(os.path.basename(filename))
+                # Ensure older projects have a hidden project folder
+                # If there is no existing hidden folder but there is a .ccp, create hidden folder and move .ccp
+                if not snap_dir and ext == ".ccp":
+                    create_hidden_folder(dir_name)
+                    path = os.path.join(dir_name, filename)
+                    ccp_path = hide_project_file(path)
+                if snap_dir and ext == ".ccp":
+                    ccp_path = os.path.join(dir_name, filename)
+                if ccp_path:
+                    proj_name = None
+                    try:
+                        tree = ET.parse(ccp_path)
+                        root = tree.getroot()
 
+                        for elm in root.findall("ProjectInfo"):
+                            items = list(elm)
+
+                            for item in items:
+                                if item.tag == 'name':
+                                    proj_name = item.text
+
+                        if proj_name and proj_name not in wm.projects:
                             proj = wm.projects.add()
                             proj.init(proj_name)
+                            wm.project_index = project_index
+                            if proj_name == current_project_name:
+                                current_project_index = project_index
 
                             for elm in root.findall("Rooms"):
                                 for sub_elm in elm:
-                                    # This should work, regardless of if it is an absolute or relative path
                                     rel_path = os.path.join(*sub_elm.get("path").split(os.sep)[-2:])
-                                    proj_dir = pm_utils.get_project_dir()
+                                    proj_dir = get_project_dir()
                                     room_filepath = os.path.join(proj_dir, rel_path)
-                                    proj.add_room_from_file(sub_elm.get("name"),
-                                                            sub_elm.get("category"),
-                                                            room_filepath)
+                                    if(sub_elm.get("category")):
+                                        proj.add_room_from_file(sub_elm.get("name"),
+                                                                sub_elm.get("category"),
+                                                                room_filepath,
+                                                                project_index=project_index)
+                                    else:
+                                        proj.add_room_from_file(sub_elm.get("name"),
+                                                                "No Category Selected",
+                                                                room_filepath,
+                                                                project_index=project_index)
 
+                            project_index += 1
+
+                    except ET.ParseError as err:
+                        print('Cannot load project "{}": ParseError - '.format(os.path.basename(ccp_path)), err)
+
+        if current_project_index is not None:
+            wm.project_index = current_project_index
+            current_project = wm.projects[wm.project_index]
+            wm.current_file_project = current_project.name
+
+            for index, room in enumerate(current_project.rooms):
+                if room.file_path == bpy.data.filepath:
+                    current_project.room_index = index
+                    wm.current_file_room = room.name
+                    print("Found Room:", room.name, current_bfile_name)
+
+        else:
+            wm.project_index = 0
 
 class CCP():
 
@@ -74,7 +153,7 @@ class CCP():
         pass
 
     def create_tree(self):
-        root = ET.Element('Root', {'Application': 'Classy Designer', 'ApplicationVersion': '1.0'})
+        root = ET.Element('Root', {'Application': 'SNaP', 'ApplicationVersion': snap.bl_info['version']})
         self.tree = ET.ElementTree(root)
         return root
 

@@ -56,3 +56,14 @@ def PERCENTAGE(value, min, max):
     """ Returns Percentage amount based on the min and max values
     """
     return (value - min) / (max - min)
+
+
+def CHECK(value, *vars):
+    """ 
+    """
+    val = 0
+    for var in vars:
+        if value >= var:
+            if var > val:
+                val = var
+    return val

@@ -47,9 +47,107 @@ class SNAP_OT_Create_Project(Operator):
 
         proj = wm.projects.add()
         proj.init(self.project_name)
-        last_project_index = len(wm.projects) - 1
-        wm.project_index = last_project_index
-        context.area.tag_redraw()
+        pm_utils.reload_projects()
+
+        for index, project in enumerate(wm.projects):
+            if project.name == self.project_name:
+                wm.project_index = index
+
+        return {'FINISHED'}
+
+
+class SNAP_OT_Copy_Project(Operator):
+    """ This will copy a project.
+    """
+    bl_idname = "project_manager.copy_project"
+    bl_label = "Copy Project"
+    bl_description = "Copies a project"
+
+    project_name: StringProperty(name="Project Name", description="Project Name", default="New Project")
+    index: IntProperty(name="Project Index")
+    source_project = None
+
+    @classmethod
+    def poll(cls, context):
+        wm = context.window_manager.sn_project
+        return len(wm.projects) > 0
+
+    def invoke(self, context, event):
+        wm = context.window_manager
+        proj_wm = wm.sn_project
+        self.source_project = proj_wm.projects[proj_wm.project_index]
+        self.project_name = self.source_project.name + " - Copy"
+        return wm.invoke_props_dialog(self, width=sn_utils.get_prop_dialog_width(400))
+
+    def draw(self, context):
+        layout = self.layout
+        box = layout.box()
+        col = box.column(align=True)
+        col.label(text="'{}'".format(self.source_project.name))
+        col.separator()
+        col.label(text="New Project Name:")
+        col.prop(self, "project_name", text="")
+
+    def update_project_file(self, project_path):
+        """Update .ccp"""
+        ccp_path = os.path.join(project_path, ".snap", self.source_project.name + ".ccp")
+        new_ccp_path = os.path.join(project_path, ".snap", self.project_name + ".ccp")
+
+        # Rename copied .ccp
+        if os.path.exists(ccp_path):
+            os.rename(ccp_path, new_ccp_path)
+
+        # Update name in .ccp
+        if os.path.exists(new_ccp_path):
+            tree = ET.parse(new_ccp_path)
+            root = tree.getroot()
+
+            for elm in root.findall("ProjectInfo"):
+                items = list(elm)
+
+                for item in items:
+                    if item.tag == 'name':
+                        item.text = self.project_name
+
+            # Update room filepaths
+            for elm in root.findall("Rooms"):
+                items = list(elm)
+
+                for item in items:
+                    bfile_path = pathlib.Path(item.attrib['path'])
+                    new_path = os.path.join(self.project_name, bfile_path.parts[-1])
+                    item.attrib['path'] = new_path
+
+            tree.write(new_ccp_path)
+
+    def execute(self, context):
+        wm = context.window_manager.sn_project
+
+        if not self.project_name:
+            return {'FINISHED'}
+
+        # Check if project name exists
+        existing_project = wm.projects.get(self.project_name)
+        if existing_project:
+            bpy.ops.snap.message_box(
+                'INVOKE_DEFAULT',
+                message="Cannot create project that already exists: '{}'".format(existing_project.name))
+            return {'FINISHED'}
+
+        # Copy project
+        dst_path = os.path.join(self.source_project.dir_path, "..", self.project_name)
+        shutil.copytree(self.source_project.dir_path, dst_path)
+        self.update_project_file(dst_path)
+        hidden_dir = os.path.join(dst_path, ".snap")
+        if os.path.exists(hidden_dir):
+            pm_utils.set_file_attr_hidden(hidden_dir)
+
+        # Reload projects and set index to copied project
+        pm_utils.reload_projects()
+
+        for index, project in enumerate(wm.projects):
+            if project.name == self.project_name:
+                wm.project_index = index
 
         return {'FINISHED'}
 
@@ -184,9 +282,11 @@ class SNAP_OT_Delete_Room(Operator):
 
     room_name: StringProperty(name="Room Name", description="Room Name")
     index: IntProperty(name="Project Index")
+    invoke_default: BoolProperty(name="Invoke Default", default=False)
 
     def invoke(self, context, event):
         wm = context.window_manager
+        self.invoke_default = True
         return wm.invoke_props_dialog(self, width=400)
 
     def draw(self, context):
@@ -206,11 +306,19 @@ class SNAP_OT_Delete_Room(Operator):
         # if there is no project active, skip
         if len(props.projects) == 0:
             return {'FINISHED'}
-        proj = props.projects[props.project_index]
-        room = proj.rooms[self.index]
-        self.room_name = room.name
 
-        proj.rooms.remove(self.index)
+        if not self.invoke_default:
+            proj = props.projects[props.current_file_project]
+            room = proj.rooms[props.current_file_room]
+            self.room_name = room.name
+            for i, room in enumerate(proj.rooms):
+                if room.name == self.room_name:
+                    proj.rooms.remove(i)
+        else:
+            proj = props.projects[props.project_index]
+            room = proj.rooms[self.index]
+            self.room_name = room.name
+            proj.rooms.remove(self.index)
 
         tree = ET.parse(proj.file_path)
         root = tree.getroot()
@@ -230,6 +338,10 @@ class SNAP_OT_Delete_Room(Operator):
         # ToDo: install send2trash to interpreter to use here instead
         os.remove(room_filepath)
         proj.room_index = 0
+
+        if proj.name == props.current_file_project:
+            if self.room_name == props.current_file_room:
+                bpy.ops.wm.read_homefile()
 
         return {'FINISHED'}
 
@@ -325,15 +437,32 @@ class SNAP_OT_Prepare_Project_XML(Operator):
         return{'FINISHED'}
 
 
+class SNAP_OT_Load_Projects(Operator):
+    bl_idname = "project_manager.load_projects"
+    bl_label = "Load Projects"
+    bl_description = ""
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def execute(self, context):
+        pm_utils.load_projects()
+
+        return{'FINISHED'}
+
+
 classes = (
     SNAP_OT_Create_Project,
+    SNAP_OT_Copy_Project,
     SNAP_OT_Import_Project,
     SNAP_OT_Delete_Project,
     SNAP_OT_Add_Room,
     SNAP_OT_Open_Room,
     SNAP_OT_Delete_Room,
     SNAP_OT_Select_All_Rooms,
-    SNAP_OT_Prepare_Project_XML
+    SNAP_OT_Prepare_Project_XML,
+    SNAP_OT_Load_Projects
 )
 
 

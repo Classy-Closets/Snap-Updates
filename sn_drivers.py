@@ -115,3 +115,14 @@ def EDGE_THICKNESS(sgi,pointer_name):
     else:
         print("DRIVER ERROR: " + pointer_name + " not found in edge part pointers.")
         return 0
+
+
+def CHECK(value, *vars):
+    """ 
+    """
+    val = 0
+    for var in vars:
+        if value >= var:
+            if var > val:
+                val = var
+    return val

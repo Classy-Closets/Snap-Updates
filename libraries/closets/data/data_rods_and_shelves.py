@@ -19,6 +19,26 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
     category_name = "Closet Products - Basic"
     mirror_y = False
 
+    shelves = []
+    shelf_empties = []
+
+    def __init__(self, obj_bp=None):
+        super().__init__(obj_bp=obj_bp)
+        self.shelves = []
+        self.shelf_empties = []
+        self.get_shelves()
+
+    def get_shelves(self):
+        for child in self.obj_bp.children:
+            if child.get("IS_BELOW_HANG_SHELF"):
+                shelf = sn_types.Assembly(child)
+                is_locked_shelf = shelf.get_prompt("Is Locked Shelf")
+                if is_locked_shelf:
+                    if not is_locked_shelf.get_value():
+                        self.shelves.append(sn_types.Assembly(child))
+            if child.get("IS_BELOW_HANG_SHELF_EMPTY"):
+                self.shelf_empties.append(child)
+
     def add_rod(self, assembly, location, is_hanger=False):
         Width = self.obj_x.snap.get_var('location.x', 'Width')
         Depth = self.obj_y.snap.get_var('location.y', 'Depth')
@@ -85,6 +105,51 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
 
         return assembly
 
+    def add_shelves_below_hang(self, amt=1):
+        Width = self.obj_x.snap.get_var('location.x', 'Width')
+        Height = self.obj_z.snap.get_var('location.z', 'Height')
+        Depth = self.obj_y.snap.get_var('location.y', 'Depth')
+        Shelf_Thickness = self.get_prompt("Shelf Thickness").get_var('Shelf_Thickness')
+        Bottom_Rod_Location = self.get_prompt("Bottom Rod Location").get_var('Bottom_Rod_Location')
+        SBS = self.get_prompt("Shelf Backing Setback").get_var('SBS')
+        previous_shelf = None
+
+        for i in range(1, amt + 1):
+            Shelf_Height = self.get_prompt("Below Shelf " + str(i) + " Height").get_var('Shelf_Height')
+            shelf_empty = self.add_empty("Shelf Empty")
+            shelf_empty["IS_BELOW_HANG_SHELF_EMPTY"] = True
+            self.shelf_empties.append(shelf_empty)
+            if previous_shelf:
+                prev_shelf_z_loc = previous_shelf.obj_bp.snap.get_var('location.z', 'prev_shelf_z_loc')
+                shelf_empty.snap.loc_z('prev_shelf_z_loc-Shelf_Height', [prev_shelf_z_loc, Shelf_Height])
+            else:
+                shelf_empty.snap.loc_z('Height-Bottom_Rod_Location-Shelf_Height',
+                                  [Shelf_Height, Height, Bottom_Rod_Location])
+
+            sh_z_loc = shelf_empty.snap.get_var('location.z', 'sh_z_loc')
+
+            shelf = common_parts.add_shelf(self)
+            shelf.obj_bp["IS_BELOW_HANG_SHELF"] = True
+            self.shelves.append(shelf)
+
+            Is_Locked_Shelf = shelf.get_prompt('Is Locked Shelf').get_var('Is_Locked_Shelf')
+            Adj_Shelf_Setback = shelf.get_prompt('Adj Shelf Setback').get_var('Adj_Shelf_Setback')
+            Locked_Shelf_Setback = shelf.get_prompt('Locked Shelf Setback').get_var('Locked_Shelf_Setback')
+            Adj_Shelf_Clip_Gap = shelf.get_prompt('Adj Shelf Clip Gap').get_var('Adj_Shelf_Clip_Gap')
+            Shelf_Setback = self.get_prompt("Below Shelf " + str(i) + " Setback").get_var('Shelf_Setback')
+
+            shelf.loc_x('IF(Is_Locked_Shelf,0,Adj_Shelf_Clip_Gap)', [Is_Locked_Shelf, Adj_Shelf_Clip_Gap])
+            shelf.loc_y('Depth-SBS', [Depth, SBS])
+            shelf.loc_z('sh_z_loc',[sh_z_loc])
+            shelf.dim_x(
+                'Width-IF(Is_Locked_Shelf,0,Adj_Shelf_Clip_Gap*2)',
+                [Width, Is_Locked_Shelf, Adj_Shelf_Clip_Gap])
+            shelf.dim_y('-Depth+IF(Is_Locked_Shelf,Locked_Shelf_Setback,Adj_Shelf_Setback)+Shelf_Setback+SBS',
+                           [Depth, Locked_Shelf_Setback, Is_Locked_Shelf, Adj_Shelf_Setback, Shelf_Setback, SBS])
+            shelf.dim_z('Shelf_Thickness', [Shelf_Thickness])
+
+            previous_shelf = shelf
+
     def add_shelves(self):
         Width = self.obj_x.snap.get_var('location.x', 'Width')
         Depth = self.obj_y.snap.get_var('location.y', 'Depth')
@@ -107,9 +172,6 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
         ATSS = self.get_prompt("Add Top Shelf Setback").get_var('ATSS')
         AMSS = self.get_prompt("Add Middle Shelf Setback").get_var('AMSS')
         ABSS = self.get_prompt("Add Bottom Shelf Setback").get_var('ABSS')
-        # IHD = self.get_prompt("Is Hang Double").get_var('IHD')
-        # DDS = self.get_prompt("Default Deep Setback").get_var('DDS')
-        # EDP = self.get_prompt("Extra Deep Pard").get_var('EDP')
 
         # TOP SECTION
         top_opening_height = "(Top_Rod_Location-Shelf_Thickness-0.064008)"
@@ -237,45 +299,6 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
         z_offset = adj_shelf.get_prompt('Z Offset')
         z_offset.set_formula('((' + bottom_opening_height + '-' + bottom_opening_thickness_deduction + ')/' + bottom_opening_qty + ')+Shelf_Thickness',
                             [Bottom_Shelves_Location,Bottom_Rod_Location,Shelf_Thickness,Bottom_Shelf_Quantity])
-
-        #Below Shelves Section
-        Add_Below_Shelves = self.get_prompt("Add Below Shelves").get_var('Add_Below_Shelves')
-        Below_Shelf_Quantity = self.get_prompt("Below Shelf Quantity").get_var('Below_Shelf_Quantity')
-        previous_splitter = None
-
-        for i in range(1,9):
-
-            Shelf_Height = self.get_prompt("Below Shelf " + str(i) + " Height").get_var('Shelf_Height')
-            shelf_empty = self.add_empty("Shelf Empty")
-            if previous_splitter:
-                # we want to location at the bottom of the object
-                prev_shelf_z_loc = previous_splitter.obj_bp.snap.get_var('location.z', 'prev_shelf_z_loc')
-                shelf_empty.snap.loc_z('prev_shelf_z_loc-Shelf_Height', [prev_shelf_z_loc, Shelf_Height])
-            else:
-                shelf_empty.snap.loc_z('Height-Bottom_Rod_Location-Shelf_Height',
-                                  [Shelf_Height, Height, Bottom_Rod_Location])
-
-            sh_z_loc = shelf_empty.snap.get_var('location.z', 'sh_z_loc')
-
-            splitter = common_parts.add_shelf(self)
-
-            Is_Locked_Shelf = splitter.get_prompt('Is Locked Shelf').get_var('Is_Locked_Shelf')
-            Adj_Shelf_Setback = splitter.get_prompt('Adj Shelf Setback').get_var('Adj_Shelf_Setback')
-            Locked_Shelf_Setback = splitter.get_prompt('Locked Shelf Setback').get_var('Locked_Shelf_Setback')
-            Adj_Shelf_Clip_Gap = splitter.get_prompt('Adj Shelf Clip Gap').get_var('Adj_Shelf_Clip_Gap')
-            Shelf_Setback = self.get_prompt("Below Shelf " + str(i) + " Setback").get_var('Shelf_Setback')
-
-            splitter.loc_x('IF(Is_Locked_Shelf,0,Adj_Shelf_Clip_Gap)', [Is_Locked_Shelf, Adj_Shelf_Clip_Gap])
-            splitter.loc_y('Depth-SBS', [Depth, SBS])
-            splitter.loc_z('sh_z_loc',[sh_z_loc])
-            splitter.dim_x('Width-IF(Is_Locked_Shelf,0,Adj_Shelf_Clip_Gap*2)',[Width,Is_Locked_Shelf,Adj_Shelf_Clip_Gap])
-            splitter.dim_y('-Depth+IF(Is_Locked_Shelf,Locked_Shelf_Setback,Adj_Shelf_Setback)+Shelf_Setback+SBS',
-                           [Depth, Locked_Shelf_Setback, Is_Locked_Shelf, Adj_Shelf_Setback, Shelf_Setback, SBS])
-            splitter.dim_z('Shelf_Thickness',[Shelf_Thickness])
-            hide = splitter.get_prompt('Hide')
-            hide.set_formula('IF(Add_Below_Shelves,IF(Below_Shelf_Quantity+1>'+str(i)+',False,True),True)',[Add_Below_Shelves,Below_Shelf_Quantity])
-
-            previous_splitter = splitter
 
     def add_shelves_above_rod(self):
         Width = self.obj_x.snap.get_var('location.x', 'Width')
@@ -613,12 +636,40 @@ class PROMPTS_Hanging_Rod_With_Shelves_Prompts(sn_types.Prompts_Interface):
     Below_Shelf_8_Height: bpy.props.EnumProperty(name="Below Shelf 8 Height",
                                     items=common_lists.OPENING_HEIGHTS)  
 
-    shelf_quantity_prompt = None    
-    
+    shelf_quantity_prompt = None
+
     assembly = None
+
+    def add_shelves(self):
+        self.insert.add_shelves_below_hang(amt=int(self.below_shelf_quantity))
+
+    def delete_shelves(self):
+        for assembly in self.insert.shelves:
+            sn_utils.delete_object_and_children(assembly.obj_bp)
+        sn_utils.delete_obj_list(self.insert.shelf_empties)
+        self.insert.shelves.clear()
+        self.insert.shelf_empties.clear()
+
+    def update_shelves(self):
+        add_below_shelves = self.insert.get_prompt("Add Below Shelves")
+        shelf_amt_changed = len(self.insert.shelves) != int(self.below_shelf_quantity)
+
+        if add_below_shelves.get_value() and not self.insert.shelves:
+            self.add_shelves()
+        if add_below_shelves.get_value() and shelf_amt_changed:
+            self.delete_shelves()
+            self.add_shelves()
+        if not add_below_shelves.get_value() and self.insert.shelves:
+            self.delete_shelves()
+        # We want to preserve the original name
+        name = self.insert.obj_bp.name
+        self.insert.update()
+        self.insert.obj_bp.name = name
+
 
     def check(self, context):
         self.set_prompts_from_properties()
+        self.update_shelves()
         self.insert.obj_bp.location = self.insert.obj_bp.location  # Redraw Viewport
         return True
 
@@ -717,7 +768,7 @@ class PROMPTS_Hanging_Rod_With_Shelves_Prompts(sn_types.Prompts_Interface):
         return {'FINISHED'}
 
     def invoke(self, context, event):
-        self.insert = self.get_insert()
+        self.insert = Hanging_Rods_with_Shelves(self.get_insert().obj_bp)
         self.set_properties_from_prompts()
         wm = context.window_manager
         return wm.invoke_props_dialog(self, width=330)

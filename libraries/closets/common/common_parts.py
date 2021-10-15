@@ -108,6 +108,7 @@ def add_panel(assembly):
     for child in panel.obj_bp.children:
         if child.snap.type_mesh == 'CUTPART':
             child.snap.use_multiple_edgeband_pointers = True
+            child.snap.delete_protected = True
 
     return panel
 
@@ -136,6 +137,7 @@ def add_shelf(assembly):
 
 
 def add_glass_shelf(assembly):
+    defaults = bpy.context.scene.sn_closets.closet_defaults
     shelf = sn_types.Part(assembly.add_assembly_from_file(PART_WITH_FRONT_EDGEBANDING))
     assembly.add_assembly(shelf)
     shelf.obj_bp['IS_SHELF'] = True
@@ -146,6 +148,10 @@ def add_glass_shelf(assembly):
     shelf.obj_bp.snap.name_object = "Glass Shelf"
     shelf.set_name("Glass Shelf")
     shelf.add_prompt("Shelf Pin Qty", 'QUANTITY', 4)
+    shelf.add_prompt("Is Locked Shelf", 'CHECKBOX', False)
+    shelf.add_prompt("Adj Shelf Clip Gap", 'DISTANCE', defaults.adj_shelf_clip_gap)
+    shelf.add_prompt("Adj Shelf Setback", 'DISTANCE', defaults.adj_shelf_setback)
+    shelf.add_prompt("Locked Shelf Setback", 'DISTANCE', defaults.locked_shelf_setback)
     for child in shelf.obj_bp.children:
         if child.type == 'MESH':
             child.snap.type_mesh = 'BUYOUT'
@@ -175,7 +181,7 @@ def add_angle_shelf(assembly):
     props.is_angle_shelf_bp = True  # TODO: Remove
     shelf.obj_bp['IS_BP_ANGLE_SHELF'] = True
     shelf.add_prompt("Is Locked Shelf",'CHECKBOX',False)
-    shelf.set_name("Angle Shelf")
+    shelf.set_name("Corner Shelf")
     shelf.cutpart("Shelf")
     shelf.edgebanding('Edge', l1=True)
     return shelf
@@ -330,6 +336,7 @@ def add_lock(assembly):
     assembly.add_assembly(lock)
     lock.set_name("Lock")
     lock.set_material_pointers('Chrome', "Lock Metal")
+    lock.obj_bp["IS_BP_LOCK"] = True
     return lock
 
 
@@ -371,6 +378,7 @@ def add_drawer_side(assembly):
     side.obj_bp.snap.comment_2 = "1031"
     side.set_name("Drawer Side")
     side.cutpart("Drawer_Part")
+    side.add_prompt("Use Dovetail Construction", 'CHECKBOX', False)
     side.edgebanding('Drawer_Box_Edge',l1 = True)
     props = side.obj_bp.sn_closets
     props.is_drawer_side_bp = True
@@ -384,6 +392,7 @@ def add_drawer_back(assembly):
     drawer_back.obj_bp.snap.comment_2 = "1032"
     drawer_back.set_name("Drawer Back")
     drawer_back.cutpart("Drawer_Back")
+    drawer_back.add_prompt("Use Dovetail Construction", 'CHECKBOX', False)
     drawer_back.edgebanding('Drawer_Box_Edge',l1 = True)
     props = drawer_back.obj_bp.sn_closets
     props.is_drawer_back_bp = True
@@ -397,6 +406,7 @@ def add_drawer_sub_front(assembly):
     front_back.obj_bp.snap.comment_2 = "1029"
     front_back.set_name("Drawer Sub Front")
     front_back.cutpart("Drawer_Part")
+    front_back.add_prompt("Use Dovetail Construction", 'CHECKBOX', False)
     front_back.edgebanding('Drawer_Box_Edge',l1 = True)
     props = front_back.obj_bp.sn_closets
     props.is_drawer_sub_front_bp = True
@@ -410,6 +420,7 @@ def add_drawer_bottom(assembly):
     bottom.obj_bp.snap.comment_2 = "1030"
     bottom.set_name("Drawer Bottom")
     bottom.cutpart("Drawer_Bottom")
+    bottom.add_prompt("Use Dovetail Construction", 'CHECKBOX', False)
     props = bottom.obj_bp.sn_closets
     props.is_drawer_bottom_bp = True
     bottom.obj_bp["IS_BP_DRAWER_BOTTOM"] = True
@@ -419,7 +430,8 @@ def add_drawer_bottom(assembly):
 def add_drawer(assembly):
     scene_props = bpy.context.scene.sn_closets
     if scene_props.closet_defaults.use_buyout_drawers:
-        drawer = assembly.add_assembly(BUYOUT_DRAWER_BOX)
+        drawer = assembly.add_assembly_from_file(BUYOUT_DRAWER_BOX)
+        drawer = sn_types.Part(drawer)
         drawer.material("Drawer_Box_Surface")
         drawer.obj_bp.snap.comment_2 = "1014"
     else:
@@ -428,6 +440,14 @@ def add_drawer(assembly):
         drawer.obj_bp.parent = assembly.obj_bp
         drawer.obj_bp.snap.comment_2 = "1014"
     add_drawer_file_rails(drawer)
+    return drawer
+
+
+def add_dovetail_drawer(assembly):
+    drawer = data_drawer_wood.Wood_Drawer_Box()
+    drawer.draw()
+    drawer.obj_bp.parent = assembly.obj_bp
+    drawer.obj_bp.snap.comment_2 = "1014"
     return drawer
 
 
@@ -609,8 +629,10 @@ def add_hpl_top(assembly):
     shelf = sn_types.Part(assembly.add_assembly_from_file(PART_WITH_ALL_EDGES))
     assembly.add_assembly(shelf)
     shelf.obj_bp['IS_BP_HPL_TOP'] = True
+    shelf.obj_bp['IS_BP_COUNTERTOP'] = True
     props = shelf.obj_bp.sn_closets
-    props.is_hpl_top_bp = True  # TODO: remove    
+    props.is_hpl_top_bp = True  # TODO: remove
+    props.is_countertop_bp = True # TODO: remove
     for child in shelf.obj_bp.children:
         if child.type == 'MESH':
             child.snap.type_mesh = 'BUYOUT'      
@@ -833,17 +855,20 @@ def add_hanging_rod_cup(assembly):
     return cup
 
 def add_rod_support(assembly):
-    rod_support = assembly.add_assembly(ROD_SUPPORT)
+    rod_support = assembly.add_assembly_from_file(ROD_SUPPORT)
+    rod_support = sn_types.Part(rod_support)
     rod_support.obj_bp.snap.comment_2 = "1015"
     return rod_support
 
 def add_shelf_support(assembly):
-    shelf_support = assembly.add_assembly(SHELF_SUPPORT)
+    shelf_support = assembly.add_assembly_from_file(SHELF_SUPPORT)
+    shelf_support = sn_types.Part(shelf_support)
     shelf_support.obj_bp.snap.comment_2 = "1015"
     return shelf_support
 
 def add_hanging_rod(assembly):
-    rod = assembly.add_assembly(OVAL_ROD)
+    rod = assembly.add_assembly_from_file(OVAL_ROD)
+    rod = sn_types.Part(rod)
     props = rod.obj_bp.sn_closets
     props.is_hanging_rod = True
     rod.obj_bp.snap.comment_2 = "1015"
@@ -853,7 +878,8 @@ def add_hanging_rod(assembly):
     return rod
 
 def add_hanging_rail(assembly):
-    rail = assembly.add_assembly(PART_WITH_FRONT_EDGEBANDING)
+    rail = assembly.add_assembly_from_file(PART_WITH_FRONT_EDGEBANDING)
+    rail = sn_types.Part(rail)
     props = assembly.obj_bp.sn_closets
     rail.obj_bp.snap.comment_2 = "1015"
     props.is_hanging_rail_bp = True
@@ -862,17 +888,20 @@ def add_hanging_rail(assembly):
     return rail
 
 def add_tie_drawer_top_or_bottom(assembly):
-    top = assembly.add_assembly(PART_WITH_FRONT_EDGEBANDING)
+    top = assembly.add_assembly_from_file(PART_WITH_FRONT_EDGEBANDING)
+    top = sn_types.Part(top)
     top.cutpart("Drawer_Part")
     top.edgebanding('Drawer_Box_Edge',l1 = True)
 
 def add_tie_drawer_division(assembly):
-    division = assembly.add_assembly(PART_WITH_NO_EDGEBANDING)
+    division = assembly.add_assembly_from_file(PART_WITH_NO_EDGEBANDING)
+    division = sn_types.Part(division)
     division.set_name("Tie Drawer Division")
     division.cutpart("Drawer_Part")
 
 def add_radius_shelf(assembly):
-    shelf = assembly.add_assembly(RADIUS_PART)
+    shelf = assembly.add_assembly_from_file(RADIUS_PART)
+    shelf = sn_types.Part(shelf)
     props = shelf.obj_bp.sn_closets
     props.is_radius_shelf_bp = True
     shelf.set_name("Radius Shelf")
@@ -961,19 +990,22 @@ def add_drawer_file_rails(assembly):
     back_rail.get_prompt('Hide').set_formula('IF(Use_File_Rail,IF(File_Rail_Direction==1,Hide,True),True)',[Hide, Use_File_Rail,File_Rail_Type,File_Rail_Direction])
 
 def add_wine_rack_support(assembly):
-    support = assembly.add_assembly(PART_WITH_EDGEBANDING)
+    support = assembly.add_assembly_from_file(PART_WITH_EDGEBANDING)
+    support = sn_types.Part(support)
     support.set_name("Support")
     support.cutpart("Shelf")
     support.edgebanding('Edge',l1 = True)
     return support
             
 def add_visual_shelf_holes(assembly):
-    shelf_holes = assembly.add_assembly(ADJ_MACHINING)
+    shelf_holes = assembly.add_assembly_from_file(ADJ_MACHINING)
+    shelf_holes = sn_types.Part(shelf_holes)
     shelf_holes.set_name("Adjustable Shelf Holes")
     return shelf_holes
 
 def add_sliding_shelf(assembly):
-    shelf = assembly.add_assembly(PART_WITH_FRONT_EDGEBANDING)
+    shelf = assembly.add_assembly_from_file(PART_WITH_FRONT_EDGEBANDING)
+    shelf = sn_types.Part(shelf)
     props = shelf.obj_bp.sn_closets
     props.is_sliding_shelf_bp = True
     shelf.obj_bp.snap.comment_2 = "1013"
@@ -986,7 +1018,8 @@ def add_sliding_shelf(assembly):
     return shelf
 
 def add_divider(assembly):
-    divider = assembly.add_assembly(PART_WITH_FRONT_EDGEBANDING)
+    divider = assembly.add_assembly_from_file(PART_WITH_FRONT_EDGEBANDING)
+    divider = sn_types.Part(divider)
     divider.obj_bp.snap.comment_2 = "1027"
     divider.set_name("Divider")
     divider.cutpart("Shoe_Cubby")
@@ -996,7 +1029,8 @@ def add_divider(assembly):
     return divider
 
 def add_applied_top(assembly):
-    top = assembly.add_assembly(PART_WITH_FRONT_EDGEBANDING)
+    top = assembly.add_assembly_from_file(PART_WITH_FRONT_EDGEBANDING)
+    top = sn_types.Part(top)
     top.obj_bp.snap.comment_2 = "1024"
     props = top.obj_bp.sn_closets
     props.is_shelf_bp = True
@@ -1006,7 +1040,8 @@ def add_applied_top(assembly):
     return top
 
 def add_toe_kick_radius(assembly):
-    kick = assembly.add_assembly(BENDING_PART)
+    kick = assembly.add_assembly_from_file(BENDING_PART)
+    kick = sn_types.Part(kick)
     props = kick.obj_bp.sn_closets
     props.is_toe_kick_bp = True
     kick.set_name("Toe Kick")
@@ -1014,7 +1049,8 @@ def add_toe_kick_radius(assembly):
     return kick
 
 def add_shelf_and_rod_cleat(assembly):
-    cleat = assembly.add_assembly(PART_WITH_FRONT_EDGEBANDING)
+    cleat = assembly.add_assembly_from_file(PART_WITH_FRONT_EDGEBANDING)
+    cleat = sn_types.Part(cleat)
     props = cleat.obj_bp.sn_closets
     props.is_shelf_and_rod_cleat_bp = True
     cleat.set_name("Cleat")
@@ -1023,7 +1059,8 @@ def add_shelf_and_rod_cleat(assembly):
     return cleat
 
 def add_shelf_rod_cleat_fe(assembly):
-    cleat = assembly.add_assembly(CHAMFERED_PART)
+    cleat = assembly.add_assembly_from_file(CHAMFERED_PART)
+    cleat = sn_types.Part(cleat)
     props = cleat.obj_bp.sn_closets
     props.is_shelf_and_rod_fe_cleat_bp = True
     cleat.set_name("Cleat FE")
@@ -1032,14 +1069,16 @@ def add_shelf_rod_cleat_fe(assembly):
     return cleat
 
 def add_frame(assembly):
-    frame = assembly.add_assembly(PART_WITH_EDGEBANDING)
+    frame = assembly.add_assembly_from_file(PART_WITH_EDGEBANDING)
+    frame = sn_types.Part(frame)
     frame.set_name("Frame")
     frame.cutpart("Panel")
     frame.edgebanding("Edge",l2 = True)
     return frame
 
 def add_island_countertop(assembly):
-    island_ctop = assembly.add_assembly(ISLAND_COUNTER_TOP) 
+    island_ctop = assembly.add_assembly_from_file(ISLAND_COUNTER_TOP)
+    island_ctop = sn_types.Part(island_ctop) 
     props = island_ctop.obj_bp.sn_closets
     props.is_countertop_bp = True
     island_ctop.set_name("Countertop Deck")
@@ -1047,7 +1086,8 @@ def add_island_countertop(assembly):
     return island_ctop
 
 def add_ironing_board_door_front(assembly):
-    door = assembly.add_assembly(FACE)
+    door = assembly.add_assembly_from_file(FACE)
+    door = sn_types.Part(door)
     door.set_name("Door")
     door.cutpart("Slab_Door")
     door.edgebanding('Edge',l1 = True, w1 = True, l2 = True, w2 = True)
@@ -1098,14 +1138,16 @@ def add_hangers(assembly):
     return hangers
 
 def add_spacer(assembly):
-    spacer = assembly.add_assembly(SPACER)
+    spacer = assembly.add_assembly_from_file(SPACER)
+    spacer = sn_types.Part(spacer)
     spacer.set_name("Spacer")
     props = spacer.obj_bp.sn_closets
     props.is_spacer_bp = True   
     return spacer
 
 def add_fluted_molding(assembly):
-    flute = assembly.add_assembly(FLUTED_PART)
+    flute = assembly.add_assembly_from_file(FLUTED_PART)
+    flute = sn_types.Part(flute)
     props = flute.obj_bp.sn_closets
     props.is_fluted_filler_bp = True
     flute.set_name("Fluted Part")
@@ -1113,12 +1155,14 @@ def add_fluted_molding(assembly):
     return flute
 
 def add_ironing_board_drawer(assembly):
-    IBDR_1 = assembly.add_assembly(IB_DRAWER)
+    IBDR_1 = assembly.add_assembly_from_file(IB_DRAWER)
+    IBDR_1 = sn_types.Part(IBDR_1)
     IBDR_1.set_name("IB-DR")
     return IBDR_1
 
 def add_ironing_board_door(assembly):
-    IBF_1 = assembly.add_assembly(IBF_IRONING_BOARD)
+    IBF_1 = assembly.add_assembly_from_file(IBF_IRONING_BOARD)
+    IBF_1 = sn_types.Part(IBF_1)
     IBF_1.set_name("IBF")
     return IBF_1
 

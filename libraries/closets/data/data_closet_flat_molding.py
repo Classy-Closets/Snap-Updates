@@ -385,7 +385,8 @@ class DROP_OPERATOR_Place_Top(Operator, PlaceClosetInsert):
     bl_description = "This places the top."
     bl_options = {'UNDO'}
 
-    selected_panel = None
+    selected_panel_1 = None
+    selected_panel_2 = None
 
     def execute(self, context):
         return super().execute(context)
@@ -413,68 +414,86 @@ class DROP_OPERATOR_Place_Top(Operator, PlaceClosetInsert):
         return sn_utils.calc_distance((x1, y1, z1), (x2, y2, z1))
 
     def insert_drop(self, context, event):
-        selected_panel = None
         selected_point, selected_obj, _ = sn_utils.get_selection_point(context, event)
         bpy.ops.object.select_all(action='DESELECT')
 
-        sel_product_bp = sn_utils.get_bp(selected_obj, 'PRODUCT')
-        sel_assembly_bp = sn_utils.get_assembly_bp(selected_obj)
+        if selected_obj is not None:
 
-        if sel_assembly_bp:
-            props = sel_assembly_bp.sn_closets
-            if props.is_panel_bp:
-                selected_obj.select_set(True)
-                selected_panel = sn_types.Assembly(sel_assembly_bp)
+            sel_product_bp = sn_utils.get_bp(selected_obj, 'PRODUCT')
+            sel_assembly_bp = sn_utils.get_assembly_bp(selected_obj)
 
-        if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.selected_panel:
-            selected_panel = sn_types.Assembly(sel_assembly_bp)
-            if selected_panel.obj_bp.parent is not None:
-                pard = sn_types.Assembly(selected_panel.obj_bp.parent)
-                Height = pard.obj_z.snap.get_var('location.z', 'height')
-                self.asset.obj_bp.snap.loc_z("height", [Height])
+            if sel_assembly_bp:
+                if 'IS_BP_PANEL' in sel_assembly_bp:
+                    selected_obj.select_set(True)
+                    hover_panel = sn_types.Assembly(selected_obj.parent)
 
+                    if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
+                        if not self.selected_panel_1:
+                            self.selected_panel_1 = hover_panel
+                            sn_utils.set_wireframe(self.asset.obj_bp, False)
+                            bpy.context.window.cursor_set('DEFAULT')
+                            bpy.ops.object.select_all(action='DESELECT')
+                            context.view_layer.objects.active = self.asset.obj_bp
+                            self.asset.obj_bp.parent = sel_product_bp
 
+                            if self.selected_panel_1.obj_z.location.z > 0:
+                                # CENTER OR RIGHT PANEL SELECTED
+                                self.asset.obj_bp.location = self.selected_panel_1.obj_bp.location
+                                self.asset.obj_bp.location.x -= self.selected_panel_1.obj_z.location.z
+                            else:
+                                # LEFT PANEL SELECTED
+                                self.asset.obj_bp.location = self.selected_panel_1.obj_bp.location
 
-            sn_utils.set_wireframe(self.asset.obj_bp, False)
-            bpy.context.window.cursor_set('DEFAULT')
-            bpy.ops.object.select_all(action='DESELECT')
-            context.view_layer.objects.active = self.asset.obj_bp
-            self.asset.obj_bp.select_set(True)
-            dist = self.get_distance_between_panels(self.selected_panel, selected_panel)
-            self.asset.obj_x.location.x = dist
-            self.asset.obj_bp.snap.type_group = 'INSERT'
-            self.asset.obj_bp.location.z = self.selected_panel.obj_bp.location.z + self.selected_panel.obj_x.location.x
-            if(math.fabs(self.selected_panel.obj_y.location.y) <= math.fabs(selected_panel.obj_y.location.y)):
-                self.asset.obj_y.location.y = math.fabs(self.selected_panel.obj_y.location.y)
-            else:
-                self.asset.obj_y.location.y = math.fabs(selected_panel.obj_y.location.y)
-            for child in self.asset.obj_bp.parent.children:
-                if not child.hide_get():
-                    if 'IS_BP_ASSEMBLY' and 'IS_BP_CLOSET_TOP' in child:
-                        ts_assembly = sn_types.Assembly(child)
-                        ts_overhang = ts_assembly.get_prompt("Front Overhang")
-                        fc_overhang = self.asset.get_prompt("Front Overhang")
-                        self.asset.obj_y.location.y = math.fabs(ts_assembly.obj_y.location.y)
-                        if(ts_overhang and fc_overhang):
-                            fc_overhang.set_value(ts_overhang.get_value())
+                            return {'RUNNING_MODAL'}
 
-            return self.finish(context)
+                        if not self.selected_panel_2:
+                            self.selected_panel_2 = hover_panel
 
-        if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.selected_panel == None:
-            self.selected_panel = selected_panel
-            sn_utils.set_wireframe(self.asset.obj_bp, False)
-            bpy.context.window.cursor_set('DEFAULT')
-            bpy.ops.object.select_all(action='DESELECT')
-            context.view_layer.objects.active = self.asset.obj_bp
-            self.asset.obj_bp.parent = sel_product_bp
+                            if self.selected_panel_2.obj_bp.parent is not None:
+                                pard = sn_types.Assembly(self.selected_panel_2.obj_bp.parent)
+                                Height = pard.obj_z.snap.get_var('location.z', 'height')
+                                self.asset.obj_bp.snap.loc_z("height", [Height])
 
-            if self.selected_panel.obj_z.location.z > 0:
-                #CENTER OR RIGHT PANEL SELECTED
-                self.asset.obj_bp.location = self.selected_panel.obj_bp.location
-                self.asset.obj_bp.location.x -= self.selected_panel.obj_z.location.z
-            else:
-                #LEFT PANEL SELECTED
-                self.asset.obj_bp.location = self.selected_panel.obj_bp.location
+                            sn_utils.set_wireframe(self.asset.obj_bp, False)
+                            bpy.context.window.cursor_set('DEFAULT')
+                            bpy.ops.object.select_all(action='DESELECT')
+                            context.view_layer.objects.active = self.asset.obj_bp
+                            self.asset.obj_bp.select_set(True)
+                            dist = self.get_distance_between_panels(self.selected_panel_1, self.selected_panel_2)
+                            self.asset.obj_x.location.x = dist
+                            self.asset.obj_bp.snap.type_group = 'INSERT'
+                            self.asset.obj_bp.location.z = self.selected_panel_1.obj_bp.location.z + self.selected_panel_1.obj_x.location.x
+                            if(math.fabs(self.selected_panel_1.obj_y.location.y) <= math.fabs(self.selected_panel_2.obj_y.location.y)):
+                                self.asset.obj_y.location.y = math.fabs(self.selected_panel_1.obj_y.location.y)
+                            else:
+                                self.asset.obj_y.location.y = math.fabs(self.selected_panel_2.obj_y.location.y)
+                            for child in self.asset.obj_bp.parent.children:
+                                if not child.hide_get():
+                                    if 'IS_BP_CLOSET_TOP' in child:
+                                        ts_assembly = sn_types.Assembly(child)
+                                        ts_overhang = ts_assembly.get_prompt("Front Overhang")
+                                        fc_overhang = self.asset.get_prompt("Front Overhang")
+                                        self.asset.obj_y.location.y = math.fabs(ts_assembly.obj_y.location.y)
+                                        if(ts_overhang and fc_overhang):
+                                            fc_overhang.set_value(ts_overhang.get_value())
+                            parent = sn_types.Assembly(obj_bp=self.asset.obj_bp.parent)
+                            Width = parent.obj_x.snap.get_var('location.x', 'Width')
+                            Left_Side_Wall_Filler =\
+                                parent.get_prompt(
+                                    'Left Side Wall Filler')
+                            Right_Side_Wall_Filler =\
+                                parent.get_prompt(
+                                    'Right Side Wall Filler')
+                            if not (Right_Side_Wall_Filler and Left_Side_Wall_Filler):
+                                return self.finish(context)
+                            left_filler = Left_Side_Wall_Filler.get_value()
+                            right_filler = Right_Side_Wall_Filler.get_value()
+                            partition_width =\
+                                parent.obj_x.location.x - left_filler - right_filler
+                            if round(partition_width, 2) == round(dist, 2):
+                                self.asset.dim_x('Width', [Width])
+                                self.asset.loc_x('0', [])
+                            return self.finish(context)
 
         return {'RUNNING_MODAL'}
 

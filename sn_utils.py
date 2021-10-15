@@ -6,6 +6,7 @@ import random
 import re
 import inspect
 from pathlib import Path
+import time
 
 import bpy
 from bpy_extras import view3d_utils
@@ -122,12 +123,14 @@ def get_part_thickness(obj):
                 if 'obj_z' in child:
                     return math.fabs(child.location.z)
 
-        if obj.get("IS_COVER_CLEAT"):
+        if obj.parent.get("IS_COVER_CLEAT"):
             cover_cleat = sn_types.Assembly(obj.parent)
             closet_materials = bpy.context.scene.closet_materials
             mat_sku = closet_materials.get_mat_sku(obj.parent, cover_cleat)
             mat_inventory_name = closet_materials.get_mat_inventory_name(sku=mat_sku)
-            if(mat_inventory_name == "Oxford White" or mat_inventory_name == "Cabinet Almond" or mat_inventory_name == "Duraply Almond" or mat_inventory_name == "Duraply White"):
+            mat_names = ["Oxford White", "Cabinet Almond", "Duraply Almond", "Duraply White"]
+
+            if mat_inventory_name in mat_names:
                 return math.fabs(sn_unit.inch(0.38))
             else:
                 return math.fabs(sn_unit.inch(0.75))
@@ -210,6 +213,15 @@ def get_appliance_bp(obj):
         return get_appliance_bp(obj.parent)
 
 
+def get_obstacle_bp(obj):
+    if not obj:
+        return None
+    if "IS_OBSTACLE" in obj:
+        return obj
+    elif obj.parent:
+        return get_obstacle_bp(obj.parent)
+
+
 def get_range_bp(obj):
     if not obj:
         return None
@@ -226,6 +238,16 @@ def get_door_bp(obj):
         return obj
     elif obj.parent:
         return get_door_bp(obj.parent)
+
+
+def get_drawer_stack_bp(obj):
+    if not obj:
+        return None
+    if "IS_BP_DRAWER_STACK" in obj:
+        return obj
+    elif obj.parent:
+        return get_drawer_stack_bp(obj.parent)
+
 
 def get_entry_door_bp(obj):
     if not obj:
@@ -263,6 +285,13 @@ def get_object(path):
 
         for obj in data_to.objects:
             return obj
+
+
+def get_drawer_stack_bps():
+    for obj in bpy.context.scene.collection.objects:
+        props = obj.sn_closets
+        if props.is_drawer_stack_bp:
+            yield obj
 
 
 def assign_materials_from_pointers(obj):
@@ -918,6 +947,7 @@ def copy_world_loc(source, target, offset=(0, 0, 0)):
         to the target object. Final target location can be adjusted
         with a location offset.
     """
+    bpy.context.view_layer.update()
     off_mtx = mathutils.Matrix.Translation(mathutils.Vector(offset))
     result_loc = (source.matrix_world @ off_mtx).to_translation()
     target.matrix_world.translation = result_loc
@@ -928,6 +958,7 @@ def copy_world_rot(source, target, offset=(0, 0, 0)):
         to the target object. Final target rotation can be adjusted
         with a rotation offset provided in degrees.
     """
+    bpy.context.view_layer.update()
     off_rad = [math.radians(o) for o in offset]
     off_mtx = mathutils.Euler(off_rad, source.rotation_mode).to_matrix()
     result_rot = source.matrix_world.to_3x3().normalized() @ off_mtx
@@ -1139,7 +1170,7 @@ def get_library_packages(context, only_external=False):
             for file in folder.iterdir():
                 if '__init__.py' in file.name:
                     path, folder_name = os.path.split(
-                        os.path.normpath(sn_paths.CLOSET_ROOT))
+                        os.path.normpath(os.path.join(path, folder)))
                     sys.path.append(path)
                     packages.append(folder_name)
                     break
@@ -1471,6 +1502,22 @@ def replace_assembly(old_assembly, new_assembly):
                             if target.id.name == old_assembly.obj_z.name:
                                 target.id = new_assembly.obj_z
 
+
+def copy_assembly_prompts(assembly, target_assembly):
+    prompts = assembly.get_prompt_dict()
+    for key in prompts:
+        prompt = assembly.get_prompt(key)
+        prompt_type = prompt.prompt_type
+
+        if prompt_type == 'COMBOBOX':
+            combobox_index = prompt.combobox_index
+            items = [i.name for i in prompt.combobox_items]
+            combobox_prompt = target_assembly.add_prompt(key, prompt_type, prompts[key], items)
+            combobox_prompt.set_value(combobox_index)
+        else:
+            target_assembly.add_prompt(key, prompt_type, prompts[key])
+
+
 # -------INTERFACE FUNCTIONS
 
 
@@ -1576,7 +1623,7 @@ def draw_object_info(layout, obj):
             box.operator("fd_object.apply_shape_keys",
                          icon='SHAPEKEY_DATA').object_name = obj.name
     else:
-        if obj.type not in {'EMPTY', 'CAMERA', 'LAMP'}:
+        if obj.type not in {'EMPTY', 'CAMERA', 'LIGHT'}:
             box.label(text='Dimensions:')
             col = box.column(align=True)
             # X
@@ -1761,63 +1808,40 @@ def draw_object_data(layout, obj):
         row = box.row()
         row.prop(text, "bevel_depth")
 
-    if obj.type == 'LAMP':
+    if obj.type == 'LIGHT':
         box = layout.box()
-        lamp = obj.data
-        clamp = lamp.cycles
+        light = obj.data
+        clamp = light.cycles
         cscene = bpy.context.scene.cycles
-
-        emissionNode = None
-        mathNode = None
-
-        if "Emission" in lamp.node_tree.nodes:
-            emissionNode = lamp.node_tree.nodes["Emission"]
-        if "Math" in lamp.node_tree.nodes:
-            mathNode = lamp.node_tree.nodes["Math"]
 
         type_box = box.box()
         type_box.label(text="Lamp Type:")
         row = type_box.row()
-        row.prop(lamp, "type", expand=True)
+        row.prop(light, "type", expand=True)
 
-        if lamp.type in {'POINT', 'SUN', 'SPOT'}:
-            type_box.prop(lamp, "shadow_soft_size", text="Shadow Size")
-        elif lamp.type == 'AREA':
-            type_box.prop(lamp, "shape", text="")
+        if light.type in {'POINT', 'SUN', 'SPOT'}:
+            row = type_box.row()
+            row.label(text="Radius:")
+            type_box.prop(light, "shadow_soft_size", text="")
+        elif light.type == 'AREA':
+            type_box.prop(light, "shape", text="")
             sub = type_box.column(align=True)
 
-            if lamp.shape == 'SQUARE':
-                sub.prop(lamp, "size")
-            elif lamp.shape == 'RECTANGLE':
-                sub.prop(lamp, "size", text="Size X")
-                sub.prop(lamp, "size_y", text="Size Y")
-
-        if cscene.progressive == 'BRANCHED_PATH':
-            type_box.prop(clamp, "samples")
-
-        if lamp.type == 'HEMI':
-            type_box.label(text="Not supported, interpreted as sun lamp")
+            if light.shape == 'SQUARE':
+                sub.prop(light, "size")
+            elif light.shape == 'RECTANGLE':
+                sub.prop(light, "size", text="Size X")
+                sub.prop(light, "size_y", text="Size Y")
 
         options_box = box.box()
         options_box.label(text="Lamp Options:")
-        if emissionNode:
-            row = options_box.row()
-            split = row.split(percentage=0.3)
-            split.label(text="Lamp Color:")
-            split.prop(emissionNode.inputs[0], "default_value", text="")
 
         row = options_box.row()
-        split = row.split(percentage=0.3)
-        split.label(text="Lamp Strength:")
-        if mathNode:
-            split.prop(mathNode.inputs[0], "default_value", text="")
-        else:
-            split.prop(emissionNode.inputs[1], "default_value", text="")
-
+        row.label(text="Color:")
+        row.prop(obj.data, "color", text="")
         row = options_box.row()
-        split = row.split(percentage=0.4)
-        split.prop(clamp, "cast_shadow", text="Cast Shadows")
-        split.prop(clamp, "use_multiple_importance_sampling")
+        row.label(text="Strength:")
+        row.prop(obj.data, "energy", text="")
 
     if obj.type == 'CAMERA':
         box = layout.box()
@@ -2134,6 +2158,6 @@ def update_accordions_prompt():
     longest_wall_inches = math.ceil(sn_unit.meter_to_inch(max(walls_len)))
     walls_qty = len(walls)
     acc_props = bpy.context.scene.snap.accordion_view
-    acc_props.break_width = math.ceil(sn_unit.meter_to_inch(walls_sum))
+    acc_props.break_width = 450
     acc_props.intermediate_space = longest_wall_inches
     acc_props.intermediate_qty = walls_qty

@@ -574,13 +574,13 @@ class Assembly:
         **Returns:** Bool
         """
 
-        grp1_x_1 = self.obj_bp.matrix_world[0][3]
-        grp1_x_2 = self.obj_x.matrix_world[0][3]
+        grp1_x_1 = round(self.obj_bp.location.x, 4)
+        grp1_x_2 = round(grp1_x_1 + self.obj_x.location.x, 4)
 
-        grp2_x_1 = assembly.obj_bp.matrix_world[0][3]
-        grp2_x_2 = assembly.obj_x.matrix_world[0][3]
+        grp2_x_1 = round(assembly.obj_bp.location.x, 4)
+        grp2_x_2 = round(grp2_x_1 + assembly.obj_x.location.x, 4)
 
-        if grp1_x_1 >= grp2_x_1 and grp1_x_1 <= grp2_x_2:
+        if grp1_x_1 >= grp2_x_1 and grp1_x_1 < grp2_x_2:
             return True
 
         if grp1_x_1 <= grp2_x_1 and grp1_x_2 >= grp2_x_1:
@@ -622,6 +622,8 @@ class Assembly:
                             product_depth = math.fabs(self.obj_y.location.y)
                             if x_dist <= product_depth:
                                 if self.has_height_collision(prev_group):
+                                    if "IS_BP_ENTRY_DOOR" in prev_group.obj_bp:
+                                        return 0
                                     return prev_group.calc_depth()
                 return 0
 
@@ -647,12 +649,24 @@ class Assembly:
                             if product_x <= product_depth:
                                 if self.has_height_collision(next_group):
                                     wall_length = wall.obj_x.location.x
+                                    if "IS_BP_ENTRY_DOOR" in next_group.obj_bp:
+                                        return wall_length
                                     product_depth = next_group.calc_depth()
                                     return wall_length - product_depth
 
                 return wall.obj_x.location.x
         else:
             return 0
+
+    def is_closet_wall_mounted(self, assy):
+        is_clt_wall_mounted = True
+        opening_qty = assy.get_prompt("Opening Quantity").get_value()
+
+        for i in range(1, opening_qty + 1):
+            is_wall_mounted = not assy.get_prompt("Opening " + str(i) + " Floor Mounted").get_value()
+            is_clt_wall_mounted = is_clt_wall_mounted and is_wall_mounted
+
+        return is_clt_wall_mounted
 
     def get_adjacent_assembly(self, direction='LEFT'):
         """
@@ -671,7 +685,6 @@ class Assembly:
         list_obj_right_bp = []
 
         list_obj_bp_z = wall.get_wall_groups(loc_sort='Z')
-        list_obj_above_bp = []
         list_obj_below_bp = []
 
         for index, obj_bp in enumerate(list_obj_bp):
@@ -682,7 +695,6 @@ class Assembly:
 
         for index, obj_bp in enumerate(list_obj_bp_z):
             if obj_bp.name == self.obj_bp.name:
-                list_obj_above_bp = list_obj_bp_z[index + 1:]
                 list_obj_below_bp = list_obj_bp_z[:index]
 
         if direction == 'LEFT':
@@ -699,10 +711,11 @@ class Assembly:
                     return Assembly(obj_bp)
 
         if direction == 'ABOVE':
-            for obj_bp in list_obj_above_bp:
-                above_group = Assembly(obj_bp)
-                if self.has_width_collision(above_group):
-                    return Assembly(obj_bp)
+            colliding_products = [
+                Assembly(obj_bp) for obj_bp in list_obj_bp if self.has_width_collision(Assembly(obj_bp))]
+            for assy in colliding_products:
+                if self.is_closet_wall_mounted(assy):
+                    return assy
 
         if direction == 'BELOW':
             for obj_bp in list_obj_below_bp:
@@ -718,6 +731,8 @@ class Assembly:
         obj["ID_PROMPT"] = self.obj_bp["ID_PROMPT"]
         if obj.type == 'MESH':
             self.lock_rot_and_scale(obj)
+        if obj.type == 'EMPTY':
+            obj.hide_viewport = True
         for child in obj.children:
             self.set_child_properties(child)
 
@@ -738,7 +753,10 @@ class Assembly:
         for child in self.obj_bp.children:
             if child.type == 'MESH':
                 self.lock_rot_and_scale(child)
-            self.set_child_properties(child)
+            if child.type == 'EMPTY':
+                child.hide_viewport = True
+            if not child.snap.type_group == 'INSERT':
+                self.set_child_properties(child)
 
 
 class Part(Assembly):
@@ -866,7 +884,7 @@ class Part(Assembly):
 
             machining_name:string - name of the machining token
 
-            machining_name:string - type of machining token to add
+            machining_type:string - type of machining token to add
 
             machining_face:string - face to add the machining token to
 
@@ -980,6 +998,7 @@ class Wall(Assembly):
         size = (0, 0, 0)
 
         obj_mesh = sn_utils.create_cube_mesh("Wall Mesh", size)
+        obj_mesh.snap.delete_protected = True
         obj_mesh.snap.is_wall_mesh = True
         self.add_object(obj_mesh)
         left_angle_empty = self.add_empty("Left Angle")
@@ -1091,9 +1110,9 @@ class Dimension():
         self.opengl_dim.line_only = line_only
 
     def create_anchor(self):
-        context = bpy.context
-        bpy.ops.object.add(type='EMPTY')
-        self.anchor = context.object
+        self.anchor = bpy.data.objects.new("Anchor", None)
+        bpy.context.view_layer.active_layer_collection.collection.objects.link(self.anchor)
+        bpy.context.view_layer.objects.active = self.anchor
         self.anchor.location = (0, 0, 0)
         self.anchor['IS_VISDIM_A'] = True
         self.anchor.snap.name_object = "Anchor"
@@ -1101,9 +1120,9 @@ class Dimension():
         self.anchor.empty_display_size = sn_unit.inch(1)
 
     def create_end_point(self):
-        context = bpy.context
-        bpy.ops.object.add(type='EMPTY')
-        self.end_point = context.object
+        self.end_point = bpy.data.objects.new("End Point", None)
+        bpy.context.view_layer.active_layer_collection.collection.objects.link(self.end_point)
+        bpy.context.view_layer.objects.active = self.end_point
         self.end_point.location = (0, 0, 0)
         self.end_point['IS_VISDIM_B'] = True
         self.end_point.snap.name_object = "End Point"
@@ -1120,7 +1139,7 @@ class Dimension():
             self.anchor.location.x = value
         else:
             driver = self.anchor.driver_add('location', 0)
-            sn_props.add_driver_variables(driver, driver_vars)
+            sn_utils.add_driver_variables(driver, driver_vars)
             driver.driver.expression = expression
 
     def start_y(self, expression="", driver_vars=[], value=0):
@@ -1128,7 +1147,7 @@ class Dimension():
             self.anchor.location.y = value
         else:
             driver = self.anchor.driver_add('location', 1)
-            sn_props.add_driver_variables(driver, driver_vars)
+            sn_utils.add_driver_variables(driver, driver_vars)
             driver.driver.expression = expression
 
     def start_z(self, expression="", driver_vars=[], value=0):
@@ -1136,7 +1155,7 @@ class Dimension():
             self.anchor.location.z = value
         else:
             driver = self.anchor.driver_add('location', 2)
-            sn_props.add_driver_variables(driver, driver_vars)
+            sn_utils.add_driver_variables(driver, driver_vars)
             driver.driver.expression = expression
 
     def end_x(self, expression="", driver_vars=[], value=0):
@@ -1144,7 +1163,7 @@ class Dimension():
             self.end_point.location.x = value
         else:
             driver = self.end_point.driver_add('location', 0)
-            sn_props.add_driver_variables(driver, driver_vars)
+            sn_utils.add_driver_variables(driver, driver_vars)
             driver.driver.expression = expression
 
     def end_y(self, expression="", driver_vars=[], value=0):
@@ -1152,7 +1171,7 @@ class Dimension():
             self.end_point.location.y = value
         else:
             driver = self.end_point.driver_add('location', 1)
-            sn_props.add_driver_variables(driver, driver_vars)
+            sn_utils.add_driver_variables(driver, driver_vars)
             driver.driver.expression = expression
 
     def end_z(self, expression="", driver_vars=[], value=0):
@@ -1160,7 +1179,7 @@ class Dimension():
             self.end_point.location.z = value
         else:
             driver = self.end_point.driver_add('location', 2)
-            sn_props.add_driver_variables(driver, driver_vars)
+            sn_utils.add_driver_variables(driver, driver_vars)
             driver.driver.expression = expression
 
     def hide(self, expression="", driver_vars=[], value=True):
@@ -1168,7 +1187,7 @@ class Dimension():
             self.opengl_dim.hide = value
         else:
             driver = self.anchor.driver_add('snap.opengl_dim.hide')
-            sn_props.add_driver_variables(driver, driver_vars)
+            sn_utils.add_driver_variables(driver, driver_vars)
             driver.driver.expression = expression
 
     def set_color(self, expression="", driver_vars=[], value=0):
@@ -1176,7 +1195,7 @@ class Dimension():
             self.opengl_dim.gl_color = value
         else:
             driver = self.anchor.driver_add('snap.opengl_dim.gl_color')
-            sn_props.add_driver_variables(driver, driver_vars)
+            sn_utils.add_driver_variables(driver, driver_vars)
             driver.driver.expression = expression
 
     def set_label(self, text, new_line=False):
@@ -1198,7 +1217,7 @@ class Dimension():
             self.opengl_dim.gl_text_x = value
         else:
             driver = self.anchor.driver_add('cabinetlib.opengl_dim.gl_text_x')
-            sn_props.add_driver_variables(driver, driver_vars)
+            sn_utils.add_driver_variables(driver, driver_vars)
             driver.driver.expression = expression
 
     def set_text_offset_y(self, expression="", driver_vars=[], value=0):
@@ -1206,7 +1225,7 @@ class Dimension():
             self.opengl_dim.gl_text_y = value
         else:
             driver = self.anchor.driver_add('cabinetlib.opengl_dim.gl_text_y')
-            sn_props.add_driver_variables(driver, driver_vars)
+            sn_utils.add_driver_variables(driver, driver_vars)
             driver.driver.expression = expression
 
 

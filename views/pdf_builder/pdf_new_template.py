@@ -33,7 +33,7 @@ class New_Template_Builder(Pdf_Builder):
         sections_path = os.path.join(os.path.dirname(__file__),
                                      "new_template_sections.json")
         lines_path = os.path.join(os.path.dirname(__file__),
-                                  "new_template_lines.json")
+                                  "template_db_new.json")
         labels_path = os.path.join(os.path.dirname(__file__),
                                    "new_template_labels.json")
         self.dic_sections = New_Template_Builder._open_json_file(sections_path)
@@ -103,8 +103,8 @@ class New_Template_Builder(Pdf_Builder):
     def _draw_lines(self) -> None:
         """Draw a all section separators of the block info."""
         for line in self.dic_lines:
-            posx, posy = line["position"][self.print_paper_size]
-            length = line["length"]
+            posx, posy = line["line"]["position"][self.print_paper_size]
+            length = line["line"]["length"][self.print_paper_size]
             self.c.line(posx, posy, posx + length, posy)
 
     def _draw_labels(self) -> None:
@@ -185,8 +185,12 @@ class New_Template_Builder(Pdf_Builder):
             logo (str): The path of the logo with directory,
                         name and extension.
         """
-        self.c.drawImage(logo, 30, 542, width=150, height=57, mask='auto',
-                         preserveAspectRatio=True)
+        if self.print_paper_size == 'LEGAL':
+            self.c.drawImage(logo, 18, 542, width=150, height=57, mask='auto',
+                            preserveAspectRatio=True)
+        elif self.print_paper_size == 'ELEVENSEVENTEEN':
+            self.c.drawImage(logo, 18, 720, width=150, height=57, mask='auto',
+                            preserveAspectRatio=True)
 
     def draw_block_info(self) -> None:
         """Draw the block info of the template in the canvas (override)."""

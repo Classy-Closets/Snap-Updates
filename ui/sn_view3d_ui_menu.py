@@ -98,7 +98,19 @@ class VIEW3D_MT_object_context_menu(Menu):
         obj = context.object
 
         use_bl_ui = context.scene.snap.ui.use_default_blender_interface
-        if not use_bl_ui and obj.type == 'CAMERA':
+        if obj and not use_bl_ui and obj.type == 'CAMERA':
+            return
+        if obj and not use_bl_ui and obj.type == 'LIGHT':
+            layout.operator_context = "INVOKE_DEFAULT"
+            layout.operator(
+                'sn_object.light_properties',
+                text="Light Properties",
+                icon='LIGHT')
+            layout.operator(
+                'sn_object.delete_object',
+                text="Delete Light",
+                icon='X').obj_name = obj.name
+
             return
 
         selected_objects_len = len(context.selected_objects)
@@ -179,8 +191,6 @@ class VIEW3D_MT_object_context_menu(Menu):
         else:
             # If something is selected
             if obj is not None and obj.type in {'MESH', 'CURVE', 'SURFACE'} and pos_wall is None:
-                layout.operator(
-                    SN_OT_object_properties.bl_idname, icon='WINDOW')
                 layout.separator()
                 layout.operator("object.shade_smooth", text="Shade Smooth")
                 layout.operator("object.shade_flat", text="Shade Flat")
@@ -359,7 +369,7 @@ class VIEW3D_MT_object_context_menu(Menu):
             layout.separator()
 
             layout.operator_context = 'EXEC_DEFAULT'
-            layout.operator("object.delete", text="Delete").use_global = False
+            layout.operator("sn_object.delete", text="Delete").use_global = False
 
 
 def draw_add_object(self, context):

@@ -11,7 +11,7 @@ from .data import data_closet_doors
 from .data import data_hampers
 from .data import data_closet_carcass_corner
 from .data import data_base_assembly
-# from .data import data_shoe_cubbies
+from .data import data_shoe_cubbies
 from .data import data_closet_hooks_and_pins
 from .data import data_closet_top
 from .data import data_closet_splitters
@@ -592,7 +592,7 @@ class PRODUCT_Shelves_Glass(data_rods_and_shelves.Glass_Shelves):
         self.drop_id = "sn_closets.drop_insert"
 
 
-class PRODUCT_Shelf_Stack(data_closet_splitters.Vertical_Splitters):
+class PRODUCT_Shelf_Stack(data_closet_splitters.Shelf_Stack):
 
     def __init__(self):
         self.library_name = LIBRARY_NAME
@@ -1065,16 +1065,16 @@ class PRODUCT_Division_6(data_closet_splitters.Horizontal_Splitters):
         self.drop_id = "sn_closets.drop_insert"
 
 
-# class PRODUCT_Shoe_Cubbies_Divisions(data_shoe_cubbies.Shoe_Cubbies):
+class PRODUCT_Shoe_Cubbies_Divisions(data_shoe_cubbies.Shoe_Cubbies):
 
-#     def __init__(self):
-#         self.library_name = LIBRARY_NAME
-#         self.category_name = SECTION_INSERTS_DIVIDERS
-#         self.width = sn_unit.inch(34)
-#         self.height = sn_unit.inch(34)
-#         self.depth = sn_unit.inch(12)
-#         self.drop_id = "sn_closets.drop_insert"
-#         self.prompts = {"Divider Thickness": sn_unit.inch(.75)}
+    def __init__(self):
+        self.library_name = LIBRARY_NAME
+        self.category_name = SECTION_INSERTS_DIVIDERS
+        self.width = sn_unit.inch(34)
+        self.height = sn_unit.inch(34)
+        self.depth = sn_unit.inch(12)
+        self.drop_id = "sn_closets.drop_insert"
+        self.prompts = {"Divider Thickness": sn_unit.inch(.75)}
 
 class PRODUCT_Garage_Leg(data_garage_leg.Garage_Leg):
     

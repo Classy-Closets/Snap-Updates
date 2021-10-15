@@ -320,9 +320,11 @@ class SNAP_OT_brd_library_items(Operator):
             item.obj_z.location.z = item.height
         self.placement += item.obj_x.location.x + sn_unit.inch(10)
 
-        print("{} : Draw Time --- {} seconds ---".format(
+        print("{} : Draw Time --- {} seconds --- Objects in scene: {} ({} visible)".format(
             item.obj_bp.snap.name_object,
-            time.perf_counter() - start_time))
+            round(time.perf_counter() - start_time, 8),
+            len(bpy.data.objects),
+            len([ob for ob in bpy.context.view_layer.objects if ob.visible_get()])))
 
     def cancel(self, context):
         progress = context.window_manager.snap

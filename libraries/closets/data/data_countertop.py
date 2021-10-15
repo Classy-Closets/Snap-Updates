@@ -59,6 +59,12 @@ class Countertop_Insert(sn_types.Assembly):
         self.add_prompt("Exposed Right", 'CHECKBOX', False)
         self.add_prompt("Exposed Back", 'CHECKBOX', False)
         self.add_prompt("Corner Shape", 'COMBOBOX', 0, ['Diagonal', 'L Shape'])
+
+        # Necessary to keep countertop height relative to floor while allowing relative movement to partitions
+        self.add_prompt("Tallest Pard Height", 'DISTANCE', 0)
+        self.add_prompt("Relative Offset", 'DISTANCE', 0)
+        self.add_prompt("Countertop Height", 'DISTANCE', 0)
+
         common_prompts.add_countertop_prompts(self)
 
         Product_Width = self.obj_x.snap.get_var('location.x', 'Product_Width')
@@ -242,6 +248,16 @@ class PROMPTS_Counter_Top(sn_types.Prompts_Interface):
                 extend_right_amount.set_value(sn_unit.inch(0))
         self.assembly.obj_bp.location = self.assembly.obj_bp.location # Redraw Viewport
         closet_props.update_render_materials(self, context)   
+
+        Tallest_Pard_Height = self.assembly.get_prompt("Tallest Pard Height")
+        Relative_Offset = self.assembly.get_prompt("Relative Offset")
+        Countertop_Height = self.assembly.get_prompt("Countertop Height")
+        if Relative_Offset:
+            Relative_Offset.set_value(Countertop_Height.get_value() - Tallest_Pard_Height.get_value())
+
+        if Countertop_Height is not None:
+            self.assembly.obj_bp.location.z = Countertop_Height.get_value()
+
         return True
         
     def execute(self, context):
@@ -276,7 +292,8 @@ class PROMPTS_Counter_Top(sn_types.Prompts_Interface):
                 extend_right_amount = self.assembly.get_prompt("Extend Right Amount")
                 exposed_left = self.assembly.get_prompt("Exposed Left")
                 exposed_right = self.assembly.get_prompt("Exposed Right")      
-                exposed_back = self.assembly.get_prompt("Exposed Back")            
+                exposed_back = self.assembly.get_prompt("Exposed Back")
+                countertop_height = self.assembly.get_prompt('Countertop Height')
                 
                 box = layout.box()   
                 row = box.row()
@@ -299,9 +316,10 @@ class PROMPTS_Counter_Top(sn_types.Prompts_Interface):
                 row.prop(exposed_right, "checkbox_value", text="Right")      
                 row.prop(exposed_back, "checkbox_value", text="Back")
            
-                row = box.row()
-                row.label(text="Countertop Height:")
-                row.prop(self.assembly.obj_bp,'location',index=2,text="")
+                if countertop_height:
+                    row = box.row()
+                    row.label(text="Countertop Height:")
+                    row.prop(countertop_height,'distance_value',index=2,text="")
 
                 row = box.row()
                 row.prop(Add_Backsplash, "checkbox_value", text=Add_Backsplash.name)
@@ -370,10 +388,29 @@ class OPERATOR_Place_Countertop(Operator, PlaceClosetInsert):
         self.assembly = self.asset
         return super().execute(context)
 
+    def update_insert(self, obj_bp):
+        # Look for drawer stack or hamper inserts and set cleat location
+        inserts = [
+            "IS_BP_DRAWER_STACK" in obj_bp,
+            "IS_BP_HAMPER" in obj_bp]
+
+        if any(inserts):
+            insert = sn_types.Assembly(obj_bp)
+            cleat_location = insert.get_prompt("Cleat Location")
+            if cleat_location:
+                cleat_location.set_value(1)  # Setting Cleat Location to Below
+
+        # Find any nested inserts and update as well
+        if obj_bp.children:
+            for child in obj_bp.children:
+                if child.snap.type_group == 'INSERT':
+                    self.update_insert(child)
+
     def ctop_drop(self, context, event):
         if self.selected_obj:
             sel_product_bp = sn_utils.get_closet_bp(self.selected_obj)
             sel_assembly_bp = sn_utils.get_assembly_bp(self.selected_obj)
+
 
             if sel_product_bp and sel_assembly_bp:
                 product = sn_types.Assembly(sel_product_bp)
@@ -381,40 +418,65 @@ class OPERATOR_Place_Countertop(Operator, PlaceClosetInsert):
                 if product and 'IS_BP_CLOSET' in product.obj_bp:
                     heights = []
                     depths = []
+                    vertical_offsets = []
+                    floor = True
+                    hang_height = product.obj_z.location.z
+                    shelf_thickness = product.get_prompt('Shelf Thickness').get_value()
+                    remove_top_shelf = True
+
+
                     for i in range(1,10):
+
                         height = product.get_prompt("Opening " + str(i) + " Height")
                         if height: 
                             heights.append(height.get_value())
+
                         depth = product.get_prompt("Opening " + str(i) + " Depth")
                         if depth: 
                             depths.append(depth.get_value())
+                        
+                        if product.get_prompt("Opening " + str(i) + " Floor Mounted") is not None:
+                            floor = floor and product.get_prompt("Opening " + str(i) + " Floor Mounted").get_value()
+
+                        if product.get_prompt("Remove Top Shelf " + str(i)) is not None:
+                            remove_top_shelf = remove_top_shelf and product.get_prompt("Remove Top Shelf " + str(i)).get_value()
+
+                        if product.get_prompt('Top KD ' + str(i) + ' Vertical Offset') is not None:
+                            vertical_offsets.append(product.get_prompt('Top KD ' + str(i) + ' Vertical Offset').get_value())
                             
                     scene_props = bpy.context.scene.sn_closets
                     
-                    tk_height = product.get_prompt("Toe Kick Height")
                     placement_height = 0
-                    if scene_props.closet_defaults.use_plant_on_top:
-                        placement_height = max(heights) + sn_unit.millimeter(16)
+                    tk_height = product.get_prompt("Toe Kick Height")
+                    if floor:
+                        placement_height = max(heights) + tk_height.get_value()
                     else:
-                        placement_height = max(heights)                   
+                        placement_height = hang_height
                     
-                    if tk_height:
-                        placement_height += tk_height.get_value()
+                    if remove_top_shelf:
+                        placement_height -= shelf_thickness
 
+                    placement_height -= max(vertical_offsets)
+                    
+                    if scene_props.closet_defaults.use_plant_on_top:
+                        placement_height += sn_unit.millimeter(16)
+                    
                     self.assembly.obj_bp.parent = product.obj_bp
                     self.assembly.obj_bp.location.z = placement_height             
                     self.assembly.obj_bp.location.y = -max(depths)
-                    self.assembly.obj_x.location.x = product.obj_x.location.x
                     self.assembly.obj_y.location.y = max(depths)
+                    parent_dim_x = product.obj_x.snap.get_var('location.x', 'dim_x')
+                    self.assembly.obj_x.snap.loc_x(expression='dim_x', variables=[parent_dim_x])
 
                 if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
+                    countertop_height_ppt = self.assembly.get_prompt("Countertop Height")
+                    if countertop_height_ppt:
+                        countertop_height_ppt.set_value(self.assembly.obj_bp.location.z)
+
                     carcass_bp = sn_utils.get_closet_bp(self.assembly.obj_bp)
                     for child in carcass_bp.children:
-                        if "IS_BP_DRAWER_STACK" in child or "IS_BP_HAMPER" in child:
-                            child_assembly = sn_types.Assembly(child)
-                            cleat_location = child_assembly.get_prompt("Cleat Location")
-                            if cleat_location:
-                                cleat_location.set_value(1)  # Setting Cleat Location to Below
+                        if child.snap.type_group == 'INSERT':
+                            self.update_insert(child)
 
                     sn_utils.set_wireframe(self.assembly.obj_bp, False)
                     bpy.context.window.cursor_set('DEFAULT')
@@ -431,6 +493,9 @@ class OPERATOR_Place_Countertop(Operator, PlaceClosetInsert):
         context.area.tag_redraw()
         bpy.ops.object.select_all(action='DESELECT')        
         self.selected_point, self.selected_obj, _ = sn_utils.get_selection_point(context,event)
+
+        if not self.assembly:
+            self.assembly = self.asset
         
         if self.event_is_cancel_command(event):
             context.area.header_text_set(None)
