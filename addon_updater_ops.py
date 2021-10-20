@@ -496,8 +496,16 @@ class AddonUpdaterUpdatedSuccessful(bpy.types.Operator):
         script_file.close()
         subprocess.call(bpy.app.binary_path + ' -b --python ' '"' + script + '"')
 
+    def open_release_notes(self):
+        if type(updater.update_version) is tuple:
+            str_ver = "v{}".format(''.join(str(i) for i in updater.update_version))
+        if type(updater.update_version) is str:
+            str_ver = "v{}".format(''.join([c for c in updater.update_version if c.isdigit()]))
+        bpy.ops.wm.url_open(url="https://classy-closets.github.io/SNaP-2.0/" + str_ver)
+
     def invoke(self, context, event):
         self.load_defaults_background()
+        self.open_release_notes()
         return context.window_manager.invoke_props_popup(self, event)
 
     def draw(self, context):
