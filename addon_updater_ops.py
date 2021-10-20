@@ -23,6 +23,7 @@ Implements draw calls, popups, and operators that use the addon_updater.
 
 import os
 import traceback
+import subprocess
 
 import bpy
 from bpy.app.handlers import persistent
@@ -245,6 +246,9 @@ class AddonUpdaterCheckNow(bpy.types.Operator):
                 "Could not get {} preferences, update check skipped".format(
                     __package__))
             return {'CANCELLED'}
+
+        if settings.updater_key:
+            updater.private_token = settings.updater_key            
 
         updater.set_check_interval(
             enabled=settings.auto_check_update,
@@ -479,7 +483,21 @@ class AddonUpdaterUpdatedSuccessful(bpy.types.Operator):
         options={'HIDDEN'}
     )
 
+    def load_defaults_background(self):
+        script = os.path.join(bpy.app.tempdir, 'load_defaults.py')
+        script_file = open(script, 'w')
+        script_file.write("import bpy\n")
+        script_file.write("bpy.context.preferences.use_preferences_save = False\n")
+        script_file.write("bpy.ops.wm.save_userpref()\n")
+        script_file.write("project_dir = bpy.context.preferences.addons['snap'].preferences.project_dir\n")
+        script_file.write("bpy.ops.snap.load_snap_defaults()\n")
+        script_file.write("bpy.context.preferences.addons['snap'].preferences.project_dir = project_dir\n")
+        script_file.write("bpy.ops.wm.save_userpref()\n")
+        script_file.close()
+        subprocess.call(bpy.app.binary_path + ' -b --python ' '"' + script + '"')
+
     def invoke(self, context, event):
+        self.load_defaults_background()
         return context.window_manager.invoke_props_popup(self, event)
 
     def draw(self, context):
@@ -1310,7 +1328,7 @@ def register(bl_info):
     updater.user = "Classy-Closets"
     updater.repo = "Snap-Updates"
     updater.website = "https://https://github.com/Classy-Closets/SNaP-2.0"
-    updater.private_token = ""
+    updater.private_token = None
     updater.subfolder_path = ""
     updater.current_version = bl_info["version"]
     updater.verbose = True
