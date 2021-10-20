@@ -484,11 +484,11 @@ class AddonUpdaterUpdatedSuccessful(bpy.types.Operator):
     )
 
     def load_defaults_background(self):
+        bpy.context.preferences.use_preferences_save = False
+        bpy.ops.wm.save_userpref()
         script = os.path.join(bpy.app.tempdir, 'load_defaults.py')
         script_file = open(script, 'w')
         script_file.write("import bpy\n")
-        script_file.write("bpy.context.preferences.use_preferences_save = False\n")
-        script_file.write("bpy.ops.wm.save_userpref()\n")
         script_file.write("project_dir = bpy.context.preferences.addons['snap'].preferences.project_dir\n")
         script_file.write("bpy.ops.snap.load_snap_defaults()\n")
         script_file.write("bpy.context.preferences.addons['snap'].preferences.project_dir = project_dir\n")
