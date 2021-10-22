@@ -482,7 +482,10 @@ class AddonUpdaterUpdatedSuccessful(bpy.types.Operator):
         default="",
         options={'HIDDEN'}
     )
-
+    
+    def __del__(self):
+        self.open_release_notes()
+        
     def load_defaults_background(self):
         bpy.context.preferences.use_preferences_save = False
         bpy.ops.wm.save_userpref()
@@ -505,7 +508,6 @@ class AddonUpdaterUpdatedSuccessful(bpy.types.Operator):
 
     def invoke(self, context, event):
         self.load_defaults_background()
-        self.open_release_notes()
         return context.window_manager.invoke_props_popup(self, event)
 
     def draw(self, context):
@@ -574,6 +576,7 @@ class AddonUpdaterUpdatedSuccessful(bpy.types.Operator):
                     icon="BLANK1")
 
     def execute(self, context):
+        self.open_release_notes()
         return {'FINISHED'}
 
 
