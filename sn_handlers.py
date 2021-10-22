@@ -171,6 +171,7 @@ def check_for_update(scene=None):
 
 
 def register():
+    bpy.app.handlers.load_post.append(check_for_update)
     bpy.app.handlers.load_post.append(load_driver_functions)
     bpy.app.handlers.load_post.append(load_materials_from_db)
     bpy.app.handlers.load_post.append(default_settings)
@@ -180,10 +181,10 @@ def register():
     bpy.app.handlers.load_post.append(load_libraries)
     bpy.app.handlers.load_post.append(load_library_modules)
     bpy.app.handlers.load_post.append(init_machining_collection)
-    bpy.app.handlers.load_post.append(check_for_update)
 
 
 def unregister():
+    bpy.app.handlers.load_post.remove(check_for_update)
     bpy.app.handlers.load_post.remove(load_driver_functions)
     bpy.app.handlers.load_post.remove(load_materials_from_db)
     bpy.app.handlers.load_post.remove(default_settings)
@@ -193,4 +194,3 @@ def unregister():
     bpy.app.handlers.load_post.remove(load_libraries)
     bpy.app.handlers.load_post.remove(load_library_modules)
     bpy.app.handlers.load_post.remove(init_machining_collection)
-    bpy.app.handlers.load_post.append(check_for_update)

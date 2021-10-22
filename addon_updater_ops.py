@@ -482,10 +482,7 @@ class AddonUpdaterUpdatedSuccessful(bpy.types.Operator):
         default="",
         options={'HIDDEN'}
     )
-    
-    def __del__(self):
-        self.open_release_notes()
-        
+
     def load_defaults_background(self):
         bpy.context.preferences.use_preferences_save = False
         bpy.ops.wm.save_userpref()
