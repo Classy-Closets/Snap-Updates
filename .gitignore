@@ -109,3 +109,5 @@ venv.bak/
 
 developer_utils/
 snap_db_updater/
+# Allow .pyd in python_lib
+!python_lib/**/*.pyd
