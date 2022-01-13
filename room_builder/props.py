@@ -14,7 +14,7 @@ from snap import sn_unit
 from . import image_enums
 from .room_builder_main import (update_obstacle_index,
                                 update_wall_index,
-                                toggle_obstacle_hide)
+                                toggle_objects_hide)
 
 
 def set_view_port(self, context):
@@ -113,7 +113,7 @@ class Scene_Props(PropertyGroup):
                                 items=[('SHOW', 'Show Obstacles', 'Show Obstacles'),
                                        ('HIDE', 'Hide Obstacles', 'Hide Obstacles')],
                                 default='SHOW',
-                                update=toggle_obstacle_hide)
+                                update=toggle_objects_hide)
 
     carpet_material: EnumProperty(name="Carpet Material", items=image_enums.enum_carpet, update=update_floor_mat)
     wood_floor_material: EnumProperty(name="Wood Floor Material", items=image_enums.enum_wood_floor, update=update_floor_mat)
@@ -131,21 +131,25 @@ class Scene_Props(PropertyGroup):
 
     room_category: EnumProperty(name="Room Category",
                                 description="Select the Category of the Room",
-                                items=[("Please Select",
-                                        "REQUIRED Please Select a Category",
-                                        "Please Select a Category"),
-                                       ("41110", "Closet", "Closet"),
-                                       ("41120", "Entertainment Center", "Entertainment Center"),
-                                       ("41130", "Garage", "Garage"),
-                                       ("41140", "Home Office", "Home Office"),
-                                       ("41150", "Laundry", "Laundry"),
-                                       ("41160", "Mud Room", "Mud Room"),
-                                       ("41170", "Pantry", "Pantry"),
-                                       ("41210", "Kitchen", "Kitchen"),
-                                       ("41220", "Bathroom", "Bathroom"),
-                                       ("41230", "Reface", "Reface"),
-                                       ("41240", "Remodel", "Remodel"),
-                                       ("41250", "Stone", "Stone")])
+                                items=[
+                                    ("Please Select", "REQUIRED Please Select a Category",
+                                    "Please Select a Category"),
+                                    ("FG-CLST", "Closet", "Closet"),
+                                    ("FG-ENTC", "Entertainment Center", "Entertainment Center"),
+                                    ("FG-GARG", "Garage", "Garage"),
+                                    ("FG-HMOF", "Home Office", "Home Office"),
+                                    ("FG-LNDY", "Laundry", "Laundry"),
+                                    ("FG-MDRM", "Mud Room", "Mud Room"),
+                                    ("FG-PNTY", "Pantry", "Pantry"),
+                                    ("FG-KITN", "Kitchen", "Kitchen"),
+                                    ("FG-BATH", "Bathroom", "Bathroom"),
+                                    ("FG-RFCE", "Reface", "Reface"),
+                                    ("FG-RMDL", "Remodel", "Remodel"),
+                                    ("FG-STNE", "Stone", "Stone"),
+                                    ("FG-SPEC", "Specialty", "Specialty"),
+                                    ("FG-COMM", "Commercial", "Commercial"),
+                                    ("FG-CMSS", "Commercial Solid Surface", "Commercial Solid Surface"),
+                                    ("FG-CMST", "Commercial Stone", "Commercial Stone")])
 
     @classmethod
     def register(cls):

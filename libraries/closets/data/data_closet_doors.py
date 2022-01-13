@@ -24,7 +24,7 @@ class Doors(sn_types.Assembly):
     drop_id = "sn_closets.insert_doors_drop"
     placement_type = "EXTERIOR"
     show_in_library = True
-    category_name = "Closet Products - Basic"
+    category_name = "Products - Basic"
     mirror_y = False
 
     door_type = ""  # {Base, Tall, Upper, Sink, Suspended}
@@ -104,6 +104,7 @@ class Doors(sn_types.Assembly):
 
         self.add_prompt("Full Overlay", 'CHECKBOX', False)
         self.add_prompt("Evenly Space Shelves", 'CHECKBOX', True)
+        self.add_prompt("Thick Adjustable Shelves", 'CHECKBOX', bpy.context.scene.sn_closets.closet_defaults.thick_adjustable_shelves)
 
         self.add_prompt("Glass Shelf Thickness", 'COMBOBOX', 0, ['1/4"', '3/8"', '1/2"'])  # columns=3
         ST = self.get_prompt("Glass Shelf Thickness").get_var("ST")
@@ -178,10 +179,11 @@ class Doors(sn_types.Assembly):
         Add_Shelves = self.get_prompt("Add Shelves").get_var('Add_Shelves')
         Glass_Shelves = self.get_prompt("Glass Shelves").get_var('Glass_Shelves')
         Glass_Thickness = self.get_prompt("Glass Thickness").get_var('Glass_Thickness')
+        TAS = self.get_prompt("Thick Adjustable Shelves").get_var('TAS')
 
         previous_shelf = None
 
-        for i in range(1, shelf_amt + 1):
+        for i in range(1, shelf_amt):
             ppt_shelf_height = eval("self.get_prompt('Shelf {} Height')".format(str(i)))
             Shelf_Height = ppt_shelf_height.get_var('Shelf_Height')
             shelf_empty = self.add_empty("Shelf Z Loc Empty")
@@ -199,7 +201,8 @@ class Doors(sn_types.Assembly):
 
             if not glass:
                 shelf = common_parts.add_shelf(self)
-                shelf.dim_z('ST', [ST])
+                IBEKD = shelf.get_prompt('Is Bottom Exposed KD').get_var('IBEKD')
+                shelf.dim_z('IF(AND(TAS,IBEKD==False), INCH(1),ST)', [ST, TAS, IBEKD])
             else:
                 shelf = common_parts.add_glass_shelf(self)
                 shelf.dim_z('Glass_Thickness', [Glass_Thickness])
@@ -209,11 +212,13 @@ class Doors(sn_types.Assembly):
 
             self.shelves.append(shelf)
 
-            Is_Locked_Shelf = shelf.get_prompt('Is Locked Shelf').get_var('Is_Locked_Shelf')
             Adj_Shelf_Setback = shelf.get_prompt('Adj Shelf Setback').get_var('Adj_Shelf_Setback')
             Locked_Shelf_Setback = shelf.get_prompt('Locked Shelf Setback').get_var('Locked_Shelf_Setback')
             Adj_Shelf_Clip_Gap = shelf.get_prompt('Adj Shelf Clip Gap').get_var('Adj_Shelf_Clip_Gap')
             Shelf_Setback = self.get_prompt("Shelf " + str(i) + " Setback").get_var('Shelf_Setback')
+
+            if not glass:
+                Is_Locked_Shelf = shelf.get_prompt('Is Locked Shelf').get_var('Is_Locked_Shelf')
 
             shelf.loc_x('IF(Is_Locked_Shelf,0,Adj_Shelf_Clip_Gap)', [Is_Locked_Shelf, Adj_Shelf_Clip_Gap])
             shelf.loc_y('Depth-Shelf_Backing_Setback', [Depth, Shelf_Backing_Setback])
@@ -332,6 +337,8 @@ class Doors(sn_types.Assembly):
         LBCD = self.get_prompt("Left Blind Corner Depth").get_var('LBCD')
         RBCD = self.get_prompt("Right Blind Corner Depth").get_var('RBCD')
 
+        TAS = self.get_prompt("Thick Adjustable Shelves").get_var('TAS')
+
         door_backing_gap = self.get_prompt('Doors Backing Gap')
         door_backing_gap.set_formula('Insert_Height+ST*2', [Insert_Height, ST])  
 
@@ -391,7 +398,7 @@ class Doors(sn_types.Assembly):
         no_pulls = left_door.get_prompt('No Pulls')
         no_pulls.set_formula('No_Pulls', [No_Pulls])
         cat_num = left_door.get_prompt('CatNum')
-        cat_num.set_formula('IF(OR(double_door,Width>DDAS),1005,1006)', [double_door, Width, DDAS])
+        cat_num.set_formula('IF(OR(double_door,Width>DDAS),51,52)', [double_door, Width, DDAS])
 
         left_pull = common_parts.add_door_pull(self)
         self.set_pull_drivers(left_pull)
@@ -422,7 +429,7 @@ class Doors(sn_types.Assembly):
         no_pulls = right_door.get_prompt('No Pulls')
         no_pulls.set_formula('No_Pulls', [No_Pulls])
         cat_num = right_door.get_prompt('CatNum')
-        cat_num.set_formula('IF(OR(double_door,Width>DDAS),1005,1006)', [double_door, Width, DDAS])
+        cat_num.set_formula('IF(OR(double_door,Width>DDAS),51,52)', [double_door, Width, DDAS])
 
         right_pull = common_parts.add_door_pull(self)
         self.set_pull_drivers(right_pull)
@@ -437,6 +444,7 @@ class Doors(sn_types.Assembly):
         
         #BOTTOM KD SHELF
         bottom_shelf = common_parts.add_shelf(self)
+        IBEKD = bottom_shelf.get_prompt('Is Bottom Exposed KD').get_var('IBEKD')
         bottom_shelf.loc_x('Width',[Width])
         bottom_shelf.loc_y(
             'Depth-IF(Use_Bottom_KD_Setback,Shelf_Backing_Setback,0)',
@@ -448,16 +456,19 @@ class Doors(sn_types.Assembly):
         bottom_shelf.dim_y(
             'Depth-IF(Use_Bottom_KD_Setback,Shelf_Backing_Setback,0)',
             [Depth, Shelf_Backing_Setback, Use_Bottom_KD_Setback])
-        bottom_shelf.dim_z('-ST',[ST])
+        # bottom_shelf.dim_z('IF(AND(TAS,IBEKD==False), INCH(1),ST) *-1', [ST, TAS, IBEKD])
+        bottom_shelf.dim_z('-ST', [ST, TAS, IBEKD])
         hide = bottom_shelf.get_prompt('Hide')
         hide.set_formula(
             "IF(Placed_In_Invalid_Opening,IF(Door_Type!=2,True,IF(Bottom_KD, False, True)),IF(OR(AND(Pard_Has_Bottom_KD,Door_Type!=2),AND(Pard_Has_Bottom_KD,Fill_Opening)), True, IF(Bottom_KD, False, True))) or Hide", 
             [self.hide_var, Bottom_KD,Pard_Has_Bottom_KD,Door_Type,Fill_Opening,Placed_In_Invalid_Opening])
         is_locked_shelf = bottom_shelf.get_prompt('Is Locked Shelf')
         is_locked_shelf.set_value(True)
+        bottom_shelf.get_prompt("Is Forced Locked Shelf").set_value(value=True)
 
         #TOP KD SHELF
         top_shelf = common_parts.add_shelf(self)
+        IBEKD = top_shelf.get_prompt('Is Bottom Exposed KD').get_var('IBEKD')
         top_shelf.loc_x('Width',[Width])
         top_shelf.loc_y('Depth',[Depth])
         top_shelf.loc_z('IF(Fill_Opening, Height + ST,IF(Door_Type==2,Height + ST,Insert_Height + ST))',
@@ -465,17 +476,19 @@ class Doors(sn_types.Assembly):
         top_shelf.rot_z(value=math.radians(180))
         top_shelf.dim_x('Width',[Width])
         top_shelf.dim_y('Depth-Shelf_Backing_Setback',[Depth,Shelf_Backing_Setback])
-        top_shelf.dim_z('-ST',[ST])
+        # top_shelf.dim_z('IF(AND(TAS,IBEKD==False), INCH(1),ST) *-1', [ST, TAS, IBEKD])
+        top_shelf.dim_z('-ST', [ST, TAS, IBEKD])
         hide = top_shelf.get_prompt('Hide')
         hide.set_formula("IF(Placed_In_Invalid_Opening,IF(Door_Type==2,True,IF(Top_KD, False, True)),IF(OR(AND(Pard_Has_Top_KD,Door_Type==2),AND(Pard_Has_Top_KD,Fill_Opening)), True, IF(Top_KD, False, True))) or Hide", [Top_KD, Pard_Has_Top_KD,Door_Type,Fill_Opening,Placed_In_Invalid_Opening,self.hide_var])
         is_locked_shelf = top_shelf.get_prompt('Is Locked Shelf')
         is_locked_shelf.set_value(True)
+        top_shelf.get_prompt("Is Forced Locked Shelf").set_value(value=True)
         
         opening = common_parts.add_opening(self)
-        opening.loc_z('IF(Door_Type==2,0,Insert_Height+ST)', [Door_Type, Insert_Height, ST])
-        opening.dim_x('IF(Fill_Opening,0,Width)', [Fill_Opening, Width])
-        opening.dim_y('IF(Fill_Opening,0,Depth)', [Fill_Opening, Depth])
-        opening.dim_z('IF(Fill_Opening,0,Height-Insert_Height-ST)', [Fill_Opening, Height, Insert_Height, ST])
+        opening.loc_z('IF(Fill_Opening,0,IF(Door_Type==2,0,Insert_Height+ST))', [Door_Type, Insert_Height, ST, Fill_Opening])
+        opening.dim_x('Width', [Width])
+        opening.dim_y('Depth', [Depth])
+        opening.dim_z('IF(Fill_Opening,Insert_Height,Height-Insert_Height-ST)', [Fill_Opening, Height, Insert_Height, ST])
 
         # LOCK
         door_lock = common_parts.add_lock(self)
@@ -825,17 +838,6 @@ class PROMPTS_Door_Prompts(sn_types.Prompts_Interface):
                         else:
                             is_slab_door.set_value(False)
 
-                for nchild in child.children:
-                    if nchild.snap.type_mesh == 'CUTPART':
-                        if lucite_doors.get_value():
-                            nchild.snap.cutpart_name = "Lucite_Front"
-                            nchild.snap.edgepart_name = "Lucite_Edges"
-                            draw_type = 'WIRE'
-                        else:
-                            nchild.snap.cutpart_name = "Slab_Door"
-                            nchild.snap.edgepart_name = "Door_Edges"
-                        sn_utils.assign_materials_from_pointers(nchild)
-                        nchild.display_type = draw_type
         self.assembly.obj_bp.location = self.assembly.obj_bp.location # Redraw Viewport
         bpy.ops.snap.update_scene_from_pointers()
         return True
@@ -1278,6 +1280,7 @@ class PROMPTS_Door_Prompts(sn_types.Prompts_Interface):
 class OPS_Doors_Drop(Operator, PlaceClosetInsert):
     bl_idname = "sn_closets.insert_doors_drop"
     bl_label = "Custom drag and drop for doors insert"
+    adjacent_cant_be_deeper = True
 
     def execute(self, context):
         return super().execute(context)    

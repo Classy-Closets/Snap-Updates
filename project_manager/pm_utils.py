@@ -115,12 +115,10 @@ def load_projects():
                                     room_filepath = os.path.join(proj_dir, rel_path)
                                     if(sub_elm.get("category")):
                                         proj.add_room_from_file(sub_elm.get("name"),
-                                                                sub_elm.get("category"),
                                                                 room_filepath,
                                                                 project_index=project_index)
                                     else:
                                         proj.add_room_from_file(sub_elm.get("name"),
-                                                                "No Category Selected",
                                                                 room_filepath,
                                                                 project_index=project_index)
 

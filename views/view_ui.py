@@ -65,6 +65,7 @@ class VIEW_PT_2d_views(bpy.types.Panel):
         row.prop(dim_props, 'gl_arrow_size', text="")
 
     def draw(self, context):
+        room_type = context.scene.sn_roombuilder.room_type
         props = context.window_manager.views_2d
         sn_wm = context.window_manager.snap
         accordions_only = props.views_option == 'ACCORDIONS'
@@ -117,7 +118,10 @@ class VIEW_PT_2d_views(bpy.types.Panel):
             row.operator("sn_2d_views.generate_2d_views",
                          text="Prepare 2D Views", icon='RENDERLAYERS')
             views_option_row = panel_box.row(align=True)
-            views_option_row.prop(props, 'views_option', expand=True)
+            if room_type != "SINGLE":
+                views_option_row.prop(props, 'views_option', expand=True)
+            elif room_type == "SINGLE":
+                views_option_row.prop(props, 'single_views_option', expand=True)
         else:
             row.operator_context = 'INVOKE_DEFAULT'
             row.operator("sn_2d_views.generate_2d_views",

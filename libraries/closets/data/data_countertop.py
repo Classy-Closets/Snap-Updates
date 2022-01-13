@@ -17,7 +17,7 @@ class Countertop_Insert(sn_types.Assembly):
     placement_type = "EXTERIOR"
     id_prompt = "sn_closets.counter_top"
     show_in_library = True
-    category_name = "Closet Products - Basic"
+    category_name = "Products - Basic"
 
     def update(self):
         self.obj_x.location.x = self.width
@@ -470,8 +470,11 @@ class OPERATOR_Place_Countertop(Operator, PlaceClosetInsert):
 
                 if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
                     countertop_height_ppt = self.assembly.get_prompt("Countertop Height")
+                    tallest_pard_ppt = self.assembly.get_prompt('Tallest Pard Height')
                     if countertop_height_ppt:
                         countertop_height_ppt.set_value(self.assembly.obj_bp.location.z)
+                    if tallest_pard_ppt:
+                        tallest_pard_ppt.set_value(self.assembly.obj_bp.location.z)
 
                     carcass_bp = sn_utils.get_closet_bp(self.assembly.obj_bp)
                     for child in carcass_bp.children:

@@ -31,11 +31,13 @@ class Base_Assembly(sn_types.Assembly):
         self.add_prompt("Variable Height", 'CHECKBOX', False)
         self.add_prompt("Is Island TK", 'CHECKBOX', False)
         self.add_prompt("TK Skin Thickness", 'DISTANCE', sn_unit.inch(0.25))
-        self.add_prompt("Has TK Skin", 'CHECKBOX', False)
+        self.add_prompt("Add TK Skin", 'CHECKBOX', False)
         self.add_prompt("Left Return", 'CHECKBOX', False)
         self.add_prompt("Right Return", 'CHECKBOX', False)
         self.add_prompt("Left", 'CHECKBOX', False)  # Deeper Toe Kick Left
         self.add_prompt("Right", 'CHECKBOX', False)  # Deeper Toe Kick Right
+        self.add_prompt("Far Left Panel Selected", 'CHECKBOX', False)
+        self.add_prompt("Far Right Panel Selected", 'CHECKBOX', False)
 
         Width = self.obj_x.snap.get_var('location.x', 'Width')
         Depth = self.obj_y.snap.get_var('location.y', 'Depth')
@@ -45,7 +47,7 @@ class Base_Assembly(sn_types.Assembly):
         Extend_Left_Amount = self.get_prompt('Extend Left Amount').get_var()
         Extend_Depth_Amount = self.get_prompt('Extend Depth Amount').get_var()
         TK_Skin_Thickness = self.get_prompt("TK Skin Thickness").get_var()
-        Has_TK_Skin = self.get_prompt("Has TK Skin").get_var()
+        Add_TK_Skin = self.get_prompt("Add TK Skin").get_var()
         Left_Return = self.get_prompt("Left Return").get_var()
         Right_Return = self.get_prompt("Right Return").get_var()
         DTKL = self.get_prompt("Left").get_var('DTKL')
@@ -79,7 +81,6 @@ class Base_Assembly(sn_types.Assembly):
             "(Toe_Kick_Thickness*1.5)-Extend_Left_Amount"
             "+IF(DTKL,-TK_Skin_Thickness,IF(Left_Return,TK_Skin_Thickness,0))",
             [Toe_Kick_Thickness, Extend_Left_Amount, TK_Skin_Thickness, Left_Return, DTKL])
-        toe_kick_front.loc_x('(Toe_Kick_Thickness*1.5)-Extend_Left_Amount', [Toe_Kick_Thickness, Extend_Left_Amount])
         toe_kick_front.loc_y('Depth-Extend_Depth_Amount', [Depth, Extend_Depth_Amount])
         toe_kick_front.rot_x(value=math.radians(-90))
 
@@ -99,29 +100,31 @@ class Base_Assembly(sn_types.Assembly):
         toe_kick.rot_x(value=math.radians(-90))
 
         left_toe_kick = common_parts.add_toe_kick_end_cap(self)
-        left_toe_kick.dim_x('-Depth+Extend_Depth_Amount', [Depth, Extend_Depth_Amount])
-        left_toe_kick.dim_y('-Height',[Height])
+        left_toe_kick.dim_x('-Height', [Height])
+        left_toe_kick.dim_y('-Depth+Extend_Depth_Amount', [Depth, Extend_Depth_Amount])
         left_toe_kick.dim_z('Toe_Kick_Thickness', [Toe_Kick_Thickness])
         left_toe_kick.loc_x(
             "-Extend_Left_Amount+(Toe_Kick_Thickness/2)"
             "+IF(DTKL,-TK_Skin_Thickness,IF(Left_Return,TK_Skin_Thickness,0))",
             [Extend_Left_Amount, Toe_Kick_Thickness, Left_Return, TK_Skin_Thickness, DTKL])
-        left_toe_kick.rot_x(value=math.radians(-90))
-        left_toe_kick.rot_z(value=math.radians(-90))
+        left_toe_kick.loc_y('Depth-Extend_Depth_Amount', [Depth, Extend_Depth_Amount])
+        left_toe_kick.rot_y(value=math.radians(90))
 
         right_toe_kick_limit_x = "INCH(96)-EL_Amt+2.5*TK_Thk"
         right_tk_x_loc =\
             "Width+ER_Amt-(TK_Thk/2)" +\
             "-IF(DTKR,-TK_Sk_Thk,IF(RR,TK_Sk_Thk,0))"
         right_toe_kick = common_parts.add_toe_kick_end_cap(self)
-        right_toe_kick.dim_x('-Depth+Extend_Depth_Amount', [Depth, Extend_Depth_Amount])
-        right_toe_kick.dim_y('Height',[Height])
+        right_toe_kick.dim_x('Height', [Height])
+        right_toe_kick.dim_y('-Depth+Extend_Depth_Amount', [Depth, Extend_Depth_Amount])
         right_toe_kick.dim_z('Toe_Kick_Thickness', [Toe_Kick_Thickness])
         right_toe_kick.loc_x(
             "IF(("+tk_dim_limit+")>INCH(97.5),"+right_toe_kick_limit_x+","+right_tk_x_loc+")",
             [Width, TK_Thk, ER_Amt, EL_Amt, LR,
              RR, TK_Sk_Thk, DTKL, DTKR])
+        right_toe_kick.loc_y('Depth-Extend_Depth_Amount', [Depth, Extend_Depth_Amount])             
         right_toe_kick.rot_x(value=math.radians(90))
+        right_toe_kick.rot_y(value=math.radians(-90))
         right_toe_kick.rot_z(value=math.radians(-90))
 
         toe_kick_stringer = common_parts.add_toe_kick_stringer(self)
@@ -170,7 +173,7 @@ class Base_Assembly(sn_types.Assembly):
         toe_kick_skin.loc_y('Depth-Extend_Depth_Amount-TK_Skin_Thickness',
                             [Depth, Extend_Depth_Amount, TK_Skin_Thickness])
         toe_kick_skin.rot_x(value=math.radians(-90))
-        toe_kick_skin.get_prompt('Hide').set_formula("IF(Has_TK_Skin,False,True) or Hide", [self.hide_var, Has_TK_Skin])
+        toe_kick_skin.get_prompt('Hide').set_formula("IF(Add_TK_Skin,False,True) or Hide", [self.hide_var, Add_TK_Skin])
 
         left_skin_return = common_parts.add_toe_kick_skin(self)
         left_skin_return.set_name("Toe Kick Skin Left Return")
@@ -209,6 +212,7 @@ class Base_Assembly(sn_types.Assembly):
         self.obj_z.location.z = self.height
         self.obj_y.location.y = -self.depth
         self.obj_bp.snap.export_as_subassembly = True
+        self.obj_bp["IS_BP_TOE_KICK_INSERT"] = True
         self.obj_bp.sn_closets.is_toe_kick_insert_bp = True
 
     def draw(self):
@@ -306,39 +310,36 @@ class PROMPTS_Toe_Kick_Prompts(sn_types.Prompts_Interface):
         right_thk = closet.get_prompt("Left Side Thickness").get_value()
         width_1 = closet.get_prompt("Opening 1 Width").distance_value
         tk_height = closet.get_prompt("Toe Kick Height").distance_value
-        opening_x0 = 0
-        opening_xf = left_thk + width_1 + panel_thk
-        top_x0 = top_shelf.location.x
-        dim_x = top_assembly.obj_x.location.x
-        if dim_x > sn_unit.inch(96):
-            dim_x = sn_unit.inch(96)
-        top_xf = top_shelf.location.x + dim_x
-        is_closet_floor_mounted = True
+        opening_loc_x = left_thk
+        opening_dim_x = width_1
+        top_loc_x = top_assembly.obj_bp.location.x
+        top_dim_x = top_assembly.obj_x.location.x
+        is_all_floor = True
         max_op_height = 0
+
         for i in range(1, opening_qty + 1):
             height = closet.get_prompt("Opening " + str(i) + " Height")
-            width =\
-                closet.get_prompt(
-                    "Opening " + str(i) + " Width").distance_value
+            width = closet.get_prompt("Opening " + str(i) + " Width").distance_value
             height = height.distance_value
-            is_floor_mounted =\
-                closet.get_prompt(
-                    "Opening " + str(i) + " Floor Mounted").get_value()
-            if round(top_x0, 2) <= round(opening_x0, 2) and round(top_xf, 2) >= round(opening_xf, 2):
-                is_op_reached = True
-            else:
-                is_op_reached = False
-            if is_op_reached:
-                is_closet_floor_mounted =\
-                    is_closet_floor_mounted and is_floor_mounted
+            is_floor_mounted = closet.get_prompt("Opening " + str(i) + " Floor Mounted").get_value()
+            is_op_covered = False
+
+            if round(top_loc_x, 2) <= round(opening_loc_x, 2):
+                if round(top_loc_x + top_dim_x - panel_thk * i, 2) >= round(opening_loc_x, 2):
+                    is_op_covered = True
+
+            if is_op_covered:
+                is_all_floor = is_all_floor and is_floor_mounted
                 if height > max_op_height:
                     max_op_height = height
-            opening_x0 = opening_xf
-            if i == opening_qty-1:
-                opening_xf += width + right_thk
+
+            if i == opening_qty - 1:
+                opening_dim_x = width + right_thk
             else:
-                opening_xf += width + panel_thk
-        if is_closet_floor_mounted:
+                opening_dim_x = width + panel_thk
+            opening_loc_x += opening_dim_x
+
+        if is_all_floor:
             top_shelf.location.z = max_op_height + tk_height
         else:
             top_shelf.location.z = closet.obj_z.location.z
@@ -484,19 +485,19 @@ class PROMPTS_Toe_Kick_Prompts(sn_types.Prompts_Interface):
         variable_height = self.product.get_prompt("Variable Height")
         variable_height.draw(box, allow_edit=False)
 
-        has_tk_skin = self.product.get_prompt("Has TK Skin")
+        add_tk_skin = self.product.get_prompt("Add TK Skin")
         left_return = self.product.get_prompt("Left Return")
         right_return = self.product.get_prompt("Right Return")
         deeper_tk_left = self.product.get_prompt("Left")
         deeper_tk_right = self.product.get_prompt("Right")
 
-        if has_tk_skin:
+        if add_tk_skin:
             box = layout.box()
             box.label(text='1/4" Toe Kick Skin Options')
             row = box.row()
-            has_tk_skin.draw(row, alt_text='Add 1/4" Toe Kick Skin: ', allow_edit=False)
+            add_tk_skin.draw(row, alt_text='Add 1/4" Toe Kick Skin: ', allow_edit=False)
 
-            if has_tk_skin.get_value():
+            if add_tk_skin.get_value():
                 if left_return and right_return:
                     row = box.row()
                     row.label(text='1/4" Skin Returns')
@@ -518,14 +519,18 @@ class DROP_OPERATOR_Place_Base_Assembly(Operator, PlaceClosetInsert):
     object_name: StringProperty(name="Object Name")
 
     product = None
+    objects = []
     selected_obj = None
     selected_point = None
     selected_panel_1 = None
     max_shelf_length = 96.0
+    panel_bps = []
+    sel_product_bp = None
 
     def execute(self, context):
         self.is_log_shown = False
         self.product = self.asset
+        self.objects = [obj for obj in context.visible_objects if obj.parent and obj.parent.sn_closets.is_panel_bp]
         if "Toe_Kick" in str(type(self.insert)):
             self.max_shelf_length = 96.0
         return super().execute(context)
@@ -551,8 +556,25 @@ class DROP_OPERATOR_Place_Base_Assembly(Operator, PlaceClosetInsert):
         # DONT CALCULATE Z DIFFERENCE
         return sn_utils.calc_distance((x1, y1, z1), (x2, y2, z1))
 
+    def get_panels(self):
+        self.panel_bps.clear()
+
+        for child in self.sel_product_bp.children:
+            if 'IS_BP_PANEL' in child and 'PARTITION_NUMBER' in child:
+                self.panel_bps.append(child)
+
+        self.panel_bps.sort(key=lambda a: int(a['PARTITION_NUMBER']))
+
     def is_first_panel(self, panel):
         if panel.obj_z.location.z < 0:
+            return True
+        else:
+            return False
+
+    def is_last_panel(self, panel):
+        self.get_panels()
+        last_panel_bp = self.panel_bps[-1]
+        if panel.obj_bp is last_panel_bp:
             return True
         else:
             return False
@@ -571,9 +593,9 @@ class DROP_OPERATOR_Place_Base_Assembly(Operator, PlaceClosetInsert):
         selected_panel_2 = None
 
         if self.selected_obj is not None:
-            sel_product_bp = sn_utils.get_bp(self.selected_obj, 'PRODUCT')
+            self.sel_product_bp = sn_utils.get_bp(self.selected_obj, 'PRODUCT')
             sel_assembly_bp = sn_utils.get_assembly_bp(self.selected_obj)
-            product = sn_types.Assembly(sel_product_bp)
+            product = sn_types.Assembly(self.sel_product_bp)
 
             if sel_assembly_bp:
                 hover_panel = sn_types.Assembly(self.selected_obj.parent)
@@ -698,6 +720,38 @@ class DROP_OPERATOR_Place_Base_Assembly(Operator, PlaceClosetInsert):
                     self.product.obj_bp.snap.type_group = 'INSERT'
                     self.product.obj_bp.location.z = 0
 
+                    toe_kick_thickness = 0
+                    if self.product.get_prompt('Toe Kick Thickness'):
+                        toe_kick_thickness = self.product.get_prompt('Toe Kick Thickness').get_value()
+
+                    if self.is_first_panel(self.selected_panel_1):
+                        far_left_panel_selected = self.product.get_prompt("Far Left Panel Selected")
+                        if far_left_panel_selected:
+                            far_left_panel_selected.set_value(True)
+                            left_filler = carcass_assembly.get_prompt("Add Left Filler")
+                            left_filler_length = carcass_assembly.get_prompt("Left Side Wall Filler")
+                            left_filler_setback = carcass_assembly.get_prompt("Left Filler Setback Amount")
+                            filler_prompts = [left_filler, left_filler_length, left_filler_setback]
+                            if all(filler_prompts):
+                                if left_filler.get_value() and (left_filler_setback.get_value() == 0):
+                                    extend_left_amount = self.product.get_prompt("Extend Left Amount")
+                                    if extend_left_amount:
+                                        extend_left_amount.set_value(left_filler_length.get_value() - (toe_kick_thickness/2))
+
+                    if self.is_last_panel(selected_panel_2):
+                        far_right_panel_selected = self.product.get_prompt("Far Right Panel Selected")
+                        if far_right_panel_selected:
+                            far_right_panel_selected.set_value(True)
+                            right_filler = carcass_assembly.get_prompt("Add Right Filler")
+                            right_filler_length = carcass_assembly.get_prompt("Right Side Wall Filler")
+                            right_filler_setback = carcass_assembly.get_prompt("Right Filler Setback Amount")
+                            filler_prompts = [right_filler, right_filler_length, right_filler_setback]
+                            if all(filler_prompts):
+                                if right_filler.get_value() and (right_filler_setback.get_value() == 0):
+                                    extend_right_amount = self.product.get_prompt("Extend Right Amount")
+                                    if extend_right_amount:
+                                        extend_right_amount.set_value(right_filler_length.get_value() + (toe_kick_thickness/2))
+
                     return self.finish(context)
                 else:
                     return {'RUNNING_MODAL'}
@@ -709,7 +763,7 @@ class DROP_OPERATOR_Place_Base_Assembly(Operator, PlaceClosetInsert):
                     bpy.context.window.cursor_set('DEFAULT')
                     bpy.ops.object.select_all(action='DESELECT')
                     context.view_layer.objects.active = self.product.obj_bp
-                    self.product.obj_bp.parent = sel_product_bp
+                    self.product.obj_bp.parent = self.sel_product_bp
                     if "End Cap" in self.selected_panel_1.obj_bp.name:
                         self.product.obj_bp.location = self.selected_panel_1.obj_bp.location
                         parent_loc_x = self.selected_panel_1.obj_bp.parent.location.x
@@ -743,7 +797,7 @@ class DROP_OPERATOR_Place_Base_Assembly(Operator, PlaceClosetInsert):
         context.area.tag_redraw()
         self.reset_selection()
         bpy.ops.object.select_all(action='DESELECT')
-        self.selected_point, self.selected_obj, _ = sn_utils.get_selection_point(context,event)
+        self.selected_point, self.selected_obj, _ = sn_utils.get_selection_point(context, event, objects=self.objects)
 
         if not self.product:
             self.product = self.asset

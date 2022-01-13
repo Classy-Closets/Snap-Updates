@@ -28,7 +28,7 @@ class Hamper(sn_types.Assembly):
     drop_id = "sn_closets.insert_hamper_drop"
     placement_type = "SPLITTER"
     show_in_library = True
-    category_name = "Closet Products - Basic"    
+    category_name = "Products - Basic"    
     mirror_y = False
     
     upper_interior = None
@@ -182,6 +182,7 @@ class Hamper(sn_types.Assembly):
         top_shelf.dim_z('-Shelf_Thickness',[Shelf_Thickness])
         top_shelf.get_prompt('Hide').set_formula('IF(Remove_Top_Shelf,False,True) or Hide',[Remove_Top_Shelf,self.hide_var])
         top_shelf.get_prompt('Is Locked Shelf').set_value(value=True)
+        top_shelf.get_prompt("Is Forced Locked Shelf").set_value(value=True)
         
         bottom_shelf = common_parts.add_shelf(self)
         bottom_shelf.loc_y('Depth-Shelf_Backing_Setback',[Depth,Shelf_Backing_Setback])
@@ -191,6 +192,7 @@ class Hamper(sn_types.Assembly):
         bottom_shelf.dim_z('-Shelf_Thickness',[Shelf_Thickness])
         bottom_shelf.get_prompt('Hide').set_formula('IF(Remove_Bottom_Shelf,True,False) or Hide',[Remove_Bottom_Shelf,self.hide_var])
         bottom_shelf.get_prompt('Is Locked Shelf').set_value(value=True)
+        bottom_shelf.get_prompt("Is Forced Locked Shelf").set_value(value=True)
         
         opening = common_parts.add_opening(self)
         opening.loc_z('Hamper_Height+Shelf_Thickness',[Hamper_Height,Shelf_Thickness])
@@ -359,6 +361,7 @@ class PROMPTS_Hamper_Prompts(sn_types.Prompts_Interface):
 class OPS_Hamper_Drop(Operator, PlaceClosetInsert):
     bl_idname = "sn_closets.insert_hamper_drop"
     bl_label = "Custom drag and drop for hamper insert"
+    adjacent_cant_be_deeper = True
     
     def execute(self, context):
         return super().execute(context)

@@ -23,7 +23,7 @@ class Top(sn_types.Assembly):
     id_prompt = "sn_closets.top"
     drop_id = "sn_closets.top_shelf_drop"
     show_in_library = True
-    category_name = "Closet Products - Basic"
+    category_name = "Products - Basic"
     mirror_y = True
 
     def add_oversize_prompts(self):
@@ -118,7 +118,40 @@ class PROMPTS_Top_Shelf(sn_types.Prompts_Interface):
         """ This is called everytime a change is made in the UI """
         self.check_width()
         closet_props.update_render_materials(self, context)
+        top_assembly = sn_types.Assembly(obj_bp=self.top_shelf)
+        exposed_left = top_assembly.get_prompt("Exposed Left")
+        exposed_right = top_assembly.get_prompt("Exposed Right")
+        exposed_back = top_assembly.get_prompt("Exposed Back")
+        if exposed_left:
+            sn_utils.set_prompt_if_exists(self.insert, 'Exposed Left', exposed_left.get_value())
+
+        if exposed_right:
+            sn_utils.set_prompt_if_exists(self.insert, 'Exposed Right', exposed_right.get_value())
+
+        if exposed_back:
+            sn_utils.set_prompt_if_exists(self.insert, 'Exposed Back', exposed_back.get_value())
+
+        if self.molding:
+            extend_left_amount = self.insert.get_prompt("Extend Left Amount")
+            if extend_left_amount:
+                sn_utils.set_prompt_if_exists(self.molding, 'Extend Left Amount', extend_left_amount.get_value())
+
+            extend_right_amount = self.insert.get_prompt("Extend Right Amount")
+            if extend_right_amount:
+                sn_utils.set_prompt_if_exists(self.molding, 'Extend Right Amount', extend_right_amount.get_value())
+
+            front_overhang = self.insert.get_prompt("Front Overhang")
+            if front_overhang:
+                sn_utils.set_prompt_if_exists(self.molding, 'Front Overhang', front_overhang.get_value())
+
         return True
+    
+    def get_flat_crown_sibling(self):
+        for child in self.insert.obj_bp.parent.children:
+            if child.get('IS_BP_FLAT_CROWN'):
+                return sn_types.Assembly(child)
+            
+        return None
 
     def execute(self, context):
         """ This is called when the OK button is clicked """
@@ -130,6 +163,8 @@ class PROMPTS_Top_Shelf(sn_types.Prompts_Interface):
         wm = context.window_manager
         self.get_top_shelf_obj()
         self.set_previous_values()
+        self.molding = self.get_flat_crown_sibling()
+
         return wm.invoke_props_dialog(self, width=sn_utils.get_prop_dialog_width(400))
 
     def draw(self, context):
@@ -231,6 +266,7 @@ class SN_CLOSET_OT_Place_Top(Operator, PlaceClosetInsert):
 
     def execute(self, context):
         self.top_shelf = self.asset
+        self.objects = [obj for obj in context.visible_objects if obj.parent and obj.parent.sn_closets.is_panel_bp]
         return super().execute(context)
 
     def get_deepest_panel(self):
@@ -280,6 +316,39 @@ class SN_CLOSET_OT_Place_Top(Operator, PlaceClosetInsert):
             if 'IS_BP_PANEL' in child:
                 if p1_x_loc <= child.location.x <= p2_x_loc:
                     self.panels.append(sn_types.Assembly(child))
+
+    def place_on_island(self, product, P1_X_Loc, P2_X_Loc, Panel_Thickness):
+        if self.is_first_panel(self.selected_panel_1):
+            self.top_shelf.loc_x('P1_X_Loc', [P1_X_Loc])
+            self.top_shelf.dim_x('P2_X_Loc-P1_X_Loc', [P1_X_Loc, P2_X_Loc])
+        else:
+            self.top_shelf.loc_x('P1_X_Loc-Panel_Thickness', [P1_X_Loc, Panel_Thickness])
+            self.top_shelf.dim_x('P2_X_Loc-P1_X_Loc+Panel_Thickness', [P1_X_Loc, P2_X_Loc, Panel_Thickness])
+
+    def place_on_hanging_section(self, product, P1_X_Loc, P2_X_Loc, Panel_Thickness):
+        Left_Side_Wall_Filler = product.get_prompt('Left Side Wall Filler').get_var()
+        Right_Side_Wall_Filler = product.get_prompt('Right Side Wall Filler').get_var()
+
+        if self.is_first_panel(self.selected_panel_1):
+            self.top_shelf.loc_x('P1_X_Loc-Left_Side_Wall_Filler', [P1_X_Loc, Left_Side_Wall_Filler])
+            if self.is_last_panel(self.selected_panel_2):
+                self.top_shelf.dim_x(
+                    'P2_X_Loc-P1_X_Loc+Left_Side_Wall_Filler+Right_Side_Wall_Filler',
+                    [P1_X_Loc, P2_X_Loc, Left_Side_Wall_Filler, Right_Side_Wall_Filler])
+            else:
+                self.top_shelf.dim_x(
+                    'P2_X_Loc-P1_X_Loc+Left_Side_Wall_Filler',
+                    [P1_X_Loc, P2_X_Loc, Left_Side_Wall_Filler])
+        else:
+            self.top_shelf.loc_x('P1_X_Loc-Panel_Thickness', [P1_X_Loc, Panel_Thickness])
+            if self.is_last_panel(self.selected_panel_2):
+                self.top_shelf.dim_x(
+                    'P2_X_Loc-P1_X_Loc+Panel_Thickness+Right_Side_Wall_Filler',
+                    [P1_X_Loc, P2_X_Loc, Panel_Thickness, Right_Side_Wall_Filler])
+            else:
+                self.top_shelf.dim_x(
+                    'P2_X_Loc-P1_X_Loc+Panel_Thickness',
+                    [P1_X_Loc, P2_X_Loc, Panel_Thickness])
 
     def place_insert(self, context, event):
         selected_point, selected_obj, _ = sn_utils.get_selection_point(context, event, objects=self.objects)
@@ -371,29 +440,14 @@ class SN_CLOSET_OT_Place_Top(Operator, PlaceClosetInsert):
                                 self.cancel_drop(context,event)
                                 return {'FINISHED'}
 
-                            pard = sn_types.Assembly(self.selected_panel_1.obj_bp.parent)
-                            Left_Side_Wall_Filler = pard.get_prompt('Left Side Wall Filler').get_var()
-                            Right_Side_Wall_Filler = pard.get_prompt('Right Side Wall Filler').get_var()
-
                             P1_X_Loc = self.selected_panel_1.obj_bp.snap.get_var('location.x', 'P1_X_Loc')
                             P2_X_Loc = self.selected_panel_2.obj_bp.snap.get_var('location.x', 'P2_X_Loc')
                             Panel_Thickness = product.get_prompt('Panel Thickness').get_var()
-                            if self.is_first_panel(self.selected_panel_1):
-                                self.top_shelf.loc_x('P1_X_Loc-Left_Side_Wall_Filler', [P1_X_Loc, Left_Side_Wall_Filler])
-                                if self.is_last_panel(self.selected_panel_2):
-                                    self.top_shelf.dim_x('P2_X_Loc-P1_X_Loc+Left_Side_Wall_Filler+Right_Side_Wall_Filler', 
-                                        [P1_X_Loc, P2_X_Loc, Left_Side_Wall_Filler,Right_Side_Wall_Filler])
-                                else:
-                                    self.top_shelf.dim_x('P2_X_Loc-P1_X_Loc+Left_Side_Wall_Filler',
-                                        [P1_X_Loc, P2_X_Loc, Left_Side_Wall_Filler])
+
+                            if "IS_BP_ISLAND" in product.obj_bp:
+                                self.place_on_island(product, P1_X_Loc, P2_X_Loc, Panel_Thickness)
                             else:
-                                self.top_shelf.loc_x('P1_X_Loc-Panel_Thickness',[P1_X_Loc, Panel_Thickness, Left_Side_Wall_Filler])
-                                if self.is_last_panel(self.selected_panel_2):
-                                    self.top_shelf.dim_x('P2_X_Loc-P1_X_Loc+Panel_Thickness+Right_Side_Wall_Filler', 
-                                        [P1_X_Loc, P2_X_Loc, Panel_Thickness, Right_Side_Wall_Filler])
-                                else:
-                                    self.top_shelf.dim_x('P2_X_Loc-P1_X_Loc+Panel_Thickness', 
-                                        [P1_X_Loc, P2_X_Loc, Panel_Thickness])
+                                self.place_on_hanging_section(product, P1_X_Loc, P2_X_Loc, Panel_Thickness)
 
                             max_panel_formula = "max(("
                             max_panel_vars = []

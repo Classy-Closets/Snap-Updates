@@ -4,7 +4,7 @@ import time
 
 import bpy
 from bpy.types import Operator
-from bpy.props import StringProperty, EnumProperty
+from bpy.props import StringProperty, BoolProperty, EnumProperty
 
 
 from snap import sn_types, sn_unit, sn_utils
@@ -14,14 +14,6 @@ from ..common import common_parts
 from ..common import common_prompts
 from ..common import common_lists
 
-LOCK_DRAWER_TYPES = [('0', 'None', 'None'),
-                     ('1', 'Top', 'Top'),
-                     ('2', 'Left', 'Left'),
-                     ('3', 'Right', 'Right')]
-FILE_RAIL_TYPES = [('0', 'Letter', 'Letter'),
-                   ('1', 'Legal', 'Legal')]
-FILE_DIRECTION_TYPES = [('0', 'Front to Back', 'Front to Back'),
-                        ('1', 'Lateral', 'Lateral')]
 SLIDE_TYPE = [('0', 'Sidemount', 'Sidemount'),
               ('1', 'Undermount', 'Undermount')]
 SIDEMOUNT_OPTIONS = [('0', 'Hafele BB Sidemount Slides', 'Hafele BB Sidemount Slides'),
@@ -30,6 +22,14 @@ UNDERMOUNT_OPTIONS = [('0', 'Hettich 4D Undermount Slides', 'Hettich 4D Undermou
                       ('1', 'Hettich V6 Undermount Slide', 'Hettich V6 Undermount Slide'),
                       ('2', 'Blumotion Undermount Slides', 'Blumotion Undermount Slides'),
                       ('3', 'King Slide Undermount Slides', 'King Slide Undermount Slides')]
+LOCK_DRAWER_TYPES=[('0','None','None'),
+                   ('1','Top','Top'),
+                   ('2','Left','Left'),
+                   ('3','Right','Right')]
+FILE_RAIL_TYPES=[('0', 'Letter', 'Letter'),
+                 ('1', 'Legal', 'Legal')]
+FILE_DIRECTION_TYPES=[('0','Front to Back','Front to Back'),
+                      ('1', 'Lateral', 'Lateral')]
 
 
 class Drawer_Stack(sn_types.Assembly):
@@ -43,7 +43,7 @@ class Drawer_Stack(sn_types.Assembly):
     drop_id = "sn_closets.insert_drawer_drop"
     placement_type = "SPLITTER"
     show_in_library = True
-    category_name = "Closet Products - Drawers"
+    category_name = "Products - Drawers"
     mirror_y = False
 
     is_pull_out_tray = False
@@ -138,6 +138,8 @@ class Drawer_Stack(sn_types.Assembly):
         self.add_prompt("Fifteen Inches", 'DISTANCE', sn_unit.inch(15))
         self.add_prompt("Twelve Inches", 'DISTANCE', sn_unit.inch(12))
         self.add_prompt("Nine Inches", 'DISTANCE', sn_unit.inch(9))
+        self.add_prompt("Thick Adjustable Shelves", 'CHECKBOX', bpy.context.scene.sn_closets.closet_defaults.thick_adjustable_shelves)
+
 
     def add_drawer_box_prompts(self, drawer_num):
         self.add_prompt("Add Drawer Boxes", 'CHECKBOX', False)
@@ -146,6 +148,24 @@ class Drawer_Stack(sn_types.Assembly):
         self.add_prompt("File Rail Direction " + str(drawer_num), 'COMBOBOX', 0, ['Front to Back', 'Lateral'])
         self.add_prompt("Use File Rail " + str(drawer_num), 'CHECKBOX', False)
         self.add_prompt("Use Double Drawer " + str(drawer_num), 'CHECKBOX', False)
+        self.add_prompt("Has Jewelry Insert " + str(drawer_num), 'CHECKBOX', False)
+        self.add_prompt("Has Sliding Insert " + str(drawer_num), 'CHECKBOX', False)
+        self.add_prompt("Jewelry Insert Type " + str(drawer_num), 'COMBOBOX', 0, common_lists.JEWELRY_TYPE_LIST)
+        self.add_prompt("Insert Placement X " + str(drawer_num), 'COMBOBOX', 0, common_lists.PLACEMENT_X)
+        self.add_prompt("Insert Placement Y " + str(drawer_num), 'COMBOBOX', 0, common_lists.PLACEMENT_Y)
+        self.add_prompt("Jewelry Insert 18in " + str(drawer_num), 'COMBOBOX', 0, common_lists.JEWELRY_INSERTS_18IN_LIST)
+        self.add_prompt("Jewelry Insert 21in " + str(drawer_num), 'COMBOBOX', 0, common_lists.JEWELRY_INSERTS_21IN_LIST)
+        self.add_prompt("Jewelry Insert 24in " + str(drawer_num), 'COMBOBOX', 0, common_lists.JEWELRY_INSERTS_24IN_LIST)
+        self.add_prompt("Upper Jewelry Insert Velvet Liner 18in " + str(drawer_num), 'COMBOBOX', 0, common_lists.JEWELRY_INSERTS_VELVET_LINERS_18IN_LIST)
+        self.add_prompt("Upper Jewelry Insert Velvet Liner 21in " + str(drawer_num), 'COMBOBOX', 0, common_lists.JEWELRY_INSERTS_VELVET_LINERS_21IN_LIST)
+        self.add_prompt("Upper Jewelry Insert Velvet Liner 24in " + str(drawer_num), 'COMBOBOX', 0, common_lists.JEWELRY_INSERTS_VELVET_LINERS_24IN_LIST)
+        self.add_prompt("Lower Jewelry Insert Velvet Liner 18in " + str(drawer_num), 'COMBOBOX', 0, common_lists.JEWELRY_INSERTS_VELVET_LINERS_18IN_LIST)
+        self.add_prompt("Lower Jewelry Insert Velvet Liner 21in " + str(drawer_num), 'COMBOBOX', 0, common_lists.JEWELRY_INSERTS_VELVET_LINERS_21IN_LIST)
+        self.add_prompt("Lower Jewelry Insert Velvet Liner 24in " + str(drawer_num), 'COMBOBOX', 0, common_lists.JEWELRY_INSERTS_VELVET_LINERS_24IN_LIST)
+        self.add_prompt("Sliding Insert 18in " + str(drawer_num), 'COMBOBOX', 0, common_lists.SLIDING_INSERTS_18IN_LIST)
+        self.add_prompt("Sliding Insert 21in " + str(drawer_num), 'COMBOBOX', 0, common_lists.SLIDING_INSERTS_21IN_LIST)
+        self.add_prompt("Sliding Insert 24in " + str(drawer_num), 'COMBOBOX', 0, common_lists.SLIDING_INSERTS_24IN_LIST)
+        self.add_prompt("Velvet Liner " + str(drawer_num), 'COMBOBOX', 0, common_lists.VELVET_LINERS_LIST)
 
     def get_drawer_front(self, drawer_num):
         for drawer_front in self.get_all_drawer_fronts():
@@ -392,6 +412,7 @@ class Drawer_Stack(sn_types.Assembly):
         Large_Drawer_Pull_Height = self.get_prompt("Large Drawer Pull Height").get_var('Large_Drawer_Pull_Height')
         SDFOD = self.get_prompt("Single Door Full Overlay Difference").get_var("SDFOD")
         AHOBD = self.get_prompt("Above Hamper Or Base Doors").get_var('AHOBD')
+        TAS = self.get_prompt("Thick Adjustable Shelves").get_var('TAS')
 
         prev_drawer_empty = None
 
@@ -442,13 +463,16 @@ class Drawer_Stack(sn_types.Assembly):
             l_pull.get_prompt('Hide').set_formula('IF(No_Pulls,True,False) or Hide',[No_Pulls,self.hide_var])
 
             KD_Shelf = common_parts.add_shelf(self)
+            IBEKD = KD_Shelf.get_prompt('Is Bottom Exposed KD').get_var('IBEKD')
             KD_Shelf.loc_y('Default_Middle_KD_Depth', [Default_Middle_KD_Depth])
             KD_Shelf.loc_z('df_z_loc+DF_Height-Top_Overlay',[df_z_loc,DF_Height,Top_Overlay])
             KD_Shelf.rot_x(value=math.radians(180))
             KD_Shelf.dim_x('dim_x',[dim_x])
             KD_Shelf.dim_y('Default_Middle_KD_Depth', [Default_Middle_KD_Depth])
-            KD_Shelf.dim_z('-Shelf_Thickness',[Shelf_Thickness])
+            # KD_Shelf.dim_z('IF(AND(TAS,IBEKD==False), INCH(1),Shelf_Thickness) *-1', [Shelf_Thickness, TAS, IBEKD])
+            KD_Shelf.dim_z('-Shelf_Thickness', [Shelf_Thickness, TAS, IBEKD])
             KD_Shelf.get_prompt('Is Locked Shelf').set_value(value=True)
+            KD_Shelf.get_prompt("Is Forced Locked Shelf").set_value(value=True)
             KD_Shelf.get_prompt('Hide').set_value(value=True)
             KD_Shelf.dim_y('IF(Lock_Drawer>0, dim_y, Default_Middle_KD_Depth) or Hide',  [self.hide_var, Lock_Drawer, dim_y, Default_Middle_KD_Depth])
             KD_Shelf.loc_y('IF(Lock_Drawer>0, dim_y, Default_Middle_KD_Depth)', [Lock_Drawer, dim_y, Default_Middle_KD_Depth])
@@ -540,6 +564,7 @@ class Drawer_Stack(sn_types.Assembly):
         Remove_Bottom_Shelf = self.get_prompt("Remove Bottom Shelf").get_var('Remove_Bottom_Shelf')
         Cleat_Location = self.get_prompt("Cleat Location").get_var('Cleat_Location')
         Cleat_Height = self.get_prompt("Cleat Height").get_var('Cleat_Height')
+        TAS = self.get_prompt("Thick Adjustable Shelves").get_var('TAS')
 
         backing_gap_prompt = self.add_prompt("Drawer Stack Backing Gap", 'DISTANCE', 0, prompt_obj=self.add_prompt_obj("Backing_Gap"))
         backing_gap_prompt.set_formula(
@@ -561,15 +586,19 @@ class Drawer_Stack(sn_types.Assembly):
         cleat.get_prompt('Use Cleat Cover').set_formula('IF(Cleat_Location==0,True,False)', [Cleat_Location])     
         
         top_shelf = common_parts.add_shelf(self)
+        IBEKD = top_shelf.get_prompt('Is Bottom Exposed KD').get_var('IBEKD')
         top_shelf.loc_y('dim_y', [dim_y])
         top_shelf.loc_z('Drawer_Stack_Height-Top_Overlay+IF(Lift_Drawers_From_Bottom,Bottom_Drawer_Space,0)',
                         [Drawer_Stack_Height,Top_Overlay,Lift_Drawers_From_Bottom,Bottom_Drawer_Space])
         top_shelf.rot_x(value=math.radians(180))
         top_shelf.dim_x('dim_x',[dim_x])
         top_shelf.dim_y('dim_y',[dim_y])
+        # top_shelf.dim_z('IF(AND(TAS,IBEKD==False), INCH(1),Shelf_Thickness) *-1', [Shelf_Thickness, TAS, IBEKD])
+        top_shelf.dim_z('-Shelf_Thickness', [Shelf_Thickness, TAS, IBEKD])
         top_shelf.dim_z('-Shelf_Thickness',[Shelf_Thickness])
         top_shelf.get_prompt('Hide').set_formula('IF(Remove_Top_Shelf,False,True) or Hide',[Remove_Top_Shelf,self.hide_var])
         top_shelf.get_prompt('Is Locked Shelf').set_value(value=True)
+        top_shelf.get_prompt("Is Forced Locked Shelf").set_value(value=True)
         
         top_shelf_z_loc = top_shelf.obj_bp.snap.get_var('location.z','top_shelf_z_loc')
         
@@ -583,6 +612,7 @@ class Drawer_Stack(sn_types.Assembly):
         bottom_shelf.dim_z('-Shelf_Thickness',[Shelf_Thickness])
         bottom_shelf.get_prompt('Hide').set_formula('IF(Remove_Bottom_Shelf,False,True) or Hide',[Remove_Bottom_Shelf,self.hide_var])
         bottom_shelf.get_prompt('Is Locked Shelf').set_value(value=True)
+        bottom_shelf.get_prompt("Is Forced Locked Shelf").set_value(value=True)
         
         opening = common_parts.add_opening(self)
         opening.loc_z('top_shelf_z_loc+Shelf_Thickness',[top_shelf_z_loc,Shelf_Thickness])
@@ -738,11 +768,571 @@ class PROMPTS_Drawer_Prompts(sn_types.Prompts_Interface):
                                               default='0')
     file_rail_direction_8: EnumProperty(name="File Rail Direction 8",
                                                    items=FILE_DIRECTION_TYPES,
-                                                   default='0')                         
+                                                   default='0')
+    
+    has_jewelry_insert_1: BoolProperty(name="Has Jewelry Insert 1",
+                                       default=False)
+
+    has_jewelry_insert_2: BoolProperty(name="Has Jewelry Insert 2",
+                                       default=False)
+
+    has_jewelry_insert_3: BoolProperty(name="Has Jewelry Insert 3",
+                                       default=False)
+
+    has_jewelry_insert_4: BoolProperty(name="Has Jewelry Insert 4",
+                                       default=False)
+
+    has_jewelry_insert_5: BoolProperty(name="Has Jewelry Insert 5",
+                                       default=False)
+
+    has_jewelry_insert_6: BoolProperty(name="Has Jewelry Insert 6",
+                                       default=False)
+
+    has_jewelry_insert_7: BoolProperty(name="Has Jewelry Insert 7",
+                                       default=False)
+
+    has_jewelry_insert_8: BoolProperty(name="Has Jewelry Insert 8",
+                                       default=False)
+    
+    has_sliding_insert_1: BoolProperty(name="Has Sliding Insert 1",
+                                       default=False)
+
+    has_sliding_insert_2: BoolProperty(name="Has Sliding Insert 2",
+                                       default=False)
+
+    has_sliding_insert_3: BoolProperty(name="Has Sliding Insert 3",
+                                       default=False)
+
+    has_sliding_insert_4: BoolProperty(name="Has Sliding Insert 4",
+                                       default=False)
+
+    has_sliding_insert_5: BoolProperty(name="Has Sliding Insert 5",
+                                       default=False)
+
+    has_sliding_insert_6: BoolProperty(name="Has Sliding Insert 6",
+                                       default=False)
+
+    has_sliding_insert_7: BoolProperty(name="Has Sliding Insert 7",
+                                       default=False)
+
+    has_sliding_insert_8: BoolProperty(name="Has Sliding Insert 8",
+                                       default=False)
+
+    jewelry_insert_type_1: EnumProperty(name="Jewelry Insert Type 1", 
+                                       items=common_lists.JEWELRY_TYPE_OPTIONS,
+                                       default='0')
+
+    jewelry_insert_type_2: EnumProperty(name="Jewelry Insert Type 2", 
+                                       items=common_lists.JEWELRY_TYPE_OPTIONS,
+                                       default='0')
+
+    jewelry_insert_type_3: EnumProperty(name="Jewelry Insert Type 3", 
+                                       items=common_lists.JEWELRY_TYPE_OPTIONS,
+                                       default='0')
+
+    jewelry_insert_type_4: EnumProperty(name="Jewelry Insert Type 4", 
+                                       items=common_lists.JEWELRY_TYPE_OPTIONS,
+                                       default='0')
+
+    jewelry_insert_type_5: EnumProperty(name="Jewelry Insert Type 5", 
+                                       items=common_lists.JEWELRY_TYPE_OPTIONS,
+                                       default='0')
+
+    jewelry_insert_type_6: EnumProperty(name="Jewelry Insert Type 6", 
+                                       items=common_lists.JEWELRY_TYPE_OPTIONS,
+                                       default='0')
+
+    jewelry_insert_type_7: EnumProperty(name="Jewelry Insert Type 7", 
+                                       items=common_lists.JEWELRY_TYPE_OPTIONS,
+                                       default='0')
+
+    jewelry_insert_type_8: EnumProperty(name="Jewelry Insert Type 8", 
+                                       items=common_lists.JEWELRY_TYPE_OPTIONS,
+                                       default='0')
+
+    insert_placement_x_1: EnumProperty(name="Insert Placement X 1", 
+                                       items=common_lists.PLACEMENT_OPTIONS_X,
+                                       default='0')
+
+    insert_placement_y_1: EnumProperty(name="Insert Placement Y 1", 
+                                       items=common_lists.PLACEMENT_OPTIONS_Y,
+                                       default='0')
+
+    insert_placement_x_2: EnumProperty(name="Insert Placement X 2", 
+                                       items=common_lists.PLACEMENT_OPTIONS_X,
+                                       default='0')
+
+    insert_placement_y_2: EnumProperty(name="Insert Placement Y 2", 
+                                       items=common_lists.PLACEMENT_OPTIONS_Y,
+                                       default='0')
+
+    insert_placement_x_3: EnumProperty(name="Insert Placement X 3", 
+                                       items=common_lists.PLACEMENT_OPTIONS_X,
+                                       default='0')
+
+    insert_placement_y_3: EnumProperty(name="Insert Placement Y 3", 
+                                       items=common_lists.PLACEMENT_OPTIONS_Y,
+                                       default='0')
+
+    insert_placement_x_4: EnumProperty(name="Insert Placement X 4", 
+                                       items=common_lists.PLACEMENT_OPTIONS_X,
+                                       default='0')
+
+    insert_placement_y_4: EnumProperty(name="Insert Placement Y 4", 
+                                       items=common_lists.PLACEMENT_OPTIONS_Y,
+                                       default='0')
+
+    insert_placement_x_5: EnumProperty(name="Insert Placement X 5", 
+                                       items=common_lists.PLACEMENT_OPTIONS_X,
+                                       default='0')
+
+    insert_placement_y_5: EnumProperty(name="Insert Placement Y 5", 
+                                       items=common_lists.PLACEMENT_OPTIONS_Y,
+                                       default='0')
+
+    insert_placement_x_6: EnumProperty(name="Insert Placement X 6", 
+                                       items=common_lists.PLACEMENT_OPTIONS_X,
+                                       default='0')
+
+    insert_placement_y_6: EnumProperty(name="Insert Placement Y 6", 
+                                       items=common_lists.PLACEMENT_OPTIONS_Y,
+                                       default='0')
+
+    insert_placement_x_7: EnumProperty(name="Insert Placement X 7", 
+                                       items=common_lists.PLACEMENT_OPTIONS_X,
+                                       default='0')
+
+    insert_placement_y_7: EnumProperty(name="Insert Placement Y 7", 
+                                       items=common_lists.PLACEMENT_OPTIONS_Y,
+                                       default='0')
+
+    insert_placement_x_8: EnumProperty(name="Insert Placement X 8", 
+                                       items=common_lists.PLACEMENT_OPTIONS_X,
+                                       default='0')
+
+    insert_placement_y_8: EnumProperty(name="Insert Placement Y 8", 
+                                       items=common_lists.PLACEMENT_OPTIONS_Y,
+                                       default='0')
+
+    jewelry_insert_18in_1: EnumProperty(name="Jewelry Insert 18in 1", 
+                                        items=common_lists.JEWELRY_INSERTS_18IN_OPTIONS, 
+                                        default='0')
+
+    jewelry_insert_21in_1: EnumProperty(name="Jewelry Insert 21in 1", 
+                                        items=common_lists.JEWELRY_INSERTS_21IN_OPTIONS, 
+                                        default='0')
+
+    jewelry_insert_24in_1: EnumProperty(name="Jewelry Insert 24in 1", 
+                                        items=common_lists.JEWELRY_INSERTS_24IN_OPTIONS, 
+                                        default='0')
+
+    jewelry_insert_18in_2: EnumProperty(name="Jewelry Insert 18in 2", 
+                                        items=common_lists.JEWELRY_INSERTS_18IN_OPTIONS, 
+                                        default='0')
+
+    jewelry_insert_21in_2: EnumProperty(name="Jewelry Insert 21in 2", 
+                                        items=common_lists.JEWELRY_INSERTS_21IN_OPTIONS, 
+                                        default='0')
+
+    jewelry_insert_24in_2: EnumProperty(name="Jewelry Insert 24in 2", 
+                                        items=common_lists.JEWELRY_INSERTS_24IN_OPTIONS, 
+                                        default='0')
+
+    jewelry_insert_18in_3: EnumProperty(name="Jewelry Insert 18in 3", 
+                                        items=common_lists.JEWELRY_INSERTS_18IN_OPTIONS, 
+                                        default='0')
+
+    jewelry_insert_21in_3: EnumProperty(name="Jewelry Insert 21in 3", 
+                                        items=common_lists.JEWELRY_INSERTS_21IN_OPTIONS, 
+                                        default='0')
+
+    jewelry_insert_24in_3: EnumProperty(name="Jewelry Insert 24in 3", 
+                                        items=common_lists.JEWELRY_INSERTS_24IN_OPTIONS, 
+                                        default='0')
+
+    jewelry_insert_18in_4: EnumProperty(name="Jewelry Insert 18in 4", 
+                                        items=common_lists.JEWELRY_INSERTS_18IN_OPTIONS, 
+                                        default='0')
+
+    jewelry_insert_21in_4: EnumProperty(name="Jewelry Insert 21in 4", 
+                                        items=common_lists.JEWELRY_INSERTS_21IN_OPTIONS, 
+                                        default='0')
+
+    jewelry_insert_24in_4: EnumProperty(name="Jewelry Insert 24in 4", 
+                                        items=common_lists.JEWELRY_INSERTS_24IN_OPTIONS, 
+                                        default='0')
+
+    jewelry_insert_18in_5: EnumProperty(name="Jewelry Insert 18in 5", 
+                                        items=common_lists.JEWELRY_INSERTS_18IN_OPTIONS, 
+                                        default='0')
+
+    jewelry_insert_21in_5: EnumProperty(name="Jewelry Insert 21in 5", 
+                                        items=common_lists.JEWELRY_INSERTS_21IN_OPTIONS, 
+                                        default='0')
+
+    jewelry_insert_24in_5: EnumProperty(name="Jewelry Insert 24in 5", 
+                                        items=common_lists.JEWELRY_INSERTS_24IN_OPTIONS, 
+                                        default='0')
+
+    jewelry_insert_18in_6: EnumProperty(name="Jewelry Insert 18in 6", 
+                                        items=common_lists.JEWELRY_INSERTS_18IN_OPTIONS, 
+                                        default='0')
+
+    jewelry_insert_21in_6: EnumProperty(name="Jewelry Insert 21in 6", 
+                                        items=common_lists.JEWELRY_INSERTS_21IN_OPTIONS, 
+                                        default='0')
+
+    jewelry_insert_24in_6: EnumProperty(name="Jewelry Insert 24in 6", 
+                                        items=common_lists.JEWELRY_INSERTS_24IN_OPTIONS, 
+                                        default='0')
+
+    jewelry_insert_18in_7: EnumProperty(name="Jewelry Insert 18in 7", 
+                                        items=common_lists.JEWELRY_INSERTS_18IN_OPTIONS, 
+                                        default='0')
+
+    jewelry_insert_21in_7: EnumProperty(name="Jewelry Insert 21in 7", 
+                                        items=common_lists.JEWELRY_INSERTS_21IN_OPTIONS, 
+                                        default='0')
+
+    jewelry_insert_24in_7: EnumProperty(name="Jewelry Insert 24in 7", 
+                                        items=common_lists.JEWELRY_INSERTS_24IN_OPTIONS, 
+                                        default='0')
+
+    jewelry_insert_18in_8: EnumProperty(name="Jewelry Insert 18in 8", 
+                                        items=common_lists.JEWELRY_INSERTS_18IN_OPTIONS, 
+                                        default='0')
+
+    jewelry_insert_21in_8: EnumProperty(name="Jewelry Insert 21in 8", 
+                                        items=common_lists.JEWELRY_INSERTS_21IN_OPTIONS, 
+                                        default='0')
+
+    jewelry_insert_24in_8: EnumProperty(name="Jewelry Insert 24in 8", 
+                                        items=common_lists.JEWELRY_INSERTS_24IN_OPTIONS, 
+                                        default='0')
+
+    upper_jewelry_insert_velvet_liner_18in_1: EnumProperty(name="Upper Jewelry Insert Velvet Liner 18in 1",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_18IN_OPTIONS,
+                                                     default='0')
+    
+    lower_jewelry_insert_velvet_liner_18in_1: EnumProperty(name="Lower Jewelry Insert Velvet Liner 18in 1",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_18IN_OPTIONS,
+                                                     default='0')
+
+    upper_jewelry_insert_velvet_liner_21in_1: EnumProperty(name="Upper Jewelry Insert Velvet Liner 21in 1",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_21IN_OPTIONS,
+                                                     default='0')
+    
+    lower_jewelry_insert_velvet_liner_21in_1: EnumProperty(name="Lower Jewelry Insert Velvet Liner 21in 1",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_21IN_OPTIONS,
+                                                     default='0')
+
+    upper_jewelry_insert_velvet_liner_24in_1: EnumProperty(name="Upper Jewelry Insert Velvet Liner 24in 1",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_24IN_OPTIONS,
+                                                     default='0')
+    
+    lower_jewelry_insert_velvet_liner_24in_1: EnumProperty(name="Lower Jewelry Insert Velvet Liner 24in 1",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_24IN_OPTIONS,
+                                                     default='0')
+
+    upper_jewelry_insert_velvet_liner_18in_2: EnumProperty(name="Upper Jewelry Insert Velvet Liner 18in 2",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_18IN_OPTIONS,
+                                                     default='0')
+    
+    lower_jewelry_insert_velvet_liner_18in_2: EnumProperty(name="Lower Jewelry Insert Velvet Liner 18in 2",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_18IN_OPTIONS,
+                                                     default='0')
+
+    upper_jewelry_insert_velvet_liner_21in_2: EnumProperty(name="Upper Jewelry Insert Velvet Liner 21in 2",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_21IN_OPTIONS,
+                                                     default='0')
+    
+    lower_jewelry_insert_velvet_liner_21in_2: EnumProperty(name="Lower Jewelry Insert Velvet Liner 21in 2",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_21IN_OPTIONS,
+                                                     default='0')
+
+    upper_jewelry_insert_velvet_liner_24in_2: EnumProperty(name="Upper Jewelry Insert Velvet Liner 24in 2",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_24IN_OPTIONS,
+                                                     default='0')
+    
+    lower_jewelry_insert_velvet_liner_24in_2: EnumProperty(name="Lower Jewelry Insert Velvet Liner 24in 2",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_24IN_OPTIONS,
+                                                     default='0')
+
+    upper_jewelry_insert_velvet_liner_18in_3: EnumProperty(name="Upper Jewelry Insert Velvet Liner 18in 3",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_18IN_OPTIONS,
+                                                     default='0')
+    
+    lower_jewelry_insert_velvet_liner_18in_3: EnumProperty(name="Lower Jewelry Insert Velvet Liner 18in 3",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_18IN_OPTIONS,
+                                                     default='0')
+
+    upper_jewelry_insert_velvet_liner_21in_3: EnumProperty(name="Upper Jewelry Insert Velvet Liner 21in 3",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_21IN_OPTIONS,
+                                                     default='0')
+    
+    lower_jewelry_insert_velvet_liner_21in_3: EnumProperty(name="Lower Jewelry Insert Velvet Liner 21in 3",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_21IN_OPTIONS,
+                                                     default='0')
+
+    upper_jewelry_insert_velvet_liner_24in_3: EnumProperty(name="Upper Jewelry Insert Velvet Liner 24in 3",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_24IN_OPTIONS,
+                                                     default='0')
+    
+    lower_jewelry_insert_velvet_liner_24in_3: EnumProperty(name="Lower Jewelry Insert Velvet Liner 24in 3",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_24IN_OPTIONS,
+                                                     default='0')
+
+    upper_jewelry_insert_velvet_liner_18in_4: EnumProperty(name="Upper Jewelry Insert Velvet Liner 18in 4",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_18IN_OPTIONS,
+                                                     default='0')
+    
+    lower_jewelry_insert_velvet_liner_18in_4: EnumProperty(name="Lower Jewelry Insert Velvet Liner 18in 4",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_18IN_OPTIONS,
+                                                     default='0')
+
+    upper_jewelry_insert_velvet_liner_21in_4: EnumProperty(name="Upper Jewelry Insert Velvet Liner 21in 4",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_21IN_OPTIONS,
+                                                     default='0')
+    
+    lower_jewelry_insert_velvet_liner_21in_4: EnumProperty(name="Lower Jewelry Insert Velvet Liner 21in 4",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_21IN_OPTIONS,
+                                                     default='0')
+
+    upper_jewelry_insert_velvet_liner_24in_4: EnumProperty(name="Upper Jewelry Insert Velvet Liner 24in 4",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_24IN_OPTIONS,
+                                                     default='0')
+    
+    lower_jewelry_insert_velvet_liner_24in_4: EnumProperty(name="Lower Jewelry Insert Velvet Liner 24in 4",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_24IN_OPTIONS,
+                                                     default='0')
+
+    upper_jewelry_insert_velvet_liner_18in_5: EnumProperty(name="Upper Jewelry Insert Velvet Liner 18in 5",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_18IN_OPTIONS,
+                                                     default='0')
+    
+    lower_jewelry_insert_velvet_liner_18in_5: EnumProperty(name="Lower Jewelry Insert Velvet Liner 18in 5",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_18IN_OPTIONS,
+                                                     default='0')
+
+    upper_jewelry_insert_velvet_liner_21in_5: EnumProperty(name="Upper Jewelry Insert Velvet Liner 21in 5",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_21IN_OPTIONS,
+                                                     default='0')
+    
+    lower_jewelry_insert_velvet_liner_21in_5: EnumProperty(name="Lower Jewelry Insert Velvet Liner 21in 5",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_21IN_OPTIONS,
+                                                     default='0')
+
+    upper_jewelry_insert_velvet_liner_24in_5: EnumProperty(name="Upper Jewelry Insert Velvet Liner 24in 5",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_24IN_OPTIONS,
+                                                     default='0')
+    
+    lower_jewelry_insert_velvet_liner_24in_5: EnumProperty(name="Lower Jewelry Insert Velvet Liner 24in 5",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_24IN_OPTIONS,
+                                                     default='0')
+
+    upper_jewelry_insert_velvet_liner_18in_6: EnumProperty(name="Upper Jewelry Insert Velvet Liner 18in 6",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_18IN_OPTIONS,
+                                                     default='0')
+    
+    lower_jewelry_insert_velvet_liner_18in_6: EnumProperty(name="Lower Jewelry Insert Velvet Liner 18in 6",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_18IN_OPTIONS,
+                                                     default='0')
+
+    upper_jewelry_insert_velvet_liner_21in_6: EnumProperty(name="Upper Jewelry Insert Velvet Liner 21in 6",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_21IN_OPTIONS,
+                                                     default='0')
+    
+    lower_jewelry_insert_velvet_liner_21in_6: EnumProperty(name="Lower Jewelry Insert Velvet Liner 21in 6",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_21IN_OPTIONS,
+                                                     default='0')
+
+    upper_jewelry_insert_velvet_liner_24in_6: EnumProperty(name="Upper Jewelry Insert Velvet Liner 24in 6",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_24IN_OPTIONS,
+                                                     default='0')
+    
+    lower_jewelry_insert_velvet_liner_24in_6: EnumProperty(name="Lower Jewelry Insert Velvet Liner 24in 6",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_24IN_OPTIONS,
+                                                     default='0')
+
+    upper_jewelry_insert_velvet_liner_18in_7: EnumProperty(name="Upper Jewelry Insert Velvet Liner 18in 7",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_18IN_OPTIONS,
+                                                     default='0')
+    
+    lower_jewelry_insert_velvet_liner_18in_7: EnumProperty(name="Lower Jewelry Insert Velvet Liner 18in 7",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_18IN_OPTIONS,
+                                                     default='0')
+
+    upper_jewelry_insert_velvet_liner_21in_7: EnumProperty(name="Upper Jewelry Insert Velvet Liner 21in 7",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_21IN_OPTIONS,
+                                                     default='0')
+    
+    lower_jewelry_insert_velvet_liner_21in_7: EnumProperty(name="Lower Jewelry Insert Velvet Liner 21in 7",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_21IN_OPTIONS,
+                                                     default='0')
+
+    upper_jewelry_insert_velvet_liner_24in_7: EnumProperty(name="Upper Jewelry Insert Velvet Liner 24in 7",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_24IN_OPTIONS,
+                                                     default='0')
+    
+    lower_jewelry_insert_velvet_liner_24in_7: EnumProperty(name="Lower Jewelry Insert Velvet Liner 24in 7",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_24IN_OPTIONS,
+                                                     default='0')
+
+    upper_jewelry_insert_velvet_liner_18in_8: EnumProperty(name="Upper Jewelry Insert Velvet Liner 18in 8",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_18IN_OPTIONS,
+                                                     default='0')
+    
+    lower_jewelry_insert_velvet_liner_18in_8: EnumProperty(name="Lower Jewelry Insert Velvet Liner 18in 8",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_18IN_OPTIONS,
+                                                     default='0')
+
+    upper_jewelry_insert_velvet_liner_21in_8: EnumProperty(name="Upper Jewelry Insert Velvet Liner 21in 8",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_21IN_OPTIONS,
+                                                     default='0')
+    
+    lower_jewelry_insert_velvet_liner_21in_8: EnumProperty(name="Lower Jewelry Insert Velvet Liner 21in 8",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_21IN_OPTIONS,
+                                                     default='0')
+
+    upper_jewelry_insert_velvet_liner_24in_8: EnumProperty(name="Upper Jewelry Insert Velvet Liner 24in 8",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_24IN_OPTIONS,
+                                                     default='0')
+    
+    lower_jewelry_insert_velvet_liner_24in_8: EnumProperty(name="Lower Jewelry Insert Velvet Liner 24in 8",
+                                                     items=common_lists.JEWELRY_INSERTS_VELVET_LINERS_24IN_OPTIONS,
+                                                     default='0')
+
+    sliding_insert_18in_1: EnumProperty(name="Sliding Insert 18in 1",
+                                        items=common_lists.SLIDING_INSERTS_18IN_OPTIONS,
+                                        default='0')
+
+    sliding_insert_21in_1: EnumProperty(name="Sliding Insert 21in 1",
+                                        items=common_lists.SLIDING_INSERTS_21IN_OPTIONS,
+                                        default='0')
+
+    sliding_insert_24in_1: EnumProperty(name="Sliding Insert 24in 1",
+                                        items=common_lists.SLIDING_INSERTS_24IN_OPTIONS,
+                                        default='0')
+
+    sliding_insert_18in_2: EnumProperty(name="Sliding Insert 18in 2",
+                                        items=common_lists.SLIDING_INSERTS_18IN_OPTIONS,
+                                        default='0')
+
+    sliding_insert_21in_2: EnumProperty(name="Sliding Insert 21in 2",
+                                        items=common_lists.SLIDING_INSERTS_21IN_OPTIONS,
+                                        default='0')
+
+    sliding_insert_24in_2: EnumProperty(name="Sliding Insert 24in 2",
+                                        items=common_lists.SLIDING_INSERTS_24IN_OPTIONS,
+                                        default='0')
+
+    sliding_insert_18in_3: EnumProperty(name="Sliding Insert 18in 3",
+                                        items=common_lists.SLIDING_INSERTS_18IN_OPTIONS,
+                                        default='0')
+
+    sliding_insert_21in_3: EnumProperty(name="Sliding Insert 21in 3",
+                                        items=common_lists.SLIDING_INSERTS_21IN_OPTIONS,
+                                        default='0')
+
+    sliding_insert_24in_3: EnumProperty(name="Sliding Insert 24in 3",
+                                        items=common_lists.SLIDING_INSERTS_24IN_OPTIONS,
+                                        default='0')
+
+    sliding_insert_18in_4: EnumProperty(name="Sliding Insert 18in 4",
+                                        items=common_lists.SLIDING_INSERTS_18IN_OPTIONS,
+                                        default='0')
+
+    sliding_insert_21in_4: EnumProperty(name="Sliding Insert 21in 4",
+                                        items=common_lists.SLIDING_INSERTS_21IN_OPTIONS,
+                                        default='0')
+
+    sliding_insert_24in_4: EnumProperty(name="Sliding Insert 24in 4",
+                                        items=common_lists.SLIDING_INSERTS_24IN_OPTIONS,
+                                        default='0')
+
+    sliding_insert_18in_5: EnumProperty(name="Sliding Insert 18in 5",
+                                        items=common_lists.SLIDING_INSERTS_18IN_OPTIONS,
+                                        default='0')
+
+    sliding_insert_21in_5: EnumProperty(name="Sliding Insert 21in 5",
+                                        items=common_lists.SLIDING_INSERTS_21IN_OPTIONS,
+                                        default='0')
+
+    sliding_insert_24in_5: EnumProperty(name="Sliding Insert 24in 5",
+                                        items=common_lists.SLIDING_INSERTS_24IN_OPTIONS,
+                                        default='0')
+
+    sliding_insert_18in_6: EnumProperty(name="Sliding Insert 18in 6",
+                                        items=common_lists.SLIDING_INSERTS_18IN_OPTIONS,
+                                        default='0')
+
+    sliding_insert_21in_6: EnumProperty(name="Sliding Insert 21in 6",
+                                        items=common_lists.SLIDING_INSERTS_21IN_OPTIONS,
+                                        default='0')
+
+    sliding_insert_24in_6: EnumProperty(name="Sliding Insert 24in 6",
+                                        items=common_lists.SLIDING_INSERTS_24IN_OPTIONS,
+                                        default='0')
+
+    sliding_insert_18in_7: EnumProperty(name="Sliding Insert 18in 7",
+                                        items=common_lists.SLIDING_INSERTS_18IN_OPTIONS,
+                                        default='0')
+
+    sliding_insert_21in_7: EnumProperty(name="Sliding Insert 21in 7",
+                                        items=common_lists.SLIDING_INSERTS_21IN_OPTIONS,
+                                        default='0')
+
+    sliding_insert_24in_7: EnumProperty(name="Sliding Insert 24in 7",
+                                        items=common_lists.SLIDING_INSERTS_24IN_OPTIONS,
+                                        default='0')
+
+    sliding_insert_18in_8: EnumProperty(name="Sliding Insert 18in 8",
+                                        items=common_lists.SLIDING_INSERTS_18IN_OPTIONS,
+                                        default='0')
+
+    sliding_insert_21in_8: EnumProperty(name="Sliding Insert 21in 8",
+                                        items=common_lists.SLIDING_INSERTS_21IN_OPTIONS,
+                                        default='0')
+
+    sliding_insert_24in_8: EnumProperty(name="Sliding Insert 24in 8",
+                                        items=common_lists.SLIDING_INSERTS_24IN_OPTIONS,
+                                        default='0')
+
+    velvet_liner_1: EnumProperty(name="Velvet Liner 1",
+                                 items=common_lists.VELVET_LINERS_OPTIONS,
+                                 default='0')
+
+    velvet_liner_2: EnumProperty(name="Velvet Liner 2",
+                                 items=common_lists.VELVET_LINERS_OPTIONS,
+                                 default='0')
+
+    velvet_liner_3: EnumProperty(name="Velvet Liner 3",
+                                 items=common_lists.VELVET_LINERS_OPTIONS,
+                                 default='0')
+
+    velvet_liner_4: EnumProperty(name="Velvet Liner 4",
+                                 items=common_lists.VELVET_LINERS_OPTIONS,
+                                 default='0')
+
+    velvet_liner_5: EnumProperty(name="Velvet Liner 5",
+                                 items=common_lists.VELVET_LINERS_OPTIONS,
+                                 default='0')
+
+    velvet_liner_6: EnumProperty(name="Velvet Liner 6",
+                                 items=common_lists.VELVET_LINERS_OPTIONS,
+                                 default='0')
+
+    velvet_liner_7: EnumProperty(name="Velvet Liner 7",
+                                 items=common_lists.VELVET_LINERS_OPTIONS,
+                                 default='0')
+
+    velvet_liner_8: EnumProperty(name="Velvet Liner 8",
+                                 items=common_lists.VELVET_LINERS_OPTIONS,
+                                 default='0')
 
     bottom_offset: EnumProperty(name="Bottom Offset",
                                    items=common_lists.DRAWER_BOTTOM_OFFSETS,
-                                   default='160')
+                                   default='160')   
 
     cleat_location: EnumProperty(
         name="Cleat Location",
@@ -912,7 +1502,7 @@ class PROMPTS_Drawer_Prompts(sn_types.Prompts_Interface):
                             exec("self.file_rail_type_" + str(drawer_num) + "= str(0)")
                             file_rail_type.set_value(0)
         else:
-            use_file_rail.set_value(False)       
+            use_file_rail.set_value(False)
 
     def update_kd_shelf(self):
         pard_has_bottom_KD = self.assembly.get_prompt("Pard Has Bottom KD")
@@ -1014,19 +1604,42 @@ class PROMPTS_Drawer_Prompts(sn_types.Prompts_Interface):
             slide_type = self.assembly.get_prompt("Slide Type")
             sidemount_options = self.assembly.get_prompt("Sidemount Options")
             undermount_options = self.assembly.get_prompt("Undermount Options")
-            slide_prompts = [slide_type, sidemount_options, undermount_options]
+            dovetail_drawer = self.assembly.get_prompt("Use Dovetail Drawer")
+            slide_prompts = [slide_type, sidemount_options, undermount_options, dovetail_drawer]
             if all(slide_prompts):
-                slide_type.set_value(int(self.slide_type))
+                if not dovetail_drawer.get_value():
+                    slide_type.set_value(0)
+                    self.slide_type = "0"
+                else:
+                    slide_type.set_value(int(self.slide_type))
                 sidemount_options.set_value(int(self.sidemount_options))
                 undermount_options.set_value(int(self.undermount_options))
-            dovetail_drawer = self.assembly.get_prompt("Use Dovetail Drawer")
 
-            for i in range(1,self.drawer_qty_prompt.get_value()):
+            for i in range(1, self.drawer_qty_prompt.get_value()):
                 drawer_height = self.drawer_front_ppt_obj.snap.get_prompt("Drawer " + str(i) + " Height")
                 bottom_offset = self.assembly.get_prompt("Bottom Drawer Space")
                 slide_type = self.assembly.get_prompt("Drawer " + str(i) + " Slide Type") #DONT REMOVE USED in exec
                 file_rail_type = self.assembly.get_prompt("File Rail Type " + str(i))
                 file_rail_direction = self.assembly.get_prompt("File Rail Direction " + str(i))
+                has_jewelry_insert = self.assembly.get_prompt("Has Jewelry Insert " + str(i))
+                has_sliding_insert = self.assembly.get_prompt("Has Sliding Insert " + str(i))
+                jewelry_insert_type = self.assembly.get_prompt("Jewelry Insert Type " + str(i)) #DONT REMOVE USED in exec
+                jewelry_insert_18in = self.assembly.get_prompt("Jewelry Insert 18in " + str(i)) #DONT REMOVE USED in exec
+                jewelry_insert_21in = self.assembly.get_prompt("Jewelry Insert 21in " + str(i)) #DONT REMOVE USED in exec
+                jewelry_insert_24in = self.assembly.get_prompt("Jewelry Insert 24in " + str(i)) #DONT REMOVE USED in exec
+                upper_jewelry_insert_velvet_liner_18_in = self.assembly.get_prompt("Upper Jewelry Insert Velvet Liner 18in " + str(i)) #DONT REMOVE USED in exec
+                upper_jewelry_insert_velvet_liner_21_in = self.assembly.get_prompt("Upper Jewelry Insert Velvet Liner 21in " + str(i)) #DONT REMOVE USED in exec
+                upper_jewelry_insert_velvet_liner_24_in = self.assembly.get_prompt("Upper Jewelry Insert Velvet Liner 24in " + str(i)) #DONT REMOVE USED in exec
+                lower_jewelry_insert_velvet_liner_18_in = self.assembly.get_prompt("Lower Jewelry Insert Velvet Liner 18in " + str(i)) #DONT REMOVE USED in exec
+                lower_jewelry_insert_velvet_liner_21_in = self.assembly.get_prompt("Lower Jewelry Insert Velvet Liner 21in " + str(i)) #DONT REMOVE USED in exec
+                lower_jewelry_insert_velvet_liner_24_in = self.assembly.get_prompt("Lower Jewelry Insert Velvet Liner 24in " + str(i)) #DONT REMOVE USED in exec
+                
+                sliding_insert_18in = self.assembly.get_prompt("Sliding Insert 18in " + str(i)) #DONT REMOVE USED in exec
+                sliding_insert_21in = self.assembly.get_prompt("Sliding Insert 21in " + str(i)) #DONT REMOVE USED in exec
+                sliding_insert_24in = self.assembly.get_prompt("Sliding Insert 24in " + str(i)) #DONT REMOVE USED in exec
+                velvet_liner = self.assembly.get_prompt("Velvet Liner " + str(i)) #DONT REMOVE USED in exec
+                insert_placement_x = self.assembly.get_prompt("Insert Placement X " + str(i))
+                insert_placement_y = self.assembly.get_prompt("Insert Placement Y " + str(i))
 
                 if props.closet_defaults.use_32mm_system:
                     if drawer_height:
@@ -1043,7 +1656,44 @@ class PROMPTS_Drawer_Prompts(sn_types.Prompts_Interface):
                 if file_rail_type:
                     self.update_file_rail_type(i)
                 if file_rail_direction:
-                    exec("file_rail_direction.set_value(int(self.file_rail_direction_" + str(i) + "))")                    
+                    exec(f"file_rail_type.set_value(int(self.file_rail_type_{str(i)}))")
+                if has_jewelry_insert:
+                    exec(f"has_jewelry_insert.set_value(self.has_jewelry_insert_{str(i)})")
+                if has_sliding_insert:
+                    exec(f"has_sliding_insert.set_value(self.has_sliding_insert_{str(i)})")
+                if jewelry_insert_type:
+                    exec(f"jewelry_insert_type.set_value(int(self.jewelry_insert_type_{str(i)}))")
+                if jewelry_insert_18in:
+                    exec(f"jewelry_insert_18in.set_value(int(self.jewelry_insert_18in_{str(i)}))")
+                if jewelry_insert_21in:
+                    exec(f"jewelry_insert_21in.set_value(int(self.jewelry_insert_21in_{str(i)}))")
+                if jewelry_insert_24in:
+                    exec(f"jewelry_insert_24in.set_value(int(self.jewelry_insert_24in_{str(i)}))")
+                if upper_jewelry_insert_velvet_liner_18_in:
+                    exec(f"upper_jewelry_insert_velvet_liner_18_in.set_value(int(self.upper_jewelry_insert_velvet_liner_18in_{str(i)}))")
+                if upper_jewelry_insert_velvet_liner_21_in:
+                    exec(f"upper_jewelry_insert_velvet_liner_21_in.set_value(int(self.upper_jewelry_insert_velvet_liner_21in_{str(i)}))")
+                if upper_jewelry_insert_velvet_liner_24_in:
+                    exec(f"upper_jewelry_insert_velvet_liner_24_in.set_value(int(self.upper_jewelry_insert_velvet_liner_24in_{str(i)}))")
+                if lower_jewelry_insert_velvet_liner_18_in:
+                    exec(f"lower_jewelry_insert_velvet_liner_18_in.set_value(int(self.lower_jewelry_insert_velvet_liner_18in_{str(i)}))")
+                if lower_jewelry_insert_velvet_liner_21_in:
+                    exec(f"lower_jewelry_insert_velvet_liner_21_in.set_value(int(self.lower_jewelry_insert_velvet_liner_21in_{str(i)}))")
+                if lower_jewelry_insert_velvet_liner_24_in:
+                    exec(f"lower_jewelry_insert_velvet_liner_24_in.set_value(int(self.lower_jewelry_insert_velvet_liner_24in_{str(i)}))")
+                if sliding_insert_18in:
+                    exec(f"sliding_insert_18in.set_value(int(self.sliding_insert_18in_{str(i)}))")
+                if sliding_insert_21in:
+                    exec(f"sliding_insert_21in.set_value(int(self.sliding_insert_21in_{str(i)}))")
+                if sliding_insert_24in:
+                    exec(f"sliding_insert_24in.set_value(int(self.sliding_insert_24in_{str(i)}))")
+                if velvet_liner:
+                    exec(f"velvet_liner.set_value(int(self.velvet_liner_{str(i)}))")
+                if insert_placement_x:
+                    exec(f"insert_placement_x.set_value(int(self.insert_placement_x_{str(i)}))")
+                if insert_placement_y:
+                    exec(f"insert_placement_y.set_value(int(self.insert_placement_y_{str(i)}))")
+                
 
                 self.update_lock(i)
                 self.update_dbl_drawer_box(i)
@@ -1102,6 +1752,24 @@ class PROMPTS_Drawer_Prompts(sn_types.Prompts_Interface):
                 lock_drawer = self.assembly.get_prompt("Lock " + str(i) + " Drawer") #DONT REMOVE USED in exec
                 file_rail_type = self.assembly.get_prompt("File Rail Type " + str(i)) #DONT REMOVE USED in exec
                 file_rail_direction = self.assembly.get_prompt("File Rail Direction " + str(i)) #DONT REMOVE USED in exec
+                has_jewelry_insert = self.assembly.get_prompt(f"Has Jewelry Insert {str(i)}")
+                has_sliding_insert = self.assembly.get_prompt(f"Has Sliding Insert {str(i)}")
+                jewelry_insert_type = self.assembly.get_prompt(f"Jewelry Insert Type {str(i)}") #DONT REMOVE USED in exec
+                jewelry_insert_18in = self.assembly.get_prompt(f"Jewelry Insert 18in {str(i)}") #DONT REMOVE USED in exec
+                jewelry_insert_21in = self.assembly.get_prompt(f"Jewelry Insert 21in {str(i)}") #DONT REMOVE USED in exec
+                jewelry_insert_24in = self.assembly.get_prompt(f"Jewelry Insert 24in {str(i)}") #DONT REMOVE USED in exec
+                upper_jewelry_insert_velvet_liner_18in = self.assembly.get_prompt(f"Upper Jewelry Insert Velvet Liner 18in {str(i)}") #DONT REMOVE USED in exec
+                upper_jewelry_insert_velvet_liner_21in = self.assembly.get_prompt(f"Upper Jewelry Insert Velvet Liner 21in {str(i)}") #DONT REMOVE USED in exec
+                upper_jewelry_insert_velvet_liner_24in = self.assembly.get_prompt(f"Upper Jewelry Insert Velvet Liner 24in {str(i)}") #DONT REMOVE USED in exec
+                lower_jewelry_insert_velvet_liner_18in = self.assembly.get_prompt(f"Lower Jewelry Insert Velvet Liner 18in {str(i)}") #DONT REMOVE USED in exec
+                lower_jewelry_insert_velvet_liner_21in = self.assembly.get_prompt(f"Lower Jewelry Insert Velvet Liner 21in {str(i)}") #DONT REMOVE USED in exec
+                lower_jewelry_insert_velvet_liner_24in = self.assembly.get_prompt(f"Lower Jewelry Insert Velvet Liner 24in {str(i)}") #DONT REMOVE USED in exec
+                sliding_insert_18in = self.assembly.get_prompt(f"Sliding Insert 18in {str(i)}") #DONT REMOVE USED in exec
+                sliding_insert_21in = self.assembly.get_prompt(f"Sliding Insert 21in {str(i)}") #DONT REMOVE USED in exec
+                sliding_insert_24in = self.assembly.get_prompt(f"Sliding Insert 24in {str(i)}") #DONT REMOVE USED in exec
+                velvet_liner = self.assembly.get_prompt(f"Velvet Liner {str(i)}") #DONT REMOVE USED in exec
+                insert_placement_x = self.assembly.get_prompt(f"Insert Placement X {str(i)}") #DONT REMOVE USED in exec
+                insert_placement_y = self.assembly.get_prompt(f"Insert Placement Y {str(i)}") #DONT REMOVE USED in exec
 
                 if lock_drawer and file_rail_type and file_rail_direction:
                     exec("self.lock_" + str(i) + "_drawer = LOCK_DRAWER_TYPES[lock_drawer.get_value()][0]")
@@ -1113,6 +1781,61 @@ class PROMPTS_Drawer_Prompts(sn_types.Prompts_Interface):
                         value = str(round(drawer_height.distance_value * 1000,4))
                         if value in self.front_heights:
                             exec("self.drawer_" + str(i) + "_height = value")
+                
+                if has_jewelry_insert:
+                    exec(f"self.has_jewelry_insert_{str(i)} = has_jewelry_insert.get_value()")
+                
+                if has_sliding_insert:
+                    exec(f"self.has_sliding_insert_{str(i)} = has_sliding_insert.get_value()")
+
+                if jewelry_insert_type:
+                    exec(f"self.jewelry_insert_type_{str(i)} = common_lists.JEWELRY_TYPE_OPTIONS[jewelry_insert_type.get_value()][0]")
+
+                if jewelry_insert_18in:
+                    exec(f"self.jewelry_insert_18in_{str(i)} = common_lists.JEWELRY_INSERTS_18IN_OPTIONS[jewelry_insert_18in.get_value()][0]")
+
+                if jewelry_insert_21in:
+                    exec(f"self.jewelry_insert_21in_{str(i)} = common_lists.JEWELRY_INSERTS_21IN_OPTIONS[jewelry_insert_21in.get_value()][0]")
+
+                if jewelry_insert_24in:
+                    exec(f"self.jewelry_insert_24in_{str(i)} = common_lists.JEWELRY_INSERTS_24IN_OPTIONS[jewelry_insert_24in.get_value()][0]")
+
+                if upper_jewelry_insert_velvet_liner_18in:
+                    exec(f"self.upper_jewelry_insert_velvet_liner_18in_{str(i)} = common_lists.JEWELRY_INSERTS_VELVET_LINERS_18IN_OPTIONS[upper_jewelry_insert_velvet_liner_18in.get_value()][0]")
+
+                if upper_jewelry_insert_velvet_liner_21in:
+                    exec(f"self.upper_jewelry_insert_velvet_liner_21in_{str(i)} = common_lists.JEWELRY_INSERTS_VELVET_LINERS_21IN_OPTIONS[upper_jewelry_insert_velvet_liner_21in.get_value()][0]")
+
+                if upper_jewelry_insert_velvet_liner_24in:
+                    exec(f"self.upper_jewelry_insert_velvet_liner_24in_{str(i)} = common_lists.JEWELRY_INSERTS_VELVET_LINERS_24IN_OPTIONS[upper_jewelry_insert_velvet_liner_24in.get_value()][0]")
+                
+                if lower_jewelry_insert_velvet_liner_18in:
+                    exec(f"self.lower_jewelry_insert_velvet_liner_18in_{str(i)} = common_lists.JEWELRY_INSERTS_VELVET_LINERS_18IN_OPTIONS[lower_jewelry_insert_velvet_liner_18in.get_value()][0]")
+
+                if lower_jewelry_insert_velvet_liner_21in:
+                    exec(f"self.lower_jewelry_insert_velvet_liner_21in_{str(i)} = common_lists.JEWELRY_INSERTS_VELVET_LINERS_21IN_OPTIONS[lower_jewelry_insert_velvet_liner_21in.get_value()][0]")
+
+                if lower_jewelry_insert_velvet_liner_24in:
+                    exec(f"self.lower_jewelry_insert_velvet_liner_24in_{str(i)} = common_lists.JEWELRY_INSERTS_VELVET_LINERS_24IN_OPTIONS[lower_jewelry_insert_velvet_liner_24in.get_value()][0]")
+
+                if sliding_insert_18in:
+                    exec(f"self.sliding_insert_18in_{str(i)} = common_lists.JEWELRY_INSERTS_VELVET_LINERS_18IN_OPTIONS[sliding_insert_18in.get_value()][0]")
+
+                if sliding_insert_21in:
+                    exec(f"self.sliding_insert_21in_{str(i)} = common_lists.JEWELRY_INSERTS_VELVET_LINERS_21IN_OPTIONS[sliding_insert_21in.get_value()][0]")
+
+                if sliding_insert_24in:
+                    exec(f"self.sliding_insert_24in_{str(i)} = common_lists.JEWELRY_INSERTS_VELVET_LINERS_24IN_OPTIONS[sliding_insert_24in.get_value()][0]")
+
+                if velvet_liner:
+                    exec(f"self.velvet_liner_{str(i)} = common_lists.VELVET_LINERS_OPTIONS[velvet_liner.get_value()][0]")
+
+                if insert_placement_x:
+                    exec(f"self.insert_placement_x_{str(i)} = common_lists.PLACEMENT_OPTIONS_X[insert_placement_x.get_value()][0]")
+
+                if insert_placement_y:
+                    exec(f"self.insert_placement_y_{str(i)} = common_lists.PLACEMENT_OPTIONS_Y[insert_placement_y.get_value()][0]")
+
 
         if self.cleat_loc_prompt:
             self.cleat_location = str(self.cleat_loc_prompt.combobox_index)
@@ -1158,7 +1881,7 @@ class PROMPTS_Drawer_Prompts(sn_types.Prompts_Interface):
 
         self.set_properties_from_prompts()
         wm = context.window_manager
-        return wm.invoke_props_dialog(self, width=450)
+        return wm.invoke_props_dialog(self, width=700)
     
     def draw_drawer_heights(self,layout):
         col = layout.column(align=True)
@@ -1172,15 +1895,31 @@ class PROMPTS_Drawer_Prompts(sn_types.Prompts_Interface):
         
         if drawer_quantity:
             for i in range(1,drawer_quantity.get_value()):
-                
                 drawer_height = self.drawer_front_ppt_obj.snap.get_prompt("Drawer " + str(i) + " Height")
                 lock_drawer = self.assembly.get_prompt("Lock " + str(i) + " Drawer")
-
                 file_rail_type = self.assembly.get_prompt("File Rail Type " + str(i))
                 file_rail_direction = self.assembly.get_prompt("File Rail Direction " + str(i))
                 use_file_rail = self.assembly.get_prompt("Use File Rail " + str(i))
                 use_double_drawer = self.assembly.get_prompt("Use Double Drawer " + str(i))
+                has_jewelry_insert = self.assembly.get_prompt("Has Jewelry Insert " + str(i))
+                has_sliding_insert = self.assembly.get_prompt("Has Sliding Insert " + str(i))
+                jewelry_insert_type = self.assembly.get_prompt("Jewelry Insert Type " + str(i))
                 extra_deep_drawer_box = self.assembly.get_prompt("Extra Deep Drawer Box")
+                is_dbl_jwl = use_double_drawer.get_value()
+                has_jwl_ins = has_jewelry_insert.get_value()
+                has_sld_ins = has_sliding_insert.get_value()
+                drw_H = round(sn_unit.meter_to_millimeter(
+                                drawer_height.get_value()), 3)
+                f4H = float(common_lists.FRONT_HEIGHTS[1][0])
+                f5H = float(common_lists.FRONT_HEIGHTS[2][0])
+                f6H = float(common_lists.FRONT_HEIGHTS[3][0])
+                f7H = float(common_lists.FRONT_HEIGHTS[4][0])
+                # If drawer is changed from 6H to 7H it resets existing 
+                # options
+                if drw_H == f7H and has_jwl_ins:
+                    drawer_7_height = '219.964'
+                    exec(f"self.has_jewelry_insert_{str(i)} = False")
+                    exec("self.drawer_" + str(i) + "_height = drawer_7_height")
                 if(drawer_height and lock_drawer and file_rail_type and file_rail_direction and use_file_rail and extra_deep_drawer_box):
                     if(self.assembly.obj_y.location.y<=extra_deep_drawer_box.get_value()):
                         drawer_box_rear_gap = self.assembly.get_prompt("Standard Drawer Rear Gap")
@@ -1191,13 +1930,13 @@ class PROMPTS_Drawer_Prompts(sn_types.Prompts_Interface):
                     depth = self.assembly.obj_y.location.y - drawer_box_rear_gap.get_value()
                     letter = sn_unit.inch(12.5)
                     legal = sn_unit.inch(15.5)
-
+                    # Appears for an existing Double Jewelry Drawer
                     if drawer_height and drawer_quantity.get_value() >= i:
                         box = col.box()
                         row = box.row()
 
                         col_1 = row.column()
-                        if props.closet_defaults.use_32mm_system:  
+                        if props.closet_defaults.use_32mm_system:
                             col_1.label(text="Drawer " + str(i) + " Height:")
                             col_1.prop(self,'drawer_' + str(i) + '_height',text="")
                         else:
@@ -1210,10 +1949,257 @@ class PROMPTS_Drawer_Prompts(sn_types.Prompts_Interface):
 
                         if(drawer_height and six_hole and seven_hole):
                             if(drawer_height.get_value() >= six_hole.get_value() and drawer_height.get_value() <= seven_hole.get_value() and self.assembly.obj_y.location.y >= sn_unit.inch(15.99)):
-                                col_3 = row.column(align=True)
-                                col_3.label(text="Double Jewelry Drawer")
-                                col_3.prop(use_double_drawer,"checkbox_value",text="")
+                                velvet_depth = 16
+                                width_metric = self.assembly.obj_x.location.x
+                                width_in = round(
+                                    sn_unit.meter_to_inch(width_metric), 1)
+                                depth_metric = self.assembly.obj_y.location.y
+                                depth_in = round(
+                                    sn_unit.meter_to_inch(depth_metric), 1)
+                                velvet = depth_in < velvet_depth
+                                jwlry_ins = depth_in >= velvet_depth
+                                
+                                has_ji_ins = has_jewelry_insert.get_value()
+                                db_jwl_conditions = (drw_H == f7H or drw_H == f6H) and depth_in <= 24 and width_in <= 33
+                                if not has_ji_ins and not has_jwl_ins and db_jwl_conditions:
+                                    if not has_sld_ins:
+                                        col_3 = row.column(align=True)
+                                        col_3.label(text="Double Jewelry Drawer")
+                                        col_3.prop(use_double_drawer,"checkbox_value",text="")
+                                    col_4 = row.column(align=True)
+                                    # Double Jewelry option
+                                    if is_dbl_jwl and jwlry_ins and width_in >= 18 and width_in < 21 and not has_sld_ins:
+                                        exec(f'self.jewelry_insert_type_{i} = common_lists.JEWELRY_TYPE_OPTIONS[0][0]')
+                                        # These are the options from
+                                        # JEWELRY_INSERTS_VELVET_LINERS_18IN_OPTIONS
+                                        velvet_options = [3,5,6]
+                                        placement_options = [1,2]
+                                        upper_chosen_insert = self.assembly.get_prompt(
+                                            f'Upper Jewelry Insert Velvet Liner 18in {i}').get_value()
+                                        lower_chosen_insert = self.assembly.get_prompt(
+                                            f'Lower Jewelry Insert Velvet Liner 18in {i}').get_value()
+                                        is_upper_velvet = upper_chosen_insert in velvet_options
+                                        is_lower_velvet = lower_chosen_insert in velvet_options
+                                        is_upper_placement = upper_chosen_insert in placement_options
+                                        is_lower_placement = lower_chosen_insert in placement_options
+                                        any_placement = is_upper_placement or is_lower_placement
+                                        col_4.label(text=f'Upper Jewelry Insert')
+                                        col_4.prop(self,f'upper_jewelry_insert_velvet_liner_18in_{i}',text="")
+                                        col_4.label(text=f'Lower Jewelry Insert')
+                                        col_4.prop(self,f'lower_jewelry_insert_velvet_liner_18in_{i}',text="")
+                                        if (width_in != 18 or depth_in > 16) and any_placement:
+                                            col_5 = row.column(align=True)
+                                            explain = ''
+                                            if is_upper_placement and is_lower_placement:
+                                                explain = '- (Both)'
+                                            elif is_lower_placement and not is_upper_placement:
+                                                explain = '- (Lower)'
+                                            elif is_upper_placement and not is_lower_placement:
+                                                explain = '- (Upper)'
+                                            col_5.label(text=f'Placement {explain}')
+                                            if width_in != 18:
+                                                col_5.prop(self,f'insert_placement_x_{i}',text="")
+                                            if depth_in > 16:
+                                                col_5.prop(self,f'insert_placement_y_{i}',text="")
+                                    elif is_dbl_jwl and jwlry_ins and width_in >= 21 and width_in < 24 and not has_sld_ins:
+                                        exec(f'self.jewelry_insert_type_{i} = common_lists.JEWELRY_TYPE_OPTIONS[0][0]')
+                                        # These are the options from
+                                        # JEWELRY_INSERTS_VELVET_LINERS_21IN_OPTIONS
+                                        velvet_options = [5,6,7]
+                                        placement_options = [1,2,3,4]
+                                        upper_chosen_insert = self.assembly.get_prompt(
+                                            f'Upper Jewelry Insert Velvet Liner 21in {i}').get_value()
+                                        lower_chosen_insert = self.assembly.get_prompt(
+                                            f'Lower Jewelry Insert Velvet Liner 21in {i}').get_value()
+                                        is_upper_velvet = upper_chosen_insert in velvet_options
+                                        is_lower_velvet = lower_chosen_insert in velvet_options
+                                        is_upper_placement = upper_chosen_insert in placement_options
+                                        is_lower_placement = lower_chosen_insert in placement_options
+                                        any_placement = is_upper_placement or is_lower_placement
+                                        col_4.label(text=f'Upper Jewelry Insert')
+                                        col_4.prop(self,f'upper_jewelry_insert_velvet_liner_21in_{i}',text="")
+                                        col_4.label(text=f'Lower Jewelry Insert')
+                                        col_4.prop(self,f'lower_jewelry_insert_velvet_liner_21in_{i}',text="")
+                                        if (width_in != 21 or depth_in > 16) and any_placement:
+                                            col_5 = row.column(align=True)
+                                            explain = ''
+                                            if is_upper_placement and is_lower_placement:
+                                                explain = '- (Both)'
+                                            elif is_lower_placement and not is_upper_placement:
+                                                explain = '- (Lower)'
+                                            elif is_upper_placement and not is_lower_placement:
+                                                explain = '- (Upper)'
+                                            col_5.label(text=f'Placement {explain}')
+                                            if width_in != 21:
+                                                col_5.prop(self,f'insert_placement_x_{i}',text="")
+                                            if depth_in > 16:
+                                                col_5.prop(self,f'insert_placement_y_{i}',text="")
+                                    elif is_dbl_jwl and jwlry_ins and width_in >= 24 and not has_sld_ins:
+                                        exec(f'self.jewelry_insert_type_{i} = common_lists.JEWELRY_TYPE_OPTIONS[0][0]')
+                                        # These are the options from
+                                        # JEWELRY_INSERTS_VELVET_LINERS_24IN_OPTIONS
+                                        velvet_options = [5,6,7]
+                                        placement_options = [1,2,3,4]
+                                        upper_chosen_insert = self.assembly.get_prompt(
+                                            f'Upper Jewelry Insert Velvet Liner 24in {i}').get_value()
+                                        lower_chosen_insert = self.assembly.get_prompt(
+                                            f'Lower Jewelry Insert Velvet Liner 24in {i}').get_value()
+                                        is_upper_velvet = upper_chosen_insert in velvet_options
+                                        is_lower_velvet = lower_chosen_insert in velvet_options
+                                        is_upper_placement = upper_chosen_insert in placement_options
+                                        is_lower_placement = lower_chosen_insert in placement_options
+                                        any_placement = is_upper_placement or is_lower_placement
+                                        col_4.label(text=f'Upper Jewelry Insert')
+                                        col_4.prop(self,f'upper_jewelry_insert_velvet_liner_24in_{i}',text="")
+                                        col_4.label(text=f'Lower Jewelry Insert')
+                                        col_4.prop(self,f'lower_jewelry_insert_velvet_liner_24in_{i}',text="")
+                                        if (width_in != 24 or depth_in > 16) and any_placement:
+                                            col_5 = row.column(align=True)
+                                            explain = ''
+                                            if is_upper_placement and is_lower_placement:
+                                                explain = '- (Both)'
+                                            elif is_lower_placement and not is_upper_placement:
+                                                explain = '- (Lower)'
+                                            elif is_upper_placement and not is_lower_placement:
+                                                explain = '- (Upper)'
+                                            col_5.label(text=f'Placement {explain}')
+                                            if width_in != 24:
+                                                col_5.prop(self,f'insert_placement_x_{i}',text="")
+                                            if depth_in > 16:
+                                                col_5.prop(self,f'insert_placement_y_{i}',text="")
 
+                        if(drawer_height):
+                            velvet_depth = 16
+                            non_std_heights = drw_H == f4H or drw_H == f5H or drw_H == f6H
+                            not_dbl_drw = not use_double_drawer.get_value()
+                            width_metric = self.assembly.obj_x.location.x
+                            depth_metric = self.assembly.obj_y.location.y
+                            width_in = round(
+                                sn_unit.meter_to_inch(width_metric), 1)
+                            depth_in = round(
+                                sn_unit.meter_to_inch(depth_metric), 1)
+                            # Height Checks
+                            std_height = drw_H == f6H or drw_H == f5H
+                            std_widths = width_in in [18, 21, 24]
+                            is_std_opng = std_height and std_widths and depth_in >= 16
+                            non_std_jwlry_ins = not is_std_opng and depth_in >= 16 and non_std_heights
+                            non_std_velvet = not is_std_opng and depth_in < 16 and non_std_heights
+                            velvet = depth_in < velvet_depth
+                            jwlry_ins = depth_in >= velvet_depth                            
+                            if not is_dbl_jwl and non_std_heights:
+                                col_3 = row.column(align=True)
+                                col_3.label(text='Jewelry Insert')
+                                col_3.prop(self,f'has_jewelry_insert_{i}',text="")
+                            if is_std_opng and not is_dbl_jwl:
+                                if 24 >= depth_in >= 16:
+                                    col_3.label(text='Sliding Insert')
+                                    col_3.prop(self,f'has_sliding_insert_{i}',text="")
+                                if not_dbl_drw and width_in == 18:
+                                    exec(f'self.jewelry_insert_type_{i} = common_lists.JEWELRY_TYPE_OPTIONS[1][0]')
+                                    col_4 = row.column(align=True)
+                                    if has_jwl_ins:
+                                        col_4.label(text='Jewelry Insert')
+                                        col_4.prop(self,f'jewelry_insert_18in_{i}',text="")
+                                    if has_sld_ins:
+                                        col_4.label(text='Sliding Insert')
+                                        col_4.prop(self,f'sliding_insert_18in_{i}',text="")
+                                    if depth_in > 16 and (has_jwl_ins or has_sld_ins):
+                                        col_5 = row.column(align=True)
+                                        col_5.label(text='Placement')
+                                        col_5.prop(self,f'insert_placement_y_{i}',text="")
+                                elif not_dbl_drw and width_in == 21:
+                                    exec(f'self.jewelry_insert_type_{i} = common_lists.JEWELRY_TYPE_OPTIONS[1][0]')
+                                    col_4 = row.column(align=True)
+                                    if has_jwl_ins:
+                                        col_4.label(text='Jewelry Insert')
+                                        col_4.prop(self,f'jewelry_insert_21in_{i}',text="")
+                                    if has_sld_ins:
+                                        col_4.label(text='Sliding Insert')
+                                        col_4.prop(self,f'sliding_insert_21in_{i}',text="")
+                                    if depth_in > 16 and (has_jwl_ins or has_sld_ins):
+                                        col_5 = row.column(align=True)
+                                        col_5.label(text='Placement')
+                                        col_5.prop(self,f'insert_placement_y_{i}',text="")
+                                elif not_dbl_drw and width_in == 24:
+                                    exec(f'self.jewelry_insert_type_{i} = common_lists.JEWELRY_TYPE_OPTIONS[1][0]')
+                                    col_4 = row.column(align=True)
+                                    if has_jwl_ins:
+                                        col_4.label(text='Jewelry Insert')
+                                        col_4.prop(self,f'jewelry_insert_24in_{i}',text="")
+                                    if has_sld_ins:
+                                        col_4.label(text='Sliding Insert')
+                                        col_4.prop(self,f'sliding_insert_24in_{i}',text="")
+                                    if depth_in > 16 and (has_jwl_ins or has_sld_ins):
+                                        col_5 = row.column(align=True)
+                                        col_5.label(text='Placement')
+                                        col_5.prop(self,f'insert_placement_y_{i}',text="")
+                            elif non_std_jwlry_ins and not non_std_velvet:
+                                if not_dbl_drw and depth_in >= 16 and width_in >= 18 and width_in < 21 and has_jwl_ins:
+                                    exec(f'self.jewelry_insert_type_{i} = common_lists.JEWELRY_TYPE_OPTIONS[2][0]')
+                                    col_4 = row.column(align=True)
+                                    col_4.label(text='Jewelry Insert')
+                                    col_4.prop(self,f'lower_jewelry_insert_velvet_liner_18in_{i}',text="")
+                                    chosen_insert = self.assembly.get_prompt(
+                                        f'Lower Jewelry Insert Velvet Liner 18in {i}').get_value()
+                                    # These are the options from
+                                    # JEWELRY_INSERTS_VELVET_LINERS_18IN_OPTIONS
+                                    if chosen_insert == 0:
+                                        exec(f'self.lower_jewelry_insert_velvet_liner_18in_{i} = \'1\' ')
+                                        chosen_insert = 1
+                                    if chosen_insert in [1, 2, 3]:
+                                        col_5 = row.column(align=True)
+                                        if not std_widths or depth_in > 16:
+                                            col_5.label(text='Placement')
+                                        if not std_widths:
+                                            col_5.prop(self,f'insert_placement_x_{i}',text="")
+                                        if depth_in > 16:
+                                            col_5.prop(self,f'insert_placement_y_{i}',text="")
+                                elif not_dbl_drw and depth_in >= 16 and width_in >= 21 and width_in < 24 and has_jwl_ins:
+                                    exec(f'self.jewelry_insert_type_{i} = common_lists.JEWELRY_TYPE_OPTIONS[2][0]')
+                                    col_4 = row.column(align=True)
+                                    col_4.label(text='Jewelry Insert')
+                                    col_4.prop(self,f'lower_jewelry_insert_velvet_liner_21in_{i}',text="")
+                                    chosen_insert = self.assembly.get_prompt(
+                                        f'Lower Jewelry Insert Velvet Liner 21in {i}').get_value()
+                                    # These are the options from
+                                    # JEWELRY_INSERTS_VELVET_LINERS_21IN_OPTIONS
+                                    if chosen_insert == 0:
+                                        exec(f'self.lower_jewelry_insert_velvet_liner_21in_{i} = \'1\' ')
+                                        chosen_insert = 1
+                                    if chosen_insert in [1, 2, 3, 4]:
+                                        col_5 = row.column(align=True)
+                                        if not std_widths or depth_in > 16:
+                                            col_5.label(text='Placement')
+                                        if not std_widths:
+                                            col_5.prop(self,f'insert_placement_x_{i}',text="")
+                                        if depth_in > 16:
+                                            col_5.prop(self,f'insert_placement_y_{i}',text="")
+                                elif not_dbl_drw and depth_in >= 16 and width_in >= 24 and has_jwl_ins:
+                                    exec(f'self.jewelry_insert_type_{i} = common_lists.JEWELRY_TYPE_OPTIONS[2][0]')
+                                    col_4 = row.column(align=True)
+                                    col_4.label(text='Jewelry Insert')
+                                    col_4.prop(self,f'lower_jewelry_insert_velvet_liner_24in_{i}',text="")
+                                    chosen_insert = self.assembly.get_prompt(
+                                        f'Lower Jewelry Insert Velvet Liner 24in {i}').get_value()
+                                    # These are the options from
+                                    # JEWELRY_INSERTS_VELVET_LINERS_24IN_OPTIONS
+                                    if chosen_insert == 0:
+                                        exec(f'self.lower_jewelry_insert_velvet_liner_24in_{i} = \'1\' ')
+                                        chosen_insert = 1
+                                    if chosen_insert in [1, 2, 3, 4]:
+                                        col_5 = row.column(align=True)
+                                        if not std_widths or depth_in > 16:
+                                            col_5.label(text='Placement')
+                                        if not std_widths:
+                                            col_5.prop(self,f'insert_placement_x_{i}',text="")
+                                        if depth_in > 16:
+                                            col_5.prop(self,f'insert_placement_y_{i}',text="")
+                            elif has_jwl_ins and not_dbl_drw and non_std_velvet:
+                                exec(f'self.jewelry_insert_type_{i} = common_lists.JEWELRY_TYPE_OPTIONS[3][0]')
+                                col_4 = row.column(align=True)
+                                col_4.label(text=f'Velvet Liner')
+                                col_4.prop(self,f'velvet_liner_{i}',text="")
+        
                         if(drawer_height.get_value() >= large_drawer_face.get_value() and (width >= letter or depth >= letter)):
                             col_3 = row.column(align=True)
                             col_3.prop(use_file_rail, "checkbox_value", text="File Rail")
@@ -1348,7 +2334,13 @@ class PROMPTS_Drawer_Prompts(sn_types.Prompts_Interface):
                     row = propbox.row()
                     column_1 = row.column()
                     column_1.label(text="Slide Type")
-                    column_1.prop(self, "slide_type", text="")
+                    if use_dovetail_drawer:
+                        if use_dovetail_drawer.get_value():
+                            column_1.prop(self, "slide_type", text="")
+                        else:
+                            column_1.label(text="Sidemount")
+                    else:
+                        column_1.label(text="Sidemount")
                     column_2 = row.column()
 
                     if self.slide_type == '0':
@@ -1364,6 +2356,7 @@ class PROMPTS_Drawer_Prompts(sn_types.Prompts_Interface):
 class OPS_Drawer_Drop(Operator, PlaceClosetInsert):
     bl_idname = "sn_closets.insert_drawer_drop"
     bl_label = "Custom drag and drop for drawers insert"
+    adjacent_cant_be_deeper = True
     
     def execute(self, context):
         return super().execute(context)

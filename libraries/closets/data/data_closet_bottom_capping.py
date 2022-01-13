@@ -21,7 +21,7 @@ class Bottom_Capping(sn_types.Assembly):
     id_prompt = "sn_closets.bottom_capping"
     drop_id = "sn_closets.bottom_capping_drop"
     show_in_library = True
-    category_name = "Closet Products - Basic"
+    category_name = "Products - Basic"
     mirror_y = True
     max_chamfer_prompts = None
 
@@ -222,6 +222,7 @@ class DROP_OPERATOR_Place_Bottom_Capping(Operator, PlaceClosetInsert):
 
     def execute(self, context):
         self.bottom_capping = self.asset
+        self.objects = [obj for obj in context.visible_objects if obj.parent and obj.parent.sn_closets.is_panel_bp]
         return super().execute(context)
 
     def modal(self, context, event):

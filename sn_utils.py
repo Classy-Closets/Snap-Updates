@@ -122,6 +122,15 @@ def get_part_thickness(obj):
             for child in obj.parent.children:
                 if 'obj_z' in child:
                     return math.fabs(child.location.z)
+        
+        if obj.parent.get("IS_BP_DRAWER_BOTTOM"):
+            parent_assembly = sn_types.Assembly(obj.parent)
+            dovetail = parent_assembly.get_prompt("Use Dovetail Construction")
+            if dovetail:
+                if dovetail.get_value():
+                    for child in obj.parent.children:
+                        if 'obj_z' in child:
+                            return math.fabs(child.location.z)
 
         if obj.parent.get("IS_COVER_CLEAT"):
             cover_cleat = sn_types.Assembly(obj.parent)
@@ -135,11 +144,28 @@ def get_part_thickness(obj):
             else:
                 return math.fabs(sn_unit.inch(0.75))
 
+        if obj.parent.get("IS_SHELF"):
+            closet_materials = bpy.context.scene.closet_materials
+            mat_type = closet_materials.materials.get_mat_type()
+            if mat_type.name == "Garage Material":
+                if obj.snap.type_mesh == 'CUTPART':
+                    for child in obj.parent.children:
+                        if 'obj_z' in child:
+                            print("Returning Garage Shelf Thickness")
+                            return math.fabs(child.location.z)
+
     if obj.snap.type_mesh == 'CUTPART':
         spec_group = bpy.context.scene.snap.spec_groups[obj.snap.spec_group_index]
         if obj.snap.cutpart_name in spec_group.cutparts:
+            print('using cutpart thickness')
+            print(spec_group.cutparts[obj.snap.cutpart_name].thickness)
             return spec_group.cutparts[obj.snap.cutpart_name].thickness
         else:
+            # For whatever reason, no matter the thickness I try to set crown molding to
+            # it says the the obj_z.location.z = like 83", so this is the temporary work
+            # around
+            if obj.sn_closets.is_crown_molding:
+                return sn_unit.inch(0.625)
             if obj.parent:
                 for child in obj.parent.children:
                     if 'obj_z' in child:
@@ -370,6 +396,17 @@ def assign_materials_from_pointers(obj):
             material = get_material(slot.category_name, slot.item_name)
 
             if material:
+                if obj.snap.material_mapping == 'UV':
+                    uv_mat_name = "{}_uv".format(material.name)
+                    if uv_mat_name in bpy.data.materials:
+                        material = bpy.data.materials[uv_mat_name]
+                    else:
+                        node_group = material.node_tree.nodes.get("Group")
+                        if node_group and "Box Mapping" in node_group.node_tree.name:
+                            mode_input = node_group.inputs.get("Mode (Object=1; UV=0)")
+                            mode_input.default_value = 0
+                        material.name += "_uv"
+                        # pass
                 obj.material_slots[index].material = material
 
     obj.display_type = 'TEXTURED'
@@ -1898,7 +1935,13 @@ def draw_object_data(layout, obj):
         col.prop(bpy.context.scene.render, "film_transparent", text="Transparent Film")
         col.prop(bpy.context.space_data, "lock_camera")
 
+
 # -------DRIVER FUNCTIONS
+
+def update_obj_driver_expressions(obj):
+    for f_curve in obj.animation_data.drivers:
+        exp = f_curve.driver.expression
+        f_curve.driver.expression = exp
 
 
 def get_driver(obj, data_path, array_index):
@@ -2161,3 +2204,9 @@ def update_accordions_prompt():
     acc_props.break_width = 450
     acc_props.intermediate_space = longest_wall_inches
     acc_props.intermediate_qty = walls_qty
+
+
+def set_prompt_if_exists(assembly, prompt_name, value):
+    prompt = assembly.get_prompt(prompt_name)
+    if prompt:
+        prompt.set_value(value)

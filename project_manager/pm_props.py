@@ -17,24 +17,20 @@ def update_project_props(self, context):
     self.modify_project_file()
 
 
-def make_new_name(path, category, new_name):
-    return path + "\\" + category + "_" + new_name + ".blend"
+def make_new_name(path, new_name):
+    return path + "\\" + new_name + ".blend"
 
 
 def rename_room_callback(self, context):
     if self.file_path:
         curr_opnd_file = bpy.data.filepath
-        has_opnd_file = curr_opnd_file != ""
-        if not has_opnd_file:
-            return
         new_room_name = self.name
         ccp_file = ""
         old_bl_path = str(self.file_path)
         new_bl_path = ""
-
         props = bpy.context.window_manager.sn_project
-
         proj = props.projects[props.project_index]
+
         for room in proj.rooms:
             ccp_file = str(proj.file_path)
             if room.file_path == self.file_path and ccp_file != "":
@@ -42,25 +38,23 @@ def rename_room_callback(self, context):
                 xml_root = xml_tree.getroot()
                 for element in xml_root.findall('Rooms'):
                     for element_room in list(element):
-                        if element_room.attrib["path"] == old_bl_path:
+                        rel_path = os.path.join(*old_bl_path.split(os.sep)[-2:])
+                        if element_room.attrib["path"] == rel_path:
                             old_room = element_room.attrib["name"]
-                            category = element_room.attrib["category"]
                             renaming = old_room != new_room_name
                             is_opnd_room = old_room in curr_opnd_file
                             if renaming:
                                 element_room.attrib["name"] = new_room_name
                                 element_room.text = new_room_name
-                                new_bl_path = make_new_name(
-                                    proj.dir_path, category, new_room_name
-                                )
-                                element_room.attrib["path"] = new_bl_path
+                                new_bl_path = make_new_name(proj.dir_path, new_room_name)
+                                new_rel_bl_path = os.path.join(*new_bl_path.split(os.sep)[-2:])
+                                element_room.attrib["path"] = new_rel_bl_path
                                 xml_tree.write(ccp_file)
                                 copyfile(old_bl_path, new_bl_path)
                                 if is_opnd_room:
                                     bpy.ops.project_manager.open_room(file_path=new_bl_path)
                                 else:
-                                    room.file_path = new_bl_path
-
+                                    room.file_path = new_rel_bl_path
                                 os.remove(old_bl_path)
                                 return
 
@@ -120,14 +114,14 @@ class Room(PropertyGroup, CollectionMixIn):
     file_path: StringProperty(name="Room Filepath", default="", subtype='FILE_PATH')
     selected: BoolProperty(name="Room Selected", default=False)
 
-    def init(self, name, category, path=None, project_index=None):
+    def init(self, name, path=None, project_index=None):
         wm = bpy.context.window_manager.sn_project
         # On initial load, project index won't work.
         col = wm.projects[project_index or wm.project_index].rooms
         super().init(col, name=name)
 
         # Set file name
-        self.file_name = self.get_clean_name(category + "_" + self.name)
+        self.file_name = self.get_clean_name(self.name)
 
         if path:
             self.file_path = path
@@ -150,7 +144,7 @@ class Room(PropertyGroup, CollectionMixIn):
             for elm in root.findall("Rooms"):
                 # we want to save using relative path
                 rel_loc = os.path.join(*self.file_path.split(os.sep)[-2:])
-                elm_room = ET.Element("Room", {'name': self.name, 'category': category, 'path': rel_loc})
+                elm_room = ET.Element("Room", {'name': self.name, 'path': rel_loc})
                 elm_room.text = self.name
                 elm.append(elm_room)
 
@@ -358,11 +352,16 @@ class Project(PropertyGroup, CollectionMixIn):
         active_room_path = self.rooms[self.room_index].file_path
         col = layout.column(align=True)
         col.template_list("SNAP_UL_Rooms", "", self, "rooms", self, "room_index", maxrows=5)
-        row = col.row(align=True)
+        row = col.split(factor=0.5)
         row.operator(
             "project_manager.open_room",
             text="Open Room",
             icon='FILE_TICK').file_path = active_room_path
+
+        row.operator(
+            "product_manager.copy_room",
+            text="Copy Room",
+            icon='PACKAGE').file_path = active_room_path
 
     def draw_render_info(self, layout):
         box = layout.box()
@@ -376,11 +375,11 @@ class Project(PropertyGroup, CollectionMixIn):
 
     def add_room(self, name, category, project_index=None):
         room = self.rooms.add()
-        room.init(name, category, project_index=project_index)
+        room.init(name, project_index=project_index)
 
-    def add_room_from_file(self, name, category, path, project_index=None):
+    def add_room_from_file(self, name, path, project_index=None):
         room = self.rooms.add()
-        room.init(name, category, path, project_index=project_index)
+        room.init(name, path, project_index=project_index)
 
 
 class WM_PROPERTIES_Projects(PropertyGroup):

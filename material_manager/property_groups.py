@@ -115,7 +115,7 @@ class Edges(PropertyGroup):
     def set_type_index(self, index):
         scene_props = bpy.context.scene.closet_materials
         scene_props.edge_type_index = index
-        scene_props.edge_color_index = 0
+        scene_props.set_default_edge_color()
 
     def get_edge_type(self):
         scene_props = bpy.context.scene.closet_materials
@@ -182,7 +182,7 @@ class DoorDrawerEdges(PropertyGroup):
     def set_type_index(self, index):
         scene_props = bpy.context.scene.closet_materials
         scene_props.door_drawer_edge_type_index = index
-        scene_props.door_drawer_edge_color_index = 0
+        scene_props.set_default_door_drawer_edge_color()
 
     def get_edge_type(self):
         scene_props = bpy.context.scene.closet_materials
@@ -249,7 +249,7 @@ class SecondaryEdges(PropertyGroup):
     def set_type_index(self, index):
         scene_props = bpy.context.scene.closet_materials
         scene_props.secondary_edge_type_index = index
-        scene_props.secondary_edge_color_index = 0
+        scene_props.set_default_secondary_edge_color()
 
     def get_edge_type(self):
         scene_props = bpy.context.scene.closet_materials
@@ -306,7 +306,10 @@ class MaterialType(PropertyGroup):
 
         row = layout.row()
         split = row.split(factor=0.25)
-        split.label(text="Color:")            
+        if self.name == "Garage Material":
+            split.label(text="Exterior Color:")   
+        else:
+            split.label(text="Color:")            
         split.menu(
             "SNAP_MATERIAL_MT_Mat_Colors",
             text=color.name,
@@ -335,11 +338,13 @@ class Materials(PropertyGroup):
     textured_mel_color_list = []
     mel_color_list = []
     veneer_backing_color_list = []
+    garage_mat_color_list = []
 
     def create_color_lists(self):
         self.textured_mel_color_list.clear()
         self.mel_color_list.clear()
         self.veneer_backing_color_list.clear()
+        self.garage_mat_color_list.clear()
 
         for mat_type in self.mat_types:
             if mat_type.name == 'Textured Melamine':
@@ -353,11 +358,27 @@ class Materials(PropertyGroup):
                 for color in mat_type.colors:
                     if (color.name, color.name, color.name) not in self.veneer_backing_color_list:
                         self.veneer_backing_color_list.append((color.name, color.name, color.name))
+            if mat_type.name == 'Garage Material':
+                for color in mat_type.colors:
+                    self.garage_mat_color_list.append((color.name, color.name, color.name))
 
     def set_type_index(self, index):
+        defaults = bpy.context.scene.sn_closets.closet_defaults
         scene_props = bpy.context.scene.closet_materials
         scene_props.mat_type_index = index
-        scene_props.mat_color_index = 0
+        mat_type = self.get_mat_type()
+        scene_props.set_default_material_color()
+
+        if mat_type.name != "Garage Material":
+            bpy.ops.sn_prompt.update_all_prompts_in_scene(
+                prompt_name='Thick Adjustable Shelves',
+                prompt_type='CHECKBOX',
+                bool_value=False)
+        else:
+            bpy.ops.sn_prompt.update_all_prompts_in_scene(
+                prompt_name='Thick Adjustable Shelves',
+                prompt_type='CHECKBOX',
+                bool_value=defaults.thick_adjustable_shelves)
 
     def get_mat_type(self):
         scene_props = bpy.context.scene.closet_materials
@@ -378,7 +399,10 @@ class Materials(PropertyGroup):
             split = row.split(factor=0.25)
             split.label(text="Type:")
             split.menu('SNAP_MATERIAL_MT_Mat_Types', text=self.get_mat_type().name, icon='RADIOBUT_ON')
-            self.get_mat_type().draw(box) 
+            self.get_mat_type().draw(box)
+            row = box.row()
+            if self.get_mat_type().name == "Garage Material":
+                row.label(text="Garage Color Schemes Come With White Interiors")
 
         else:
             row = box.row()
@@ -396,7 +420,7 @@ class DoorDrawerMaterialType(PropertyGroup):
 
     def get_mat_color(self):
         scene_props = bpy.context.scene.closet_materials
-        return self.colors[scene_props.door_drawer_mat_color_index] 
+        return self.colors[scene_props.door_drawer_mat_color_index]
 
     def get_inventory_material_name(self):
         return "{} {}".format(self.name, self.type_code)
@@ -448,7 +472,7 @@ class DoorDrawerMaterials(PropertyGroup):
     def set_type_index(self, index):
         scene_props = bpy.context.scene.closet_materials
         scene_props.door_drawer_mat_type_index = index
-        scene_props.door_drawer_mat_color_index = 0
+        scene_props.set_default_material_color()
 
     def get_mat_type(self):
         scene_props = bpy.context.scene.closet_materials

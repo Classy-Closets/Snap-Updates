@@ -158,25 +158,25 @@ class SN_PT_UpdaterPanel(bpy.types.Panel):
             snap.bl_info['version'][2]),
             icon='KEYTYPE_JITTER_VEC')
 
-        # bubble_login = get_bubble_login_props()
-        # layout = self.layout.box().column(align=True)
+        bubble_login = get_bubble_login_props()
+        layout = self.layout.box().column(align=True)
 
-        # if bubble_login.bubble_api.is_user_logged():
-        #     login_col = layout.column()
-        #     login_col.label(text='Logged in as: {}'.format(bubble_login.bubble_api.get_user_info()))
-        #     # login_col.operator('wm.bubble_login', text='Logout', icon='FILE_TICK').authenticate = False
-        #     if bubble_login.status:
-        #         layout.prop(bubble_login, 'status', icon=bubble_login.status_type)
-        # else:
-        #     layout.label(text="Login to your account", icon='INFO')
-        #     layout.prop(bubble_login, "email")
-        #     layout.prop(bubble_login, "password")
-        #     ops_row = layout.row()
-        #     ops_row.operator('wm.bubble_login', text='Log in', icon="LINKED").authenticate = True
-        #     if bubble_login.status:
-        #         layout.prop(bubble_login, 'status', icon=bubble_login.status_type)
+        if bubble_login.bubble_api.is_user_logged():
+            login_col = layout.column()
+            login_col.label(text='Logged in as: {}'.format(bubble_login.bubble_api.get_user_info()), icon='KEYTYPE_JITTER_VEC')
+            addon_updater_ops.show_update_status(self, context)
+            addon_updater_ops.update_notice_box_ui(self, context)
 
-        addon_updater_ops.update_notice_box_ui(self, context)
+            if bubble_login.status:
+                layout.prop(bubble_login, 'status', icon=bubble_login.status_type)
+        else:
+            layout.label(text="Login to your account", icon='INFO')
+            layout.prop(bubble_login, "email")
+            layout.prop(bubble_login, "password")
+            ops_row = layout.row()
+            ops_row.operator('wm.bubble_login', text='Log in', icon="LINKED").authenticate = True
+            if bubble_login.status:
+                layout.prop(bubble_login, 'status', icon=bubble_login.status_type)
 
 
 class BubbleLogger(bpy.types.Operator):
@@ -212,25 +212,24 @@ class LoginModal(bpy.types.Operator):
         return {'FINISHED'}
 
     def handle_login(self, r, *args, **kwargs):
-        # browser_props = get_sketchfab_props()
+        settings = addon_updater_ops.get_user_preferences()
+
         if r.status_code == 200:
-        # if r.status_code == 200 and 'access_token' in r.json():
-            # browser_props.skfb_api.access_token = r.json()['access_token']
             login_props = get_bubble_login_props()
-            # login_props.bubble_api.access_token = r.json()['access_token']
             Cache.save_key('username', login_props.email)
-            # Cache.save_key('access_token', login_props.bubble_api.access_token)
+            Cache.save_key('access_token', login_props.bubble_api.access_token)
+            settings.updater_key = r.json()[0]
+
+            # Retrieve access token expiration date
+            # request = urllib.request.Request(url)
+            # request.add_header('Authorization', 'token %s' % self._engine.token)
 
             login_props.bubble_api.build_headers()
             set_login_status('INFO', '')
             login_props.bubble_api.username = login_props.email
-
+            bpy.ops.snap.updater_check_now()
         else:
-            if 'error_description' in r.json():
-                set_login_status('ERROR', 'Failed to authenticate: bad login/password')
-            else:
-                set_login_status('ERROR', 'Failed to authenticate: bad login/password')
-                print('Cannot login.\n {}'.format(r.json()))
+            set_login_status('ERROR', 'Failed to authenticate: bad login/password')
 
         self.is_logging = False
 

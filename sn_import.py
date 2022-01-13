@@ -195,6 +195,60 @@ class SN_DB_OT_Import_Csv(bpy.types.Operator):
             for row in reader:
                 os_colors[row[0]] = row[1]
 
+        # Garage Material Import
+        if mat_type.type_code == 1:
+            self.create_garage_material_color_collection(mat_type)
+        else:
+            rows = sn_db.query_db(
+                "SELECT\
+                    ColorCode,\
+                    DisplayName,\
+                    Description\
+                FROM\
+                    {CCItems}\
+                WHERE\
+                    ProductType IN ('PM','VN') AND\
+                    TypeCode IN ('{type_code}') AND\
+                    Thickness = 0.75 AND\
+                    DisplayName != 'Graphite Spectrum'\
+                ORDER BY\
+                    DisplayName ASC\
+                        ;\
+                ".format(type_code=mat_type.type_code, CCItems="CCItems_" + bpy.context.preferences.addons['snap'].preferences.franchise_location)
+            )
+
+            if len(rows) == 0:
+                color = mat_type.colors.add()
+                color.name = "None"
+                color.color_code = 0
+                color.description = "None"
+
+            for row in rows:
+                type_code = int(row[0])
+                display_name = row[1]
+                description = row[2]
+
+                if display_name not in mat_type.colors:
+                    if self.render_material_exists(display_name):
+                        color = mat_type.colors.add()
+                        color.name = display_name
+                        color.color_code = int(type_code)
+                        color.description = description
+                        color.check_render_material()
+
+                    elif display_name not in self.missing_render_mats:
+                        self.missing_render_mats.append(display_name)
+
+    def create_garage_material_color_collection(self, mat_type):
+        os_colors = {}
+
+        with open(sn_paths.OS_MAT_COLORS_CSV_PATH) as os_mat_colors_file:
+            reader = csv.reader(os_mat_colors_file, delimiter=',')
+            next(reader)
+
+            for row in reader:
+                os_colors[row[0]] = row[1]
+
         rows = sn_db.query_db(
             "SELECT\
                 ColorCode,\
@@ -203,13 +257,13 @@ class SN_DB_OT_Import_Csv(bpy.types.Operator):
             FROM\
                 {CCItems}\
             WHERE\
-                ProductType IN ('PM','VN') AND\
-                TypeCode IN ('{type_code}') AND\
+                ProductType IN ('PM') AND\
+                Description LIKE 'DURA WHT%' AND\
                 Thickness = 0.75\
             ORDER BY\
                 DisplayName ASC\
                     ;\
-            ".format(type_code=mat_type.type_code, CCItems="CCItems_" + bpy.context.preferences.addons['snap'].preferences.franchise_location)
+            ".format(CCItems="CCItems_" + bpy.context.preferences.addons['snap'].preferences.franchise_location)
         )
 
         if len(rows) == 0:
@@ -231,6 +285,39 @@ class SN_DB_OT_Import_Csv(bpy.types.Operator):
                     color.description = description
                     color.check_render_material()
 
+                elif display_name not in self.missing_render_mats:
+                    self.missing_render_mats.append(display_name)
+
+        rows = sn_db.query_db(
+            "SELECT\
+                ColorCode,\
+                DisplayName,\
+                Description\
+            FROM\
+                {CCItems}\
+            WHERE\
+                ProductType IN ('PM') AND\
+                DisplayName LIKE 'Oxford White' AND\
+                Thickness = 0.75 AND\
+                TypeCode = 15200\
+            ORDER BY\
+                DisplayName ASC\
+                    ;\
+            ".format(CCItems="CCItems_" + bpy.context.preferences.addons['snap'].preferences.franchise_location)
+        )
+        for row in rows:
+            type_code = int(row[0])
+            display_name = row[1]
+            description = row[2]
+
+            if display_name not in mat_type.colors:
+                if self.render_material_exists(display_name):
+                    print("Adding Oxford White to Garage Material List")
+                    color = mat_type.colors.add()
+                    color.name = display_name
+                    color.color_code = int(type_code)
+                    color.description = description
+                    color.check_render_material()
                 elif display_name not in self.missing_render_mats:
                     self.missing_render_mats.append(display_name)
 

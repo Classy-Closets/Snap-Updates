@@ -14,11 +14,15 @@ CORE = ("Wood Core", "PB")
 MODERNO_DOOR = ("Closet Materials", "U Cannes")
 HANGER_WOOD = ("Wood Finished", "Craft Oak")
 BLACK_MATERIAL = ("Finished Metals", "Black Anodized Metal")
+STEEL_MATERIAL = ("Finished Metals", "Brushed Nickel")
 NICKEL_MATERIAL = ("Finished Metals", "Matte Nickel")
 ALUMINUM_MATERIAL = ("Finished Metals", "Aluminum")
 GOLD_MATERIAL = ("Finished Metals", "Matte Gold")
 SLATE_MATERIAL = ("Finished Metals", "Gray Anodized Metal")
 WHITE = ("Closet Materials", "Oxford White")
+
+EXPOSED_INTERIOR_MATERIAL = ("Closet Materials", "Oxford White")
+EXPOSED_EXTERIOR_MATERIAL = ("Closet Materials", "Duraply Almond")
 
 
 class Material_Pointers():
@@ -43,6 +47,7 @@ class Material_Pointers():
     Mirror = sn_types.Material_Pointer(MIRROR_MATERIAL)
     Chrome = sn_types.Material_Pointer(CHROME_MATERIAL)
     Black = sn_types.Material_Pointer(BLACK_MATERIAL)
+    Steel = sn_types.Material_Pointer(STEEL_MATERIAL)
     Nickel = sn_types.Material_Pointer(NICKEL_MATERIAL)
     Gold = sn_types.Material_Pointer(GOLD_MATERIAL)
     Slate = sn_types.Material_Pointer(SLATE_MATERIAL)
@@ -52,6 +57,12 @@ class Material_Pointers():
     Core = sn_types.Material_Pointer(CORE)
     Entry_Door_Surface = sn_types.Material_Pointer(WHITE)
     Window_Frame_Surface = sn_types.Material_Pointer(WHITE)
+
+    # Garage pointers
+    Garage_Interior_Surface = sn_types.Material_Pointer(EXPOSED_INTERIOR_MATERIAL)
+    Garage_Exterior_Surface = sn_types.Material_Pointer(EXPOSED_EXTERIOR_MATERIAL)
+    Garage_Panel_Edges = sn_types.Material_Pointer(EXPOSED_EXTERIOR_MATERIAL)
+    Garage_Interior_Edges = sn_types.Material_Pointer(EXPOSED_INTERIOR_MATERIAL)
 
 
 class Cutpart_Pointers():
@@ -134,13 +145,82 @@ class Cutpart_Pointers():
     Hanging_Rail = sn_types.Cutpart_Pointer(thickness=sn_unit.inch(.75),
                                             core="Chrome",
                                             top="Chrome",
-                                            bottom="Chrome")
+                                            bottom="Chrome")    
+
+    Garage_Mid_Panel = sn_types.Cutpart_Pointer(
+        thickness=sn_unit.inch(.75),
+        core="Core",
+        top="Garage_Interior_Surface",
+        bottom="Garage_Interior_Surface")
+
+    Garage_End_Panel = sn_types.Cutpart_Pointer(
+        thickness=sn_unit.inch(.75),
+        core="Core",
+        top="Garage_Interior_Surface",
+        bottom="Garage_Exterior_Surface")
+
+    Garage_Slab_Door = sn_types.Cutpart_Pointer(
+        thickness=sn_unit.inch(.75),
+        core="Core",
+        top="Door_Surface",
+        bottom="Garage_Interior_Surface")
+
+    Garage_Slab_Drawer_Front = sn_types.Cutpart_Pointer(
+        thickness=sn_unit.inch(.75),
+        core="Core",
+        top="Door_Surface",
+        bottom="Garage_Interior_Surface")
+
+    Garage_Bottom_KD = sn_types.Cutpart_Pointer(
+        thickness=sn_unit.inch(.75),
+        core="Core",
+        top="Garage_Interior_Surface",
+        bottom="Garage_Exterior_Surface")
+    
+    Garage_Top_KD = sn_types.Cutpart_Pointer(
+        thickness=sn_unit.inch(.75),
+        core="Core",
+        top="Garage_Exterior_Surface",
+        bottom="Garage_Interior_Surface")
+
+    Garage_Interior_KD = sn_types.Cutpart_Pointer(
+        thickness=sn_unit.inch(.75),
+        core="Core",
+        top="Garage_Interior_Surface",
+        bottom="Garage_Interior_Surface")
+
+    Garage_Interior_Shelf = sn_types.Cutpart_Pointer(
+        thickness=sn_unit.inch(.75),
+        core="Core",
+        top="Garage_Interior_Surface",
+        bottom="Garage_Interior_Surface")
+
+    Garage_Cleat = sn_types.Cutpart_Pointer(
+        thickness=sn_unit.inch(.75),
+        core="Core",
+        top="Garage_Interior_Surface",
+        bottom="Garage_Interior_Surface")
+
+    Garage_Cover_Cleat = sn_types.Cutpart_Pointer(
+        thickness=sn_unit.inch(.375),
+        core="Core",
+        top="Garage_Interior_Surface",
+        bottom="Garage_Interior_Surface")
+
+    Garage_Back = sn_types.Cutpart_Pointer(
+        thickness=sn_unit.inch(.25),
+        core="Core",
+        top="Garage_Interior_Surface",
+        bottom="Garage_Interior_Surface")
 
 
 class Edgepart_Pointers():
 
     Edge = sn_types.Edgepart_Pointer(thickness=sn_unit.inch(.01), material="Closet_Part_Edges")
     Edge_2 = sn_types.Edgepart_Pointer(thickness=sn_unit.inch(.01), material="Closet_Part_Edges_Secondary")
+    Exterior_Edge = sn_types.Edgepart_Pointer(thickness=sn_unit.inch(.01), material="Garage_Panel_Edges")
+    Interior_Edge = sn_types.Edgepart_Pointer(thickness=sn_unit.inch(.01), material="Garage_Interior_Edges")
+    Black_Edge = sn_types.Edgepart_Pointer(thickness=sn_unit.inch(.01), material="Black")
     Door_Edges = sn_types.Edgepart_Pointer(thickness=sn_unit.inch(.01), material="Door_Edge")
     Lucite_Edges = sn_types.Edgepart_Pointer(thickness=sn_unit.inch(.01), material="Lucite")
     Drawer_Box_Edge = sn_types.Edgepart_Pointer(thickness=sn_unit.inch(.01), material="Drawer_Box_Surface")

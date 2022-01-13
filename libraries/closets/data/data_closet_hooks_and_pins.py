@@ -66,6 +66,7 @@ class Belt_Accessories(Accessory):
 
     def update(self):
         super().update()
+
         self.obj_bp["IS_BP_BELT_RACK"] = True
         self.obj_bp["ID_PROMPT"] = 'sn_closets.belt_rack'
 
@@ -86,7 +87,6 @@ class Belt_Accessories(Accessory):
         self.add_prompt('Metal Color', 'COMBOBOX', 0, ['Chrome', 'Matte Aluminum', 'Matte Nickel', 'Matte Gold', 'ORB', 'Slate'])
         self.add_prompt('Synergy Belt Rack Length', 'COMBOBOX', 0, ['12"', '14"'])
         self.add_prompt('Elite Belt Rack Length', 'COMBOBOX', 0, ['12"', '14"', '18"'])
-
         width = self.obj_x.snap.get_var("location.x", 'width')
         height = self.obj_z.snap.get_var("location.z", 'height')
         depth = self.obj_y.snap.get_var("location.y", 'depth')
@@ -100,18 +100,21 @@ class Belt_Accessories(Accessory):
 
         panel = common_parts.add_accessory_panel(self)
         panel.set_name('Accessory Cleat')
+        panel.obj_bp.rotation_euler.x = math.radians(-90)
+
         panel.dim_x('IF(IF(BRC==0,SBRL,EBRL)==0,INCH(12),IF(IF(BRC==0,SBRL,EBRL)==1,INCH(14),INCH(18)))', [SBRL, EBRL, BRC])
-        panel.dim_y('depth', [depth])
-        panel.dim_z('height', [height])
+        panel.dim_z('depth', [depth])
+        panel.dim_y('-height', [height])
         panel.get_prompt('Hide').set_formula('IF(BRC==0,False,True) or Hide', [BRC, self.hide_var])
         panel.cutpart("Panel")
 
         deco_panel = sn_types.Part(self.add_assembly_from_file(DECO_PANEL))
         self.add_assembly(deco_panel)
         deco_panel.set_name('Deco Accessory Cleat')
+        deco_panel.obj_bp.rotation_euler.x = math.radians(-90)
         deco_panel.dim_x('IF(IF(BRC==0,SBRL,EBRL)==0,INCH(12),IF(IF(BRC==0,SBRL,EBRL)==1,INCH(14),INCH(18)))', [SBRL, EBRL, BRC])
-        deco_panel.dim_y('depth', [depth])
-        deco_panel.dim_z('height', [height])
+        deco_panel.dim_z('depth', [depth])
+        deco_panel.dim_y('-height', [height])
         deco_panel.get_prompt('Hide').set_formula('IF(BRC==1,False,True) or Hide', [BRC, self.hide_var])
         deco_panel.cutpart("Panel")
 
@@ -175,18 +178,20 @@ class Tie_Accessories(Accessory):
 
         panel = common_parts.add_accessory_panel(self)
         panel.set_name('Accessory Cleat')
+        panel.obj_bp.rotation_euler.x = math.radians(-90)
         panel.dim_x('IF(IF(TRC==0,STRL,ETRL)==0,INCH(12),IF(IF(TRC==0,STRL,ETRL)==1,INCH(14),INCH(18)))', [STRL, ETRL, TRC])
-        panel.dim_y('depth', [depth])
-        panel.dim_z('height', [height])
+        panel.dim_z('depth', [depth])
+        panel.dim_y('-height', [height])
         panel.get_prompt('Hide').set_formula('IF(TRC==0,False,True) or Hide', [TRC, self.hide_var])
         panel.cutpart("Panel")
 
         deco_panel = sn_types.Part(self.add_assembly_from_file(DECO_PANEL))
         self.add_assembly(deco_panel)
         deco_panel.set_name('Deco Accessory Cleat')
+        deco_panel.obj_bp.rotation_euler.x = math.radians(-90)
         deco_panel.dim_x('IF(IF(TRC==0,STRL,ETRL)==0,INCH(12),IF(IF(TRC==0,STRL,ETRL)==1,INCH(14),INCH(18)))', [STRL, ETRL, TRC])
-        deco_panel.dim_y('depth', [depth])
-        deco_panel.dim_z('height', [height])
+        deco_panel.dim_z('depth', [depth])
+        deco_panel.dim_y('-height', [height])
         deco_panel.get_prompt('Hide').set_formula('IF(TRC==1,False,True) or Hide', [TRC, self.hide_var])
         deco_panel.cutpart("Panel")
 
@@ -260,18 +265,20 @@ class Tie_and_Belt_Accessories(Accessory):
 
         panel = common_parts.add_accessory_panel(self)
         panel.set_name('Accessory Cleat')
+        panel.obj_bp.rotation_euler.x = math.radians(-90)
         panel.dim_x('width', [width])
-        panel.dim_y('depth',[depth])
-        panel.dim_z('height',[height])
+        panel.dim_z('depth',[depth])
+        panel.dim_y('-height',[height])
         panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==0,False,True) or Hide', [Custom_Rack_Style,self.hide_var])
         panel.cutpart("Panel")
 
         deco_panel = sn_types.Part(self.add_assembly_from_file(DECO_PANEL))
         self.add_assembly(deco_panel)
         deco_panel.set_name('Deco Accessory Cleat')
+        deco_panel.obj_bp.rotation_euler.x = math.radians(-90)
         deco_panel.dim_x('width', [width])
-        deco_panel.dim_y('depth',[depth])
-        deco_panel.dim_z('height',[height])
+        deco_panel.dim_z('depth',[depth])
+        deco_panel.dim_y('-height',[height])
         deco_panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==1,False,True) or Hide', [Custom_Rack_Style,self.hide_var])        
         deco_panel.cutpart("Panel")
 
@@ -333,21 +340,22 @@ class Robe_Hook_Accessories(Accessory):
         Hook_Qty = self.get_prompt("Hook Qty").get_var()
         Hook_Offset = self.get_prompt("Hook Offset").get_var()
         Custom_Rack_Style = self.get_prompt("Custom Rack Style").get_var()
-
         panel = common_parts.add_accessory_panel(self)
         panel.set_name('Accessory Cleat')
+        panel.obj_bp.rotation_euler.x = math.radians(-90)
         panel.dim_x('width', [width])
-        panel.dim_y('depth',[depth])
-        panel.dim_z('height',[height])
+        panel.dim_z('depth',[depth])
+        panel.dim_y('-height',[height])
         panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==0,False,True) or Hide', [Custom_Rack_Style,self.hide_var])
         panel.cutpart("Panel")
 
         deco_panel = sn_types.Part(self.add_assembly_from_file(DECO_PANEL))
         self.add_assembly(deco_panel)
         deco_panel.set_name('Deco Accessory Cleat')
+        deco_panel.obj_bp.rotation_euler.x = math.radians(-90)
         deco_panel.dim_x('width', [width])
-        deco_panel.dim_y('depth',[depth])
-        deco_panel.dim_z('height',[height])
+        deco_panel.dim_z('depth',[depth])
+        deco_panel.dim_y('-height',[height])
         deco_panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==1,False,True) or Hide', [Custom_Rack_Style,self.hide_var])        
         deco_panel.cutpart("Panel")
 
@@ -366,7 +374,6 @@ class Robe_Hook_Accessories(Accessory):
             mod, 'constant_offset_displace', 0,
             "width/Hook_Qty", [width, Hook_Qty])
         hook.snap.modifier(mod, 'count', -1, "Hook_Qty", [Hook_Qty])
-
         self.update()
 
 
@@ -398,18 +405,20 @@ class Double_Robe_Hook_Accessories(Accessory):
 
         panel = common_parts.add_accessory_panel(self)
         panel.set_name('Accessory Cleat')
+        panel.obj_bp.rotation_euler.x = math.radians(-90)
         panel.dim_x('width', [width])
-        panel.dim_y('depth', [depth])
-        panel.dim_z('height', [height])
+        panel.dim_z('depth',[depth])
+        panel.dim_y('-height',[height])
         panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==0,False,True) or Hide', [Custom_Rack_Style,self.hide_var])
         panel.cutpart("Panel")
 
         deco_panel = sn_types.Part(self.add_assembly_from_file(DECO_PANEL))
         self.add_assembly(deco_panel)
         deco_panel.set_name('Deco Accessory Cleat')
+        deco_panel.obj_bp.rotation_euler.x = math.radians(-90)
         deco_panel.dim_x('width', [width])
-        deco_panel.dim_y('depth', [depth])
-        deco_panel.dim_z('height', [height])
+        deco_panel.dim_z('depth',[depth])
+        deco_panel.dim_y('-height',[height])
         deco_panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==1,False,True) or Hide', [Custom_Rack_Style,self.hide_var])        
         deco_panel.cutpart("Panel")
 
@@ -460,18 +469,20 @@ class DORB_Hook_Accessories(Accessory):
 
         panel = common_parts.add_accessory_panel(self)
         panel.set_name('Accessory Cleat')
+        panel.obj_bp.rotation_euler.x = math.radians(-90)
         panel.dim_x('width', [width])
-        panel.dim_y('depth', [depth])
-        panel.dim_z('height', [height])
+        panel.dim_z('depth',[depth])
+        panel.dim_y('-height',[height])
         panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==0,False,True) or Hide', [Custom_Rack_Style,self.hide_var])
         panel.cutpart("Panel")
 
         deco_panel = sn_types.Part(self.add_assembly_from_file(DECO_PANEL))
         self.add_assembly(deco_panel)
         deco_panel.set_name('Deco Accessory Cleat')
+        deco_panel.obj_bp.rotation_euler.x = math.radians(-90)
         deco_panel.dim_x('width', [width])
-        deco_panel.dim_y('depth', [depth])
-        deco_panel.dim_z('height', [height])
+        deco_panel.dim_z('depth',[depth])
+        deco_panel.dim_y('-height',[height])
         deco_panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==1,False,True) or Hide', [Custom_Rack_Style,self.hide_var])        
         deco_panel.cutpart("Panel")
 
@@ -522,18 +533,20 @@ class Coat_and_Hat_Hook_Accessories(Accessory):
 
         panel = common_parts.add_accessory_panel(self)
         panel.set_name('Accessory Cleat')
+        panel.obj_bp.rotation_euler.x = math.radians(-90)
         panel.dim_x('width', [width])
-        panel.dim_y('depth',[depth])
-        panel.dim_z('height',[height])
+        panel.dim_z('depth',[depth])
+        panel.dim_y('-height',[height])
         panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==0,False,True) or Hide', [Custom_Rack_Style,self.hide_var])
         panel.cutpart("Panel")
 
         deco_panel = sn_types.Part(self.add_assembly_from_file(DECO_PANEL))
         self.add_assembly(deco_panel)
         deco_panel.set_name('Deco Accessory Cleat')
+        deco_panel.obj_bp.rotation_euler.x = math.radians(-90)
         deco_panel.dim_x('width', [width])
-        deco_panel.dim_y('depth', [depth])
-        deco_panel.dim_z('height', [height])
+        deco_panel.dim_z('depth',[depth])
+        deco_panel.dim_y('-height',[height])
         deco_panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==1,False,True) or Hide', [Custom_Rack_Style,self.hide_var])        
         deco_panel.cutpart("Panel")
 
@@ -714,6 +727,7 @@ class PROMPTS_Accessories(sn_types.Prompts_Interface):
         style = self.product.get_prompt("Custom Rack Style")
         if style:
             self.style_prompt = style
+            self.custom_rack_style = str(style.get_value())
 
     def execute(self, context):
         """ This is called when the OK button is clicked """
@@ -738,9 +752,15 @@ class PROMPTS_Accessories(sn_types.Prompts_Interface):
         Pin_Offset = self.product.get_prompt("Pin Offset")
 
         layout = self.layout
+        row = layout.box()
+        row.label(text="Height")
+        row.prop(self.product.obj_z, 'location', index=2, text="")
+
         box = layout.box()
         self.draw_product_position(box, self.plane)
         self.draw_product_rotation(box, self.plane)
+        
+
         box.label(text=self.product.obj_bp.snap.name_object)
         box.prop(self.product.obj_x, 'location', index=0, text="Width")
 
@@ -892,6 +912,10 @@ class PROMPTS_Belt_Rack_Prompts(sn_types.Prompts_Interface):
         metal_color = self.product.get_prompt("Metal Color")
 
         row = layout.row()
+        row.label(text="Height")
+        row.prop(self.product.obj_z, 'location', index=2, text="")
+
+        row = layout.row()
         row.label(text="Location")
         row.prop(self.product.obj_bp, 'location', index=0, text="")
 
@@ -1028,6 +1052,10 @@ class PROMPTS_Tie_Rack_Prompts(sn_types.Prompts_Interface):
         synergy_tie_rack_length = self.product.get_prompt("Synergy Tie Rack Length")
         elite_tie_rack_length = self.product.get_prompt("Elite Tie Rack Length")
         metal_color = self.product.get_prompt("Metal Color")
+
+        row = layout.row()
+        row.label(text="Height")
+        row.prop(self.product.obj_z, 'location', index=2, text="")
 
         row = layout.row()
         row.label(text="Location")

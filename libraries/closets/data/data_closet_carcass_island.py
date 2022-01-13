@@ -18,7 +18,9 @@ def update_closet_height(self,context):
     '''
     obj_product_bp = sn_utils.get_bp(context.active_object,'PRODUCT')
     product = sn_types.Assembly(obj_product_bp)
+    product.run_all_calculators()
     product.obj_z.location.z = sn_unit.millimeter(float(self.height))
+    product.run_all_calculators()
 
 
 class Closet_Island_Carcass(sn_types.Assembly):
@@ -37,7 +39,7 @@ class Closet_Island_Carcass(sn_types.Assembly):
         super().__init__(obj_bp=obj_bp)
 
         defaults = bpy.context.scene.sn_closets.closet_defaults
-        self.width = sn_unit.inch(18) * self.opening_qty
+        self.width = (sn_unit.inch(24.75) * self.opening_qty) + sn_unit.inch(0.75)
         self.height = sn_unit.millimeter(float(defaults.island_panel_height))
         if self.is_double_sided:
             self.depth = defaults.panel_depth * 2
@@ -59,6 +61,7 @@ class Closet_Island_Carcass(sn_types.Assembly):
         self.add_prompt("No Countertop", 'CHECKBOX', False)
         self.add_prompt("Add TK Skin", 'CHECKBOX', False)
         self.add_prompt("TK Skin Thickness", 'DISTANCE', sn_unit.inch(0.25))
+        self.add_prompt("Material Max Width", 'DISTANCE', sn_unit.inch(48))
 
         if self.is_double_sided:
             self.add_prompt("Depth 1", 'DISTANCE', props.panel_depth)
@@ -81,52 +84,62 @@ class Closet_Island_Carcass(sn_types.Assembly):
         Right_Side_Thickness = self.get_prompt('Right Side Thickness').get_var()
         #Add_Backing = self.get_prompt('Add Backing').get_var()
         Back_Thickness = self.get_prompt('Back Thickness').get_var()
-
         Panel_Thickness = self.get_prompt('Panel Thickness').get_var()
+        Max_Width = self.get_prompt('Material Max Width').get_var("Max_Width")
 
-        left_side = common_parts.add_panel(self)
+        left_side = common_parts.add_panel(self, island_panel=True)
         left_side.obj_bp['PARTITION_NUMBER'] = 0
-        left_side.dim_x('Product_Height',[Product_Height])
-        left_side.dim_y('Product_Depth',[Product_Depth])
-        left_side.dim_z('-Left_Side_Thickness',[Left_Side_Thickness])
-        #left_side.loc_y('IF(Add_Backing,-Panel_Thickness,0)',[Add_Backing,Panel_Thickness])
+        left_side.dim_x('IF(abs(Product_Depth)>Max_Width,-Product_Depth,Product_Height)', [Product_Height, Product_Depth, Max_Width])
+        left_side.dim_y('IF(abs(Product_Depth)>Max_Width,Product_Height,Product_Depth)', [Product_Depth, Product_Height, Max_Width])
+        left_side.dim_z('-Left_Side_Thickness', [Left_Side_Thickness])
         left_side.loc_z('Toe_Kick_Height',[Toe_Kick_Height])
-        left_side.rot_y(value=math.radians(-90))
-                
-        right_side = common_parts.add_panel(self)
-        right_side.obj_bp['PARTITION_NUMBER'] = self.opening_qty
-        right_side.dim_x('Product_Height',[Product_Height])
-        right_side.dim_y('Product_Depth',[Product_Depth])
-        right_side.dim_z('Right_Side_Thickness',[Right_Side_Thickness])
-        right_side.loc_x('Product_Width',[Product_Width])
-        #right_side.loc_y('IF(Add_Backing,-Panel_Thickness,0)',[Add_Backing,Panel_Thickness])
-        right_side.loc_z('Toe_Kick_Height',[Toe_Kick_Height])
-        right_side.rot_y(value=math.radians(-90))
 
-    def add_panel(self,index,previous_panel):                
-        PH = self.obj_z.snap.get_var('location.z','PH')
-        PD = self.obj_y.snap.get_var('location.y','PD')
+        left_side.rot_x("IF(abs(Product_Depth)>Max_Width,radians(90),0)", [Product_Depth, Max_Width])
+        left_side.rot_y("IF(abs(Product_Depth)>Max_Width,0,radians(-90))", [Product_Depth, Max_Width])
+        left_side.rot_z("IF(abs(Product_Depth)>Max_Width,radians(-90),0)", [Product_Depth, Max_Width])
+
+        right_side = common_parts.add_panel(self, island_panel=True)
+        right_side.obj_bp['PARTITION_NUMBER'] = self.opening_qty
+        right_side.dim_x('IF(abs(Product_Depth)>Max_Width,-Product_Depth,Product_Height)', [Product_Height, Product_Depth, Max_Width])
+        right_side.dim_y('IF(abs(Product_Depth)>Max_Width,Product_Height,Product_Depth)', [Product_Depth, Product_Height, Max_Width])
+        right_side.dim_z('Right_Side_Thickness', [Right_Side_Thickness])
+        right_side.loc_x('Product_Width',[Product_Width])
+        right_side.loc_z('Toe_Kick_Height',[Toe_Kick_Height])
+
+        right_side.rot_x("IF(abs(Product_Depth)>Max_Width,radians(90),0)", [Product_Depth, Max_Width])
+        right_side.rot_y("IF(abs(Product_Depth)>Max_Width,0,radians(-90))", [Product_Depth, Max_Width])
+        right_side.rot_z("IF(abs(Product_Depth)>Max_Width,radians(-90),0)", [Product_Depth, Max_Width])
+
+    def add_panel(self,index,previous_panel):
+        PH = self.obj_z.snap.get_var('location.z', 'PH')
+        PD = self.obj_y.snap.get_var('location.y', 'PD')
         width_prompt = eval("self.calculator.get_calculator_prompt('Opening {} Width')".format(str(index - 1)))
-        Width = eval("width_prompt.get_var(self.calculator.name, 'Width')".format(str(index))) 
+        Width = eval("width_prompt.get_var(self.calculator.name, 'Width')".format(str(index)))
+        Max_Width = self.get_prompt('Material Max Width').get_var("Max_Width")
         Panel_Thickness = self.get_prompt('Panel Thickness').get_var()
         Toe_Kick_Height = self.get_prompt('Toe Kick Height').get_var()
-        
-        panel = common_parts.add_panel(self)
+
+        panel = common_parts.add_panel(self, island_panel=True)
+        panel.set_material_pointers("Closet_Part_Edges", "TopBottomEdge")
+
         if previous_panel:
             Prev_Panel_X = previous_panel.obj_bp.snap.get_var("location.x", 'Prev_Panel_X')
             Left_Side_Thickness = self.get_prompt('Left Side Thickness').get_var()
-            panel.loc_x('Prev_Panel_X+Panel_Thickness+Width',[Prev_Panel_X,Panel_Thickness,Width])
+            panel.loc_x('Prev_Panel_X+Panel_Thickness+Width', [Prev_Panel_X, Panel_Thickness, Width])
         else:
             Left_Side_Thickness = self.get_prompt('Left Side Thickness').get_var()
-            panel.loc_x('Left_Side_Thickness+Width+Panel_Thickness',[Left_Side_Thickness,Width,Panel_Thickness])
+            panel.loc_x('Left_Side_Thickness+Width+Panel_Thickness', [Left_Side_Thickness, Width, Panel_Thickness])
 
-        panel.loc_z('Toe_Kick_Height',[Toe_Kick_Height])
-        panel.rot_y(value=math.radians(-90))
-        panel.dim_x('PH',[PH]) 
-        panel.dim_y('PD',[PD])
-        panel.dim_z('Panel_Thickness',[Panel_Thickness])
+        panel.loc_z('Toe_Kick_Height', [Toe_Kick_Height])
+        panel.rot_x("IF(abs(PD)>Max_Width,radians(90),0)", [PD, Max_Width])
+        panel.rot_y("IF(abs(PD)>Max_Width,0,radians(-90))", [PD, Max_Width])
+        panel.rot_z("IF(abs(PD)>Max_Width,radians(-90),0)", [PD, Max_Width])
+        panel.dim_x('IF(abs(PD)>Max_Width,-PD,PH)', [PH, PD, Max_Width])
+        panel.dim_y('IF(abs(PD)>Max_Width,PH,PD)', [PD, PH, Max_Width])
+        panel.dim_z('Panel_Thickness', [Panel_Thickness])
+
         return panel
-        
+
     def add_shelf(self,i,panel,is_top=False,is_rear=False):
         Product_Height = self.obj_z.snap.get_var('location.z','Product_Height')
         Product_Depth = self.obj_y.snap.get_var('location.y','Product_Depth')
@@ -139,6 +152,7 @@ class Closet_Island_Carcass(sn_types.Assembly):
 
         shelf = common_parts.add_shelf(self)
         shelf.get_prompt("Is Locked Shelf").set_value(value=True)
+        shelf.get_prompt("Is Forced Locked Shelf").set_value(value=True)
         if panel:
             X_Loc = panel.obj_bp.snap.get_var('location.x','X_Loc')
             shelf.loc_x('X_Loc', [X_Loc])
@@ -254,13 +268,18 @@ class Closet_Island_Carcass(sn_types.Assembly):
         Back_Thickness = self.get_prompt('Back Thickness').get_var()
         Toe_Kick_Height = self.get_prompt('Toe Kick Height').get_var()
         Panel_Thickness = self.get_prompt('Panel Thickness').get_var()
+        Max_Width = self.get_prompt('Material Max Width').get_var("Max_Width")
         
         backing = common_parts.add_back(self)
         backing.loc_z('Toe_Kick_Height',[Toe_Kick_Height])
-        backing.rot_x(value=math.radians(90))
-        backing.dim_x('Product_Width',[Product_Width])
-        backing.dim_y("Product_Height",[Product_Height])
-        backing.dim_z('-Panel_Thickness',[Panel_Thickness])
+
+        backing.rot_x("IF(Product_Width>Max_Width,radians(90),0)",[Product_Width, Max_Width])
+        backing.rot_y("IF(Product_Width>Max_Width,0,radians(-90))",[Product_Width, Max_Width])
+        backing.rot_z("IF(Product_Width>Max_Width,0,radians(-90))",[Product_Width, Max_Width])
+
+        backing.dim_x("IF(Product_Width>Max_Width,Product_Width,Product_Height)",[Product_Height, Product_Width, Max_Width])
+        backing.dim_y('IF(Product_Width>Max_Width,Product_Height,Product_Width)',[Product_Width, Product_Height, Max_Width])
+        backing.dim_z('IF(Product_Width>Max_Width,-Panel_Thickness,Panel_Thickness)',[Product_Width, Max_Width, Panel_Thickness])
         
     def add_double_sided_back(self,i,panel):
         width_prompt = eval("self.calculator.get_calculator_prompt('Opening {} Width')".format(str(i)))
@@ -271,6 +290,7 @@ class Closet_Island_Carcass(sn_types.Assembly):
         Depth_1 = self.get_prompt('Depth 1').get_var()
         Toe_Kick_Height = self.get_prompt('Toe Kick Height').get_var()
         Panel_Thickness = self.get_prompt('Panel Thickness').get_var()
+        Max_Width = self.get_prompt('Material Max Width').get_var("Max_Width")
         
         if panel:
             X_Loc = panel.obj_bp.snap.get_var('location.x','X_Loc')
@@ -278,12 +298,15 @@ class Closet_Island_Carcass(sn_types.Assembly):
             X_Loc = self.get_prompt('Left Side Thickness').get_var('X_Loc')
             
         backing = common_parts.add_back(self)
-        backing.loc_x('X_Loc',[X_Loc])
+        backing.loc_x('IF(Width>Max_Width,X_Loc,X_Loc+Width)',[X_Loc, Width, Max_Width])
         backing.loc_y('-Depth_1',[Depth_1])
         backing.loc_z('Toe_Kick_Height + Panel_Thickness',[Toe_Kick_Height,Panel_Thickness])
         backing.rot_x(value=math.radians(90))
-        backing.dim_x('Width',[Width])
-        backing.dim_y("Product_Height-(Panel_Thickness*2)",[Product_Height,Panel_Thickness])
+        backing.rot_y("IF(Width>Max_Width,0,radians(-90))", [Width, Max_Width])
+
+        backing.dim_x("IF(Width>Max_Width,Width,Product_Height-(Panel_Thickness*2))", [Product_Height, Panel_Thickness, Width, Max_Width])
+        backing.dim_y('IF(Width>Max_Width,Product_Height-(Panel_Thickness*2),Width)', [Product_Height, Panel_Thickness, Width, Max_Width])
+
         backing.dim_z('Panel_Thickness',[Panel_Thickness])
         
     def add_counter_top(self):
@@ -380,73 +403,83 @@ class Closet_Island_Carcass(sn_types.Assembly):
         toe_kick_front.loc_y('Depth+Toe_Kick_Setback',[Depth,Toe_Kick_Setback])
         toe_kick_front.rot_x(value=math.radians(-90))
         
-        toe_kick = common_parts.add_toe_kick(self)
-        toe_kick.set_name("Toe Kick Back")
+        toe_kick_back = common_parts.add_toe_kick(self)
+        toe_kick_back.set_name("Toe Kick Back")
         if(self.is_double_sided):
-            toe_kick.loc_y('-Toe_Kick_Setback',[Toe_Kick_Setback])
+            toe_kick_back.loc_y('-Toe_Kick_Setback',[Toe_Kick_Setback])
         else:
-            toe_kick.loc_y('Toe_Kick_Thickness',[Toe_Kick_Thickness])
+            toe_kick_back.loc_y('Toe_Kick_Thickness-IF(Add_TK_Skin,TK_Skin_Thickness,0)',[Toe_Kick_Thickness, Add_TK_Skin, TK_Skin_Thickness])
         
-        toe_kick.obj_bp.snap.comment_2 = "1034"
-        toe_kick.dim_x(
+        toe_kick_back.obj_bp.snap.comment_2 = "1034"
+        toe_kick_back.dim_x(
             "IF(Width>INCH(98.25),INCH(96),"+false_exp+")",
             [Width,Toe_Kick_Thickness,Left_Against_Wall,Right_Against_Wall,Add_TK_Skin,TK_Skin_Thickness])
-        toe_kick.dim_y('-Height', [Height])
-        toe_kick.dim_z('-Toe_Kick_Thickness',[Toe_Kick_Thickness])
-        toe_kick.loc_x(
+        toe_kick_back.dim_y('-Height', [Height])
+        toe_kick_back.dim_z('-Toe_Kick_Thickness',[Toe_Kick_Thickness])
+        toe_kick_back.loc_x(
             '(Toe_Kick_Thickness*1.5)+IF(Add_TK_Skin,IF(Left_Against_Wall,0,TK_Skin_Thickness),0)',
             [Toe_Kick_Thickness, Add_TK_Skin, Left_Against_Wall, TK_Skin_Thickness])
-        toe_kick.rot_x(value=math.radians(-90))
+        toe_kick_back.rot_x(value=math.radians(-90))
       
-        
+        # Left end cap
         left_toe_kick = common_parts.add_toe_kick_end_cap(self)
-        if(self.is_double_sided):
-            left_toe_kick.dim_x('-Depth-(Toe_Kick_Setback*2)',[Depth,Toe_Kick_Setback])
-            left_toe_kick.loc_y('-Toe_Kick_Setback',[Toe_Kick_Setback])
+        if self.is_double_sided:
+            left_toe_kick.dim_y('-Depth-(Toe_Kick_Setback*2)',[Depth,Toe_Kick_Setback])
+            left_toe_kick.loc_y('Depth+Toe_Kick_Setback',[Depth, Toe_Kick_Setback])
         else:
-            left_toe_kick.dim_x('-Depth-Toe_Kick_Setback+Toe_Kick_Thickness',[Depth,Toe_Kick_Setback,Toe_Kick_Thickness])
-            left_toe_kick.loc_y('Toe_Kick_Thickness',[Toe_Kick_Thickness])
+            left_toe_kick.dim_y(
+                '-Depth-Toe_Kick_Setback+Toe_Kick_Thickness-IF(Add_TK_Skin,TK_Skin_Thickness,0)',
+                [Depth, Toe_Kick_Setback, Toe_Kick_Thickness, Add_TK_Skin, TK_Skin_Thickness])
+            left_toe_kick.loc_y('Depth+Toe_Kick_Setback',[Depth, Toe_Kick_Setback, TK_Skin_Thickness])
 
-        left_toe_kick.dim_y('-Height',[Height])
+        left_toe_kick.dim_x('-Height',[Height])
         left_toe_kick.dim_z('Toe_Kick_Thickness',[Toe_Kick_Thickness])
         left_toe_kick.loc_x(
             '(Toe_Kick_Thickness/2)+IF(Add_TK_Skin,IF(Left_Against_Wall,0,TK_Skin_Thickness),0)',
             [Toe_Kick_Thickness, Add_TK_Skin, TK_Skin_Thickness, Left_Against_Wall])
-        left_toe_kick.rot_x(value=math.radians(-90))
-        left_toe_kick.rot_z(value=math.radians(-90))        
+        left_toe_kick.rot_y(value=math.radians(90))
         
+        # Right end cap
         right_toe_kick = common_parts.add_toe_kick_end_cap(self)
-        if(self.is_double_sided):
-            right_toe_kick.dim_x('-Depth-(Toe_Kick_Setback*2)',[Depth,Toe_Kick_Setback])
-            right_toe_kick.loc_y('-Toe_Kick_Setback',[Toe_Kick_Setback])
+        if self.is_double_sided:
+            right_toe_kick.loc_y('Depth+Toe_Kick_Setback',[Depth, Toe_Kick_Setback])
+            right_toe_kick.dim_y('-Depth-Toe_Kick_Setback*2',[Depth,Toe_Kick_Setback,Toe_Kick_Thickness])
         else:
-            right_toe_kick.dim_x('-Depth-Toe_Kick_Setback+Toe_Kick_Thickness',[Depth,Toe_Kick_Setback,Toe_Kick_Thickness])
-            right_toe_kick.loc_y('Toe_Kick_Thickness',[Toe_Kick_Thickness])
+            right_toe_kick.loc_y('Depth+Toe_Kick_Setback',[Depth, Toe_Kick_Setback])
+            right_toe_kick.dim_y(
+                '-Depth-Toe_Kick_Setback+Toe_Kick_Thickness-IF(Add_TK_Skin,TK_Skin_Thickness,0)',
+                [Depth, Toe_Kick_Setback, Toe_Kick_Thickness, Add_TK_Skin, TK_Skin_Thickness])
 
-        
-        right_toe_kick.dim_y('Height',[Height])
+        right_toe_kick.dim_x('Height',[Height])
         right_toe_kick.dim_z('Toe_Kick_Thickness',[Toe_Kick_Thickness])
         right_toe_kick.loc_x('IF(Width>INCH(98.25),'
             'INCH(98.25)-(Toe_Kick_Thickness/2)-IF(Add_TK_Skin,IF(Right_Against_Wall,0,TK_Skin_Thickness),0),'
             'Width-(Toe_Kick_Thickness/2)-IF(Add_TK_Skin,IF(Right_Against_Wall,0,TK_Skin_Thickness),0))',
             [Width, Toe_Kick_Thickness, Add_TK_Skin, Right_Against_Wall, TK_Skin_Thickness])
         right_toe_kick.rot_x(value=math.radians(90))
+        right_toe_kick.rot_y(value=math.radians(-90))
         right_toe_kick.rot_z(value=math.radians(-90))
         
         toe_kick_stringer = common_parts.add_toe_kick_stringer(self)
-        toe_kick_stringer.dim_x('IF(Width>INCH(98.25),'
-            'INCH(98.25)-(Toe_Kick_Thickness*3),'
-            'Width-(Toe_Kick_Thickness*3))',[Width,Toe_Kick_Thickness])
+        false_exp =\
+            "Width-(Toe_Kick_Thickness*3)-IF(Add_TK_Skin,IF(Left_Against_Wall,0,TK_Skin_Thickness),0)"+\
+            "-IF(Add_TK_Skin,IF(Right_Against_Wall,0,TK_Skin_Thickness),0)"
+        toe_kick_stringer.dim_x(
+            "IF(Width>INCH(98.25),INCH(96),"+false_exp+")",
+            [Width,Toe_Kick_Thickness,Left_Against_Wall,Right_Against_Wall,Add_TK_Skin,TK_Skin_Thickness])
         toe_kick_stringer.dim_y('Cleat_Width',[Cleat_Width])
         toe_kick_stringer.dim_z('Toe_Kick_Thickness',[Toe_Kick_Thickness])
-        toe_kick_stringer.loc_x('(Toe_Kick_Thickness*1.5)',[Toe_Kick_Thickness])
+        toe_kick_stringer.loc_x(
+            '(Toe_Kick_Thickness*1.5)+IF(Add_TK_Skin,IF(Left_Against_Wall,0,TK_Skin_Thickness),0)',
+            [Toe_Kick_Thickness, Add_TK_Skin, Left_Against_Wall, TK_Skin_Thickness])
         toe_kick_stringer.loc_y('Depth+Toe_Kick_Thickness+Toe_Kick_Setback',[Depth,Toe_Kick_Thickness,Toe_Kick_Setback])
         toe_kick_stringer.loc_z('Height-Toe_Kick_Thickness',[Height,Toe_Kick_Thickness])
 
-        
         toe_kick_stringer = common_parts.add_toe_kick_stringer(self)
-        if(self.is_double_sided):
-            toe_kick_stringer.loc_y('-Toe_Kick_Setback-Toe_Kick_Thickness',[Toe_Kick_Setback,Toe_Kick_Thickness])
+        if self.is_double_sided:
+            toe_kick_stringer.loc_y('-Toe_Kick_Setback-Toe_Kick_Thickness', [Toe_Kick_Setback, Toe_Kick_Thickness])
+        else:
+            toe_kick_stringer.loc_y('IF(Add_TK_Skin,-TK_Skin_Thickness,0)', [Add_TK_Skin, TK_Skin_Thickness])
         false_exp =\
             "Width-(Toe_Kick_Thickness*3)-IF(Add_TK_Skin,IF(Left_Against_Wall,0,TK_Skin_Thickness),0)"+\
             "-IF(Add_TK_Skin,IF(Right_Against_Wall,0,TK_Skin_Thickness),0)"
@@ -471,20 +504,24 @@ class Closet_Island_Carcass(sn_types.Assembly):
         front_tk_skin.rot_x(value=math.radians(-90))
         front_tk_skin.get_prompt("Hide").set_formula('IF(Add_TK_Skin,False,True) or Hide',[Add_TK_Skin,self.hide_var])
 
-        if(self.is_double_sided):
-            back_tk_skin = common_parts.add_toe_kick_skin(self)
-            back_tk_skin.dim_x('IF(Width>INCH(98.25),'
-                'INCH(98.25)-(Toe_Kick_Thickness)-IF(Left_Against_Wall,TK_Skin_Thickness,0)-IF(Right_Against_Wall,TK_Skin_Thickness,0),'
-                'Width-(Toe_Kick_Thickness)-IF(Left_Against_Wall,TK_Skin_Thickness,0)-IF(Right_Against_Wall,TK_Skin_Thickness,0))',
-                [Width, Toe_Kick_Thickness, TK_Skin_Thickness, Left_Against_Wall, Right_Against_Wall])
-            back_tk_skin.dim_y('-Height', [Height])
-            back_tk_skin.dim_z('-TK_Skin_Thickness',[TK_Skin_Thickness])
-            back_tk_skin.loc_x(
-                '(Toe_Kick_Thickness*1.5)-Toe_Kick_Thickness+IF(Left_Against_Wall,TK_Skin_Thickness,0)',
-                [Toe_Kick_Thickness, TK_Skin_Thickness, Left_Against_Wall])
-            back_tk_skin.loc_y('-Toe_Kick_Setback+TK_Skin_Thickness',[Toe_Kick_Setback,TK_Skin_Thickness])
-            back_tk_skin.rot_x(value=math.radians(-90))
-            back_tk_skin.get_prompt("Hide").set_formula('IF(Add_TK_Skin,False,True) or Hide',[Add_TK_Skin,self.hide_var]) 
+        back_tk_skin = common_parts.add_toe_kick_skin(self)
+        back_tk_skin.dim_x('IF(Width>INCH(98.25),'
+            'INCH(98.25)-(Toe_Kick_Thickness)-IF(Left_Against_Wall,TK_Skin_Thickness,0)-IF(Right_Against_Wall,TK_Skin_Thickness,0),'
+            'Width-(Toe_Kick_Thickness)-IF(Left_Against_Wall,TK_Skin_Thickness,0)-IF(Right_Against_Wall,TK_Skin_Thickness,0))',
+            [Width, Toe_Kick_Thickness, TK_Skin_Thickness, Left_Against_Wall, Right_Against_Wall])
+        back_tk_skin.dim_y('-Height', [Height])
+        back_tk_skin.dim_z('-TK_Skin_Thickness',[TK_Skin_Thickness])
+        back_tk_skin.loc_x(
+            '(Toe_Kick_Thickness*1.5)-Toe_Kick_Thickness+IF(Left_Against_Wall,TK_Skin_Thickness,0)',
+            [Toe_Kick_Thickness, TK_Skin_Thickness, Left_Against_Wall])
+
+        if self.is_double_sided:
+            back_tk_skin.loc_y('-Toe_Kick_Setback+TK_Skin_Thickness', [Toe_Kick_Setback, TK_Skin_Thickness])
+        else:
+            back_tk_skin.loc_y('IF(Add_TK_Skin,Toe_Kick_Thickness,0)', [Add_TK_Skin, Toe_Kick_Thickness])
+
+        back_tk_skin.rot_x(value=math.radians(-90))
+        back_tk_skin.get_prompt("Hide").set_formula('IF(Add_TK_Skin,False,True) or Hide',[Add_TK_Skin,self.hide_var]) 
         
         left_tk_skin = common_parts.add_toe_kick_skin(self)
         if(self.is_double_sided):
@@ -647,12 +684,13 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
         default='0')                          
     
     product = None
-    
     inserts = []
+    splitters = []
 
     def reset_variables(self):
         self.tabs = 'OPENINGS'
-        self.product = None  
+        self.product = None
+        self.splitters = []
 
     def set_countertop_type_ppt(self):
         if self.countertop_type_ppt:
@@ -662,7 +700,36 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
         self.product.obj_x.location.x = self.width
         self.run_calculators(self.product.obj_bp)
 
+    def get_part_mesh(self, obj_bp):
+        for obj in obj_bp.children:
+            if obj.type == 'MESH':
+                return obj
+
+    def update_edges(self):
+        material_color = bpy.context.scene.closet_materials.materials.get_mat_color()
+
+        for child in self.product.obj_bp.children:
+            if 'IS_BP_PANEL' in child:
+                assembly = sn_types.Assembly(child)
+                assembly_width = assembly.obj_x.location.x
+                panel_mesh = self.get_part_mesh(assembly.obj_bp)
+                max_width_ppt = self.product.get_prompt('Material Max Width')
+                mat_name = material_color.name
+
+                if max_width_ppt:
+                    if "S " in mat_name or "CL " in mat_name:
+                        max_width = sn_unit.inch(80)
+                    else:
+                        max_width = sn_unit.inch(48)
+                    if assembly_width > max_width:
+                        mapping = 'UV'   
+                    else:
+                        mapping = 'BOX'
+                    max_width_ppt.set_value(max_width)
+                    panel_mesh.snap.material_mapping = mapping
+
     def check(self, context):
+        self.update_edges()
         toe_kick_height = self.product.get_prompt("Toe Kick Height").distance_value
         if toe_kick_height <= inch(3):
             self.product.get_prompt("Toe Kick Height").set_value(inch(3))
@@ -701,7 +768,18 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
 
     def get_assemblies(self, context):
         self.calculators = []
-        self.get_calculators(self.product.obj_bp)
+        opening_widths_calculator = self.product.get_calculator('Opening Widths Calculator')
+        if opening_widths_calculator:
+            self.calculators.append(opening_widths_calculator)
+
+        for child in self.product.obj_bp.children:
+            if "IS_BP_SPLITTER" in child and child["IS_BP_SPLITTER"]:
+                assy = sn_types.Assembly(child)
+                calculator = assy.get_calculator('Opening Heights Calculator')
+                if assy:
+                    self.splitters.append(assy)
+                if calculator:
+                    self.calculators.append(calculator)
 
     def invoke(self,context,event):
         self.reset_variables()

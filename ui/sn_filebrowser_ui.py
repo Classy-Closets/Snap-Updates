@@ -30,7 +30,6 @@ from bpy.types import (
 
 import snap
 from snap import sn_utils
-from snap import sn_handlers
 import gpu
 from gpu_extras.batch import batch_for_shader
 from gpu_extras.presets import draw_texture_2d
@@ -53,7 +52,7 @@ class SN_FILEBROWSER_MT_library_commands(Menu):
 class SN_FILEBROWSER_PT_product_lib_header(Panel):
     bl_space_type = 'FILE_BROWSER'
     bl_region_type = 'UI'
-    bl_label = "Closet Library"
+    bl_label = "Product Library"
     bl_category = "Attributes"
     bl_options = {'HIDE_HEADER'}
 
@@ -65,18 +64,8 @@ class SN_FILEBROWSER_PT_product_lib_header(Panel):
 
     def draw(self, context):
         layout = self.layout
-        wm_props = context.window_manager.snap
         scene_props = context.scene.snap
         library_name = ""
-
-        try:
-            active_library = wm_props.libraries[scene_props.active_library_name]
-            library_name = active_library.name
-        except KeyError as error:
-            print(error)
-            print("Library: {} not found.".format(scene_props.active_library_name))
-            print("Reloading SNaP Libraries...")
-            sn_handlers.load_libraries()
 
         col = layout.column()
         row = col.row()

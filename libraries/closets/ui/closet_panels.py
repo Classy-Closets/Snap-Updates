@@ -1,24 +1,10 @@
 import bpy
 from bpy.types import Panel
+from bpy.props import BoolProperty
 
 from snap import sn_types, sn_utils
-
-
-def draw_shelf_interface(layout, shelf):
-    is_lock_shelf = shelf.get_prompt("Is Locked Shelf")
-    is_forced_locked_shelf = shelf.get_prompt("Is Forced Locked Shelf")
-    if is_forced_locked_shelf:
-        if not is_forced_locked_shelf.get_value():
-            if is_lock_shelf:
-                box = layout.box()
-                is_lock_shelf.draw(box)
-        else:
-            box = layout.box()
-            box.label("Is Forced Locked Shelf")
-    else:
-        if is_lock_shelf:
-            box = layout.box()
-            is_lock_shelf.draw(box)
+from .. import closet_props
+  
 
 
 def draw_backing_mats(layout, back):
@@ -37,7 +23,7 @@ def draw_backing_mats(layout, back):
 
 
 class SNAP_PT_closet_options(Panel):
-    bl_label = "Closet Options"
+    bl_label = "Room Defaults"
     bl_space_type = "VIEW_3D"
     bl_region_type = "TOOLS"
     bl_context = "objectmode"
@@ -56,7 +42,7 @@ class SNAP_PT_closet_options(Panel):
 
 
 class SNAP_PT_Closet_Properties(Panel):
-    bl_label = "Closet Properties"
+    bl_label = "Room Properties"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "Item"
@@ -64,6 +50,37 @@ class SNAP_PT_Closet_Properties(Panel):
     bl_order = 1
 
     props = None
+
+    def draw_shelf_interface(self, layout, shelf, context):
+        material_props = context.scene.closet_materials
+        mat_type = material_props.materials.get_mat_type()
+        is_lock_shelf_ppt = shelf.get_prompt("Is Locked Shelf")
+        is_bottom_exposed_kd_prompt = shelf.get_prompt("Is Bottom Exposed KD")
+        is_forced_locked_shelf = shelf.get_prompt("Is Forced Locked Shelf")
+        if is_forced_locked_shelf:
+            if not is_forced_locked_shelf.get_value():
+                box = layout.box()
+                if is_lock_shelf_ppt:
+                    is_lock_shelf_ppt.draw(box)
+                    # box.prop(shelf.obj_bp.snap, "is_locked_shelf", text="Is Locked Shelf")
+                if is_bottom_exposed_kd_prompt:
+                    if is_lock_shelf_ppt.get_value() and mat_type.name == "Garage Material":
+                        box.prop(shelf.obj_bp.snap, "is_bottom_exposed_kd", text="Is Bottom Exposed KD")
+            else:
+                box = layout.box()
+                box.label(text="Is Forced Locked Shelf")
+                if is_bottom_exposed_kd_prompt:
+                    if is_lock_shelf_ppt.get_value() and mat_type.name == "Garage Material":
+                        box.prop(shelf.obj_bp.snap, "is_bottom_exposed_kd", text="Is Bottom Exposed KD")
+        else:
+            if is_lock_shelf_ppt:
+                box = layout.box()
+                if is_lock_shelf_ppt:
+                    is_lock_shelf_ppt.draw(box)
+                    # box.prop(shelf.obj_bp.snap, "is_locked_shelf", text="Is Locked Shelf")
+                if is_bottom_exposed_kd_prompt:
+                    if is_lock_shelf_ppt.get_value() and mat_type.name == "Garage Material":
+                        box.prop(shelf.obj_bp.snap, "is_bottom_exposed_kd", text="Is Bottom Exposed KD")
 
     def draw_header(self, context):
         layout = self.layout
@@ -86,7 +103,7 @@ class SNAP_PT_Closet_Properties(Panel):
         row.operator("sn_closets.copy_insert", text="Copy Insert", icon='PASTEDOWN')
         row.operator('sn_closets.delete_closet_insert', text="Delete Insert", icon='X')
 
-    def draw_assembly_props(self, layout, obj_assembly_bp):
+    def draw_assembly_props(self, layout, obj_assembly_bp, context):
         assembly = sn_types.Assembly(obj_assembly_bp)
         row = layout.row(align=True)
         row.label(text="Part: " + assembly.obj_bp.snap.name_object, icon='OUTLINER_DATA_LATTICE')
@@ -96,7 +113,7 @@ class SNAP_PT_Closet_Properties(Panel):
                 'sn_closets.delete_part',
                 text="Delete Part - {}".format(assembly.obj_bp.snap.name_object),
                 icon='X')
-        draw_shelf_interface(layout, assembly)
+        self.draw_shelf_interface(layout, assembly, context)
         draw_backing_mats(layout, assembly)
 
     def draw(self, context):
@@ -118,10 +135,9 @@ class SNAP_PT_Closet_Properties(Panel):
             box.label(text="No Insert Selected", icon='STICKY_UVS_LOC')
         box = col.box()
         if obj_assembly_bp:
-            self.draw_assembly_props(box, obj_assembly_bp)
+            self.draw_assembly_props(box, obj_assembly_bp, context)
         else:
             box.label(text="No Part Selected", icon='OUTLINER_DATA_LATTICE')
-
 
 classes = (
     SNAP_PT_closet_options,

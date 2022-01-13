@@ -1,4 +1,5 @@
 import bpy
+from snap import sn_types
 
 def update_wall_index(self, context):
     bpy.ops.object.select_all(action='DESELECT')
@@ -24,11 +25,9 @@ def update_obstacle_index(self, context):
             context.view_layer.objects.active = child
 
 
-def toggle_obstacle_hide(self, context):
+def toggle_objects_hide(self, context):
     state = True if self.obstacle_hide == 'HIDE' else False
 
-    for o in bpy.data.objects:
-        if o.get('IS_OBSTACLE'):
-            obstacle = sn_types.Assembly(obj_bp=o)
-            cage = obstacle.get_cage()
-            cage.hide_viewport = state
+    for o in bpy.context.scene.collection.children['Collection'].objects:
+        if o.type == 'MESH':
+            o.hide_viewport = state

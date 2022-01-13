@@ -35,6 +35,52 @@ enum_machine_tokens = [('NONE', "None", "None", 'SCULPTMODE_HLT', 0),
                        ('BORE', "BORE", "BORE", 'SCULPTMODE_HLT', 13)]
 
 
+class SN_OBJ_override_object_context_menu(Operator):
+    bl_idname = "sn_object.override_object_context_menu"
+    bl_label = "Override object context menu"
+
+    def execute(self, context):
+        obj = context.object
+        has_id_ppt = obj and "ID_PROMPT" in obj and obj["ID_PROMPT"] != ""
+        assy_obj_bp = sn_utils.get_assembly_bp(obj)
+
+        if has_id_ppt and not assy_obj_bp:
+            eval("bpy.ops.{}('INVOKE_DEFAULT')".format(obj["ID_PROMPT"]))
+        else:
+            bpy.ops.wm.call_menu(name="VIEW3D_MT_object_context_menu")
+
+        return {'FINISHED'}
+
+
+class SN_OBJ_delete(Operator):
+    bl_idname = "sn_object.delete"
+    bl_label = "Delete Operator that honors delete protected objects"
+
+    use_global: BoolProperty(name='Use Global', default=False)
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_object is not None
+
+    def execute(self, context):
+        contains_protected = False
+        delete_protected_objects = []
+        for obj in context.selected_objects:
+            if obj.snap.delete_protected:
+                obj.select_set(False)
+                contains_protected = True
+                delete_protected_objects.append(obj.name)
+
+        bpy.ops.object.delete(use_global=self.use_global)
+        if contains_protected:
+            bpy.ops.snap.message_box(
+                'INVOKE_DEFAULT',
+                message="Unable to delete wall. Proceed building room and then \nadd door or open entry way to reflect open space.")
+
+
+        return {'FINISHED'}
+
+
 class SN_OBJ_delete(Operator):
     bl_idname = "sn_object.delete"
     bl_label = "Delete Object(s)"
@@ -180,10 +226,11 @@ class SN_OBJ_draw_floor_plane(Operator):
 
         obj_plane = sn_utils.create_floor_mesh('Floor',(length,width,0.0))
         obj_plane.location = loc
-        
-        #SET CONTEXT
+        obj_plane["ID_PROMPT"] = "wm.popup_props"
+
+        # SET CONTEXT
         context.view_layer.objects.active = obj_plane
-        
+
         return {'FINISHED'}
 
 
@@ -506,6 +553,7 @@ class OPS_delete_machine_token(Operator):
 
 
 classes = (
+    SN_OBJ_override_object_context_menu,
     SN_OBJ_select_object,
     SNAP_OT_delete_object,
     SN_OBJ_toggle_edit_mode,

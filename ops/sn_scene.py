@@ -1,6 +1,7 @@
 import bpy
 from bpy.types import Operator
 
+from snap import sn_utils
 
 class SN_SCENE_OT_clear_2d_views(Operator):
     bl_idname = "sn_scene.clear_2d_views"
@@ -52,6 +53,10 @@ class SN_SCENE_OT_user_clear_2d_views(Operator):
         bpy.ops.sn_scene.clear_2d_views()
         for obj in bpy.data.objects:
             if obj.get('IS_VISDIM_A') or obj.get('IS_VISDIM_B'):
+                # Preserve wall obstacle annotations
+                obstacle_bp = sn_utils.get_obstacle_bp(obj)
+                if obstacle_bp:
+                    continue
                 bpy.data.objects.remove(obj, do_unlink=True)
         return {'FINISHED'}
 

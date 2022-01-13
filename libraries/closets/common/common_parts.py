@@ -26,9 +26,11 @@ HANGING_RODS_DIR = path.join(ASSEMBLY_DIR, "Hanging Rods")
 # UPDATED
 PART_WITH_FRONT_EDGEBANDING = path.join(closet_paths.get_closet_assemblies_path(), "Part with Front Edgebanding.blend")
 PART_WITH_ALL_EDGES = path.join(ASSEMBLY_DIR, "Part with All Edges.blend")
+MITERED_PART_WITH_ALL_EDGES = path.join(ASSEMBLY_DIR, "Mitered Part with All Edges.blend")
 PART_WITH_EDGEBANDING = path.join(ASSEMBLY_DIR, "Part with Edgebanding.blend")
 PART_WITH_NO_EDGEBANDING = path.join(ASSEMBLY_DIR, "Part with No Edgebanding.blend")
 CLOSET_PANEL = path.join(closet_paths.get_closet_assemblies_path(), "Closet Panel.blend")
+ISLAND_PANEL = path.join(closet_paths.get_closet_assemblies_path(), "Island Panel.blend")
 FACE = path.join(closet_paths.get_closet_assemblies_path(), "Face.blend")
 FULL_BACK = path.join(closet_paths.get_closet_assemblies_path(), "Full Back.blend")
 ROUND_HANGING_ROD = path.join(closet_paths.get_closet_assemblies_path(), "Hang Rod Round.blend")
@@ -78,8 +80,11 @@ SHELF_SUPPORT = path.join(OBJECT_DIR, "Shelf Support 10x12.blend")
 
 
 # Updated
-def add_panel(assembly):
-    panel = sn_types.Part(assembly.add_assembly_from_file(CLOSET_PANEL))
+def add_panel(assembly, island_panel=False):
+    if island_panel:
+        panel = sn_types.Part(assembly.add_assembly_from_file(ISLAND_PANEL))
+    else:
+        panel = sn_types.Part(assembly.add_assembly_from_file(CLOSET_PANEL))
     assembly.add_assembly(panel)
     panel.obj_bp['IS_BP_ASSEMBLY'] = True
     panel.obj_bp['IS_BP_PANEL'] = True
@@ -125,6 +130,8 @@ def add_shelf(assembly):
     shelf.add_prompt("Shelf Pin Qty", 'QUANTITY', 0)
     shelf.add_prompt("Cam Qty", 'QUANTITY', 0)
     shelf.add_prompt("Is Locked Shelf", 'CHECKBOX', False)
+    shelf.add_prompt("Is Forced Locked Shelf", 'CHECKBOX', False)
+    shelf.add_prompt("Is Bottom Exposed KD", 'CHECKBOX', False)
     shelf.add_prompt("Adj Shelf Clip Gap", 'DISTANCE', defaults.adj_shelf_clip_gap)
     shelf.add_prompt("Adj Shelf Setback", 'DISTANCE', defaults.adj_shelf_setback)
     shelf.add_prompt("Locked Shelf Setback", 'DISTANCE', defaults.locked_shelf_setback)
@@ -149,6 +156,7 @@ def add_glass_shelf(assembly):
     shelf.set_name("Glass Shelf")
     shelf.add_prompt("Shelf Pin Qty", 'QUANTITY', 4)
     shelf.add_prompt("Is Locked Shelf", 'CHECKBOX', False)
+    shelf.add_prompt("Is Forced Locked Shelf", 'CHECKBOX', False)
     shelf.add_prompt("Adj Shelf Clip Gap", 'DISTANCE', defaults.adj_shelf_clip_gap)
     shelf.add_prompt("Adj Shelf Setback", 'DISTANCE', defaults.adj_shelf_setback)
     shelf.add_prompt("Locked Shelf Setback", 'DISTANCE', defaults.locked_shelf_setback)
@@ -166,6 +174,7 @@ def add_l_shelf(assembly):
     props.is_l_shelf_bp = True  # TODO: Remove
     shelf.obj_bp['IS_BP_L_SHELF'] = True
     shelf.add_prompt("Is Locked Shelf",'CHECKBOX',False)
+    shelf.add_prompt("Is Forced Locked Shelf", 'CHECKBOX', False)
     shelf.obj_bp.snap.comment_2 = "1525"
     shelf.set_name("L Shelf")
     shelf.cutpart("Shelf")
@@ -181,6 +190,7 @@ def add_angle_shelf(assembly):
     props.is_angle_shelf_bp = True  # TODO: Remove
     shelf.obj_bp['IS_BP_ANGLE_SHELF'] = True
     shelf.add_prompt("Is Locked Shelf",'CHECKBOX',False)
+    shelf.add_prompt("Is Forced Locked Shelf", 'CHECKBOX', False)
     shelf.set_name("Corner Shelf")
     shelf.cutpart("Shelf")
     shelf.edgebanding('Edge', l1=True)
@@ -223,6 +233,20 @@ def add_door_striker(assembly):
     return striker
 
 
+def add_corbel(assembly):
+    corbel = sn_types.Part(assembly.add_assembly_from_file(CHAMFERED_PART))
+    assembly.add_assembly(corbel)
+    # Does this need a comment?
+    # corbel.obj_bp.snap.comment_2 = ""
+    props = corbel.obj_bp.sn_closets
+    props.is_angle_shelf_bp = True  # TODO: Remove
+    corbel.obj_bp['IS_BP_CORBEL'] = True
+    corbel.set_name("Support Corbel")
+    corbel.cutpart("Shelf")
+    corbel.edgebanding('Edge', l1=True)
+    return corbel
+
+
 def add_cover_cleat(assembly, cleat):
     cover_cleat = sn_types.Part(assembly.add_assembly_from_file(PART_WITH_FRONT_EDGEBANDING))
     assembly.add_assembly(cover_cleat)
@@ -252,7 +276,7 @@ def add_cover_cleat(assembly, cleat):
     cover_cleat.dim_z(value=sn_unit.inch(-0.375))
     cover_cleat.loc_z(value=sn_unit.inch(-0.75))
     hide = cover_cleat.get_prompt('Hide')
-    hide.set_formula('IF(Use_Cleat_Cover,Hide,True) or Hide', [assembly.hide_var, Hide, Use_Cleat_Cover])
+    hide.set_formula('IF(Use_Cleat_Cover,Hide,True) or Hide', [Hide, Use_Cleat_Cover])
 
 
 def add_cleat(assembly):
@@ -275,6 +299,7 @@ def add_wall_cleat(assembly):
     cleat.obj_bp.snap.comment_2 = "1008"
     cleat.obj_bp['IS_CLEAT'] = True
     cleat.obj_bp['IS_WALL_CLEAT'] = True
+    cleat.obj_bp.sn_closets.is_cleat_bp = True
     cleat.add_prompt("Exposed Top", 'CHECKBOX', False)
     cleat.add_prompt("Exposed Left", 'CHECKBOX', False)
     cleat.add_prompt("Exposed Right", 'CHECKBOX', False)
@@ -649,7 +674,7 @@ def add_hpl_top(assembly):
 
 
 def add_flat_crown(assembly):
-    shelf = sn_types.Part(assembly.add_assembly_from_file(PART_WITH_ALL_EDGES))
+    shelf = sn_types.Part(assembly.add_assembly_from_file(MITERED_PART_WITH_ALL_EDGES))
     assembly.add_assembly(shelf)
     shelf.obj_bp['IS_BP_CROWN_MOLDING'] = True
     shelf.obj_bp['IS_BP_FLAT_CROWN'] = True
@@ -658,6 +683,7 @@ def add_flat_crown(assembly):
     shelf.add_prompt("Exposed Left", 'CHECKBOX', False)
     shelf.add_prompt("Exposed Right", 'CHECKBOX', False)
     shelf.add_prompt("Exposed Back", 'CHECKBOX', False)
+    shelf.add_prompt("Exposed Front", 'CHECKBOX', False)
     shelf.set_name("Flat Crown")
     shelf.rot_x(value=math.radians(90))
     shelf.cutpart("Shelf")
@@ -750,6 +776,13 @@ def add_shelf_fence(assembly):
 def add_accessory_panel(assembly):
     accessory_panel = sn_types.Part(assembly.add_assembly_from_file(PART_WITH_EDGEBANDING))
     assembly.add_assembly(accessory_panel)
+    # these are setup for xml export. They are not linked up
+    accessory_panel.add_prompt('Exposed Left', 'CHECKBOX', True)
+    accessory_panel.add_prompt('Exposed Top', 'CHECKBOX', True)
+    accessory_panel.add_prompt('Exposed Right', 'CHECKBOX', True)
+    accessory_panel.add_prompt('Exposed Bottom', 'CHECKBOX', True)
+    accessory_panel.obj_bp['IS_WALL_CLEAT'] = True
+    accessory_panel.obj_bp['IS_CLEAT'] = True
     accessory_panel.set_name("Accessory Panel")
     accessory_panel.cutpart("Panel")
     accessory_panel.edgebanding('Edge', l1=True)
@@ -811,6 +844,7 @@ def add_double_pull_out_canvas_hamper(assembly):
 
 def add_toe_kick_skin(assembly):
     kick = sn_types.Part(assembly.add_assembly_from_file(PART_WITH_NO_EDGEBANDING))
+    kick.obj_bp["IS_BP_TOE_KICK_SKIN"] = True
     assembly.add_assembly(kick)
     kick.obj_bp.snap.comment_2 = "1035"
     props = kick.obj_bp.sn_closets

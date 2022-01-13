@@ -1,3 +1,4 @@
+from numpy.lib.function_base import diff
 import bpy
 import math
 import mathutils
@@ -14,13 +15,21 @@ from bpy.props import (BoolProperty,
                        PointerProperty,
                        EnumProperty)
 
+
+from .data import data_closet_splitters
+
+
 tagged_sss_list = []
+
 
 def spread(arg):
     ret = []
     for i in arg:
         ret.extend(i) if isinstance(i, list) else ret.append(i)
     return ret
+
+def to_inch(measure):
+    return round(measure / sn_unit.inch(1), 2)
 
 def get_dimension_props():
     """
@@ -188,7 +197,7 @@ class SNAP_OT_Auto_Dimension(Operator):
 
         for item in bpy.data.objects:
             if item.get('IS_VISDIM_A') or item.get('IS_VISDIM_B'):
-                if sn_utils.get_obstacle_bp(item):
+                if sn_utils.get_obstacle_bp(item) or "IS_ANNOTATION" in item:
                     continue
                 else:
                     bpy.data.objects.remove(item, do_unlink=True)
@@ -553,35 +562,35 @@ class SNAP_OT_Auto_Dimension(Operator):
 
     def stack_shelves_setback(self, item):
         stacks = [o for o in item.children if 'shelf stack' in o.name.lower()]
+
         for stack in stacks:
-            assy = sn_types.Assembly(stack)
+            assy = data_closet_splitters.Shelf_Stack(stack)
             default_depth = assy.obj_y.location.y
             assy_width = assy.obj_x.location.x
-            pmpt_qty = assy.get_prompt("Shelf Quantity").get_value()
-            pmpt_qty += 1
-            curr_height = 0
-            setbacks = []
-            for i in range(1, pmpt_qty):
-                setback = assy.get_prompt(f'Shelf {i} Setback').get_value()
-                setbacks.append(self.to_inch(setback))
-            setbacks_mode = list(set(setbacks))
-            if len(setbacks_mode) > 1:
-                for i in range(1, pmpt_qty):
-                    thickness = sn_unit.inch(0.75)
-                    offset = sn_unit.inch(0.16)
-                    height = assy.get_prompt(f'Opening {i} Height').get_value()
-                    setback = assy.get_prompt(f'Shelf {i} Setback').get_value()
-                    curr_height += height
-                    pos_z = curr_height + (thickness - offset)
+            indv_shelf_setbacks = assy.get_prompt("Individual Shelf Setbacks")
+            adj_shelf_setback = assy.get_prompt("Adj Shelf Setback")
+
+            for i, shelf in enumerate(assy.splitters):
+                setback = assy.get_prompt(f'Shelf {i+1} Setback').get_value()
+                is_locked_shelf = shelf.get_prompt("Is Locked Shelf").get_value()
+                if indv_shelf_setbacks and adj_shelf_setback:
+                    if not indv_shelf_setbacks.get_value():
+                        setback = adj_shelf_setback.get_value()
+
+                # Only add set back label if shelf is not locked and setback is greater then 0.25"
+                if not is_locked_shelf and sn_unit.meter_to_inch(setback) > 0.25:
+                    pos_z = shelf.obj_bp.location.z
                     setback_lbl = self.to_inch_lbl(default_depth - setback)
                     hashmark = sn_types.Line(sn_unit.inch(6), (-45, 0, 90))
                     hashmark.parent(stack)
-                    hashmark.anchor.location = (assy_width / 2, 
-                                                default_depth, 
-                                                pos_z)
-                    hashmark.anchor.rotation_euler = (math.radians(-45),
-                                                    0,
-                                                    math.radians(-90))
+                    hashmark.anchor.location = (
+                        assy_width / 2,
+                        default_depth,
+                        pos_z)
+                    hashmark.anchor.rotation_euler = (
+                        math.radians(-45),
+                        0,
+                        math.radians(-90))
                     setback_dim = sn_types.Dimension()
                     setback_dim.parent(hashmark.end_point)
                     setback_dim.start_z(value=sn_unit.inch(2))
@@ -933,7 +942,9 @@ class SNAP_OT_Auto_Dimension(Operator):
         lower_offset = sn_unit.inch(-3)
         upper_offset = sn_unit.inch(15)
         opening_assembly = sn_types.Assembly(opening)
-        width = opening_assembly.obj_x.location.x
+        product_assembly = sn_types.Assembly(sn_utils.get_closet_bp(opening))
+        opening_width = product_assembly.get_prompt("Opening " + opening.sn_closets.opening_name + " Width")
+        width = opening_width.get_value()
         if width == 0:
             cage = opening_assembly.get_cage()
             if cage:
@@ -1025,9 +1036,9 @@ class SNAP_OT_Auto_Dimension(Operator):
                                                                   opng)
                         elif matching is None:
                             opng_props = (False, False, True)
-                        opng_assy = sn_types.Assembly(opng)
-                        opng_assy_width = opng_assy.obj_x.location.x
-                        opng_width = self.to_inch(opng_assy_width)
+
+                        opening_width = obj_assy.get_prompt("Opening " + str(i) + " Width")
+                        opng_width = self.to_inch(opening_width.get_value())
                         opng_height_meas = self.to_inch(opng_height)
                         opng_x_loc = matching_opng[0]
                         opng_dict[opng] = {
@@ -1087,7 +1098,65 @@ class SNAP_OT_Auto_Dimension(Operator):
                 if 'opening' in op.name.lower():
                     op_count += 1
             hang_opng_count.append(op_count)
-        hang_opng_count_check = len(list(set(hang_opng_count))) > 1
+        # Rules to deal with most cases, where the openings overlaps each other
+        # but have different quantities
+        openings_count = len(list(set(hang_opng_count)))
+        hang_opng_count_check = openings_count > 1
+        starts_check = len(list(set(hang_opngs_starts))) == 1
+        end_check = len(list(set(hang_opngs_ends))) == 1
+        if hang_opng_count_check and starts_check and end_check:
+            return True
+        return False
+
+    def overlapping_hang_opng_count(self, opng_data):
+        hang_opng_count = []
+        hang_opngs = [obj for obj in opng_data.keys()]
+        for hang in hang_opngs:
+            op_count = 0
+            for op in hang.children:
+                if 'opening' in op.name.lower():
+                    op_count += 1
+            hang_opng_count.append(op_count)
+        openings_count = len(list(set(hang_opng_count)))
+        hang_opng_count_check = openings_count > 1
+        if hang_opng_count_check:
+            return True
+        return False
+    
+    def overlapping_diff_hang_opng_only_one(self, opng_data):
+        hang_opng_count = []
+        hang_opngs = [obj for obj in opng_data.keys()]
+        hang_opngs_starts = [obj["start"] for obj in opng_data.values()]
+        hang_opngs_ends = [obj["end"] for obj in opng_data.values()]
+        starts_qty = len(list(set(hang_opngs_starts)))
+        ends_qty = len(list(set(hang_opngs_ends)))
+        for hang in hang_opngs:
+            op_count = 0
+            for op in hang.children:
+                if 'opening' in op.name.lower():
+                    op_count += 1
+            hang_opng_count.append(op_count)
+        openings_count = len(list(set(hang_opng_count)))
+        really_one = list(set(hang_opng_count))[0] == 1
+        if openings_count == 1 and starts_qty >= 1 and ends_qty >= 1 and really_one:
+            return True
+        return False
+
+    def overlapping_near_match_hang_opng_count(self, opng_data):
+        hang_opng_count = []
+        hang_opngs = [obj for obj in opng_data.keys()]
+        hang_opngs_starts = [obj["start"] for obj in opng_data.values()]
+        hang_opngs_ends = [obj["end"] for obj in opng_data.values()]
+        for hang in hang_opngs:
+            op_count = 0
+            for op in hang.children:
+                if 'opening' in op.name.lower():
+                    op_count += 1
+            hang_opng_count.append(op_count)
+        # Rules to deal with most cases, where the openings overlaps each other
+        # but have different quantities
+        openings_count = len(list(set(hang_opng_count)))
+        hang_opng_count_check = openings_count == 1
         starts_check = len(list(set(hang_opngs_starts))) == 1
         end_check = len(list(set(hang_opngs_ends))) == 1
         if hang_opng_count_check and starts_check and end_check:
@@ -1162,6 +1231,36 @@ class SNAP_OT_Auto_Dimension(Operator):
             return True
         elif not any(overlaps):
             return False
+    
+    def opening_absolute_start_end(self, opening):
+        opng_width = to_inch(sn_types.Assembly(opening).obj_x.location.x)
+        opng_start = to_inch(opening.location[0])
+        section_start = to_inch(opening.parent.location[0])
+        actual_start = opng_start + section_start
+        opng_end = actual_start + opng_width
+        return (actual_start, opng_end)
+
+    def has_occluding_opening(self, opening, opng_data):
+        opngs_at_wall = []
+        querying_opng = opening[0]
+        op_start, op_end = self.opening_absolute_start_end(querying_opng)
+        tolrnc = 2 # 2 inches
+        for value in opng_data.values():
+            openings = value["openings"]
+            for item in openings:
+                curr_opng = item[0]
+                already_in = curr_opng not in opngs_at_wall
+                not_same = curr_opng != querying_opng
+                not_same_parent = curr_opng.parent != querying_opng.parent
+                if already_in and not_same and not_same_parent:
+                    opngs_at_wall.append(curr_opng)
+        for item in opngs_at_wall:
+            oth_start, oth_end = self.opening_absolute_start_end(item)
+            match_end = oth_end - tolrnc <= op_end <= oth_end + tolrnc
+            match_start = oth_start - tolrnc <= op_start <= oth_start + tolrnc
+            if match_start and match_end:
+                return True
+        return False
 
     def many_hanging_openings(self, opng_data):
         overlapping = self.has_overlapping_hanging_opening(opng_data)
@@ -1172,57 +1271,45 @@ class SNAP_OT_Auto_Dimension(Operator):
         elif overlapping:
             matching = self.has_matching_opngs_while_overlapping(opng_data)
             different = self.overlapping_different_hang_opng_count(opng_data)
-            if matching:
-                lowest = self.get_lower_openings_for_matching(opng_data)
-                desired_openings = opng_data[lowest]['openings']
-                for desired in desired_openings:
-                    self.section_width_apply_lbl(desired[0], "down")
-                return
-            if different:
-                lowest = self.get_lower_openings_for_matching(opng_data)
-                desired_lowers = opng_data[lowest]['openings']
-                for desired_low in desired_lowers:
-                    self.section_width_apply_lbl(desired_low[0], "down")
-                highest = self.get_upper_openings_for_matching(opng_data)
-                desired_uppers = opng_data[highest]['openings']
-                for desired_high in desired_uppers:
-                    self.section_width_apply_lbl(desired_high[0], "up")
-                return
-            uppers = []
-            lowers = []
-            for key, value in opng_data.items():
-                for opening in value["openings"]:
-                    is_upper = opening[1]["is_upper"]
-                    is_lower = opening[1]["is_lower"]
-                    width = opening[1]["width"]
-                    location = opening[1]["x_loc"]
-                    if is_upper:
-                        uppers.append((opening[0], width, location))
-                    if is_lower:
-                        lowers.append((opening[0], width, location))
-            if len(uppers) == len(lowers):
-                for i, lower in enumerate(lowers):
-                    upper_width = uppers[i][1]
-                    uppper_location = uppers[i][2]
-                    lower_width = lowers[i][1]
-                    lower_location = lowers[i][2]
-                    same_width = upper_width == lower_width
-                    same_location = uppper_location == lower_location
-                    if same_width and same_location:
-                        self.section_width_apply_lbl(lower[0], "down")
-                    elif not same_width or not same_location:
-                        self.section_width_apply_lbl(uppers[i][0], "up")
-                        self.section_width_apply_lbl(lower[0], "down")
-            elif len(uppers) != len(lowers):
-                for upper in uppers:
-                    overlap_lower = self.has_overlapping_lower(upper,
-                                                               lowers)
-                    if overlap_lower:
-                        self.section_width_apply_lbl(upper[0], "up")
-                    elif not overlap_lower:
-                        self.section_width_apply_lbl(upper[0], "down")
-                for lower in lowers:
-                    self.section_width_apply_lbl(lower[0], "down")
+            only_one = self.overlapping_diff_hang_opng_only_one(opng_data)
+            near_match = self.overlapping_near_match_hang_opng_count(opng_data)
+            if matching or different:
+                self.apply_labels_grouped_up_down(opng_data)
+            elif only_one and not matching and not different:
+                for key, value in opng_data.items():
+                    for opening in value["openings"]:
+                        if opening[1]["is_upper"]:
+                            self.section_width_apply_lbl(opening[0], "up")
+                        if opening[1]["is_lower"]:
+                            self.section_width_apply_lbl(opening[0], "down")
+            elif near_match and not only_one and not matching and not different:
+                self.apply_labels_grouped_up_down(opng_data)
+            else:
+                for key, value in opng_data.items():
+                    for opening in value["openings"]:
+                        if opening[1]["is_upper"]:
+                            occlusion = self.has_occluding_opening(
+                                opening, opng_data)
+                            if occlusion:
+                                self.section_width_apply_lbl(
+                                    opening[0], "up")
+                            elif not occlusion:
+                                self.section_width_apply_lbl(
+                                    opening[0], "down")
+                        if opening[1]["is_lower"]:
+                            self.section_width_apply_lbl(
+                                opening[0], "down")
+
+    def apply_labels_grouped_up_down(self, opng_data):
+        lowest = self.get_lower_openings_for_matching(opng_data)
+        desired_lowers = opng_data[lowest]['openings']
+        for desired_low in desired_lowers:
+            self.section_width_apply_lbl(desired_low[0], "down")
+        highest = self.get_upper_openings_for_matching(opng_data)
+        desired_uppers = opng_data[highest]['openings']
+        for desired_high in desired_uppers:
+            self.section_width_apply_lbl(desired_high[0], "up")
+
 
     def section_widths(self, context, wall_bp):
         opng_data = self.query_openings_data(context, wall_bp)
@@ -1439,7 +1526,7 @@ class SNAP_OT_Auto_Dimension(Operator):
         parent_assy = sn_types.Assembly(parent_obj)
         lbl_text = 'TK'
         lbl_tgt = toe_kick
-        skin_pmt = parent_assy.get_prompt('Has TK Skin')
+        skin_pmt = parent_assy.get_prompt('Add TK Skin')
         toe_kick_x = toe_kick_assy.obj_x
         toe_kick_y = toe_kick_assy.obj_y
 
@@ -1561,11 +1648,12 @@ class SNAP_OT_Auto_Dimension(Operator):
         shelf_lip = shelf_lip_prompt.combobox_items[shf_lip_val].name
         shelf_offset = float(shelf_offset_prompt.get_value())
         shelf_qty = int(shelf_qty_prompt.get_value())
-        #
         z_offset = (shelf_qty - 1) * shelf_offset
         width = sss_assembly.obj_x.location.x
         x_offset = width / 2
-        label = f'SSS {shelf_lip} Lip'
+        label = "SSS"
+        # Skip adding shelf lip type for now. Currently slanted shoe shelf lip options are inaccurate.
+        # label = f'SSS {shelf_lip} Lip'
         rotation = (0, 45, 0)
         hashmark = sn_types.Line(sn_unit.inch(6), rotation)
         hashmark.parent(item)
@@ -1575,27 +1663,101 @@ class SNAP_OT_Auto_Dimension(Operator):
         dim.start_z(value=sn_unit.inch(2))
         dim.set_label(label)
         tagged_sss_list.append(item)
+    
+    def apply_drawer_lbl(self, drawer_stack, drawer_num, label):
+        drawer_front = drawer_stack.get_drawer_front(drawer_num)
+        hshmk_x = drawer_front.obj_x.location.x / 2
+        hshmk_len = sn_unit.inch(4)
+        hshmk = sn_types.Line(hshmk_len, (90, 45, 0))
+        hshmk.parent(drawer_front.obj_bp)
+        hshmk.start_x(value=hshmk_x)
+        hshmk.end_y(value=-hshmk_len)
+        lbl = self.add_tagged_dimension(hshmk.anchor)
+        lbl.set_label(label)
+        lbl.start_x(value=sn_unit.inch(2))
+        lbl.start_y(value=-hshmk_len * 2)
+        lbl.start_z(value=sn_unit.inch(8))
+
+    def query_velvet_liner(self, drawer_stack, drawer_num):
+        width_in = round(sn_unit.meter_to_inch(drawer_stack.obj_x.location.x))
+        insert_width = 0
+        vl18 = [3,4,5]
+        vl21 = [4,5,6]
+        vl24 = [4,5,6]
+        if 18 <= width_in < 21:
+            insert_width = 18
+        elif 21 <= width_in < 24:
+            insert_width = 21
+        elif 24 <= width_in:
+            insert_width = 24
+        insert_type = drawer_stack.get_prompt(
+            f'Jewelry Insert Type {drawer_num}').get_value()
+        # Double Jewelry
+        if insert_type == 0:
+            upper = f'Upper Jewelry Insert Velvet Liner {insert_width}in {drawer_num}'
+            lower = f'Lower Jewelry Insert Velvet Liner {insert_width}in {drawer_num}'
+            u_choice = drawer_stack.get_prompt(upper).get_value()
+            l_choice = drawer_stack.get_prompt(lower).get_value()
+            if insert_width == 18 and (u_choice in vl18 or l_choice in vl18):
+                return True
+            elif insert_width == 21 and (u_choice in vl21 or l_choice in vl21):
+                return True
+            elif insert_width == 24 and (u_choice in vl24 or l_choice in vl24):
+                return True
+        # STD Insert
+        elif insert_type == 1:
+            jwl_ins = f'Jewelry Insert {insert_width}in {drawer_num}'
+            sld_ins = f'Sliding Insert {insert_width}in {drawer_num}'
+            j_choice = drawer_stack.get_prompt(jwl_ins).get_value()
+            s_choice = drawer_stack.get_prompt(sld_ins).get_value()
+            drawer_stack.get_prompt(sld_ins)
+            if insert_width == 18 and (j_choice in vl18 or s_choice in vl18):
+                return True
+            elif insert_width == 21 and (j_choice in vl21 or s_choice in vl21):
+                return True
+            elif insert_width == 24 and (j_choice in vl24 or s_choice in vl24):
+                return True
+        # Non-STD Insert GT 16
+        elif insert_type == 2:
+            lower = f'Lower Jewelry Insert Velvet Liner {insert_width}in {drawer_num}'
+            l_choice = drawer_stack.get_prompt(lower).get_value()
+            if insert_width == 18 and l_choice in vl18:
+                return True
+            elif insert_width == 21 and l_choice in vl21:
+                return True
+            elif insert_width == 24 and l_choice in vl24:
+                return True
+        # Non-STD Insert LT 16
+        elif insert_type == 3:
+            return True
+        return False
 
     def jewelry_drawer_labeling(self, assembly):
         drawer_stack = data_drawers.Drawer_Stack(assembly.obj_bp)
         drawer_quantity = drawer_stack.get_prompt("Drawer Quantity")
 
         for drawer_num in range(1, drawer_quantity.get_value()):
+            has_velvet_liner = False
             use_dbl_drawer = drawer_stack.get_prompt("Use Double Drawer " + str(drawer_num))
+            is_dbl_drawer = use_dbl_drawer.get_value()
+            has_jwl_insert_pmpt = drawer_stack.get_prompt(f'Has Jewelry Insert {drawer_num}')
+            has_sld_insert_pmpt = drawer_stack.get_prompt(f'Has Sliding Insert {drawer_num}')
+            has_velvet_liner = self.query_velvet_liner(drawer_stack, drawer_num)
 
-            if use_dbl_drawer.get_value():
-                drawer_front = drawer_stack.get_drawer_front(drawer_num)
-                hshmk_x = drawer_front.obj_x.location.x / 2
-                hshmk_len = sn_unit.inch(4)
-                hshmk = sn_types.Line(hshmk_len, (0, 45, 0))
-                hshmk.parent(drawer_front.obj_bp)
-                hshmk.start_x(value=hshmk_x)
-                hshmk.end_y(value=-hshmk_len)
-                lbl = self.add_tagged_dimension(hshmk.anchor)
-                lbl.set_label('Db Jwlry')
-                lbl.start_x(value=sn_unit.inch(2))
-                lbl.start_y(value=-hshmk_len * 2)
-                lbl.start_z(value=hshmk_len)
+            has_jwl_insert = has_jwl_insert_pmpt.get_value()
+            has_sld_insert = has_sld_insert_pmpt.get_value()
+
+            if is_dbl_drawer and not has_velvet_liner:
+                self.apply_drawer_lbl(drawer_stack, drawer_num, 'Db Jwlry')
+            elif not is_dbl_drawer and not has_velvet_liner:
+                if has_jwl_insert and not has_sld_insert:
+                    self.apply_drawer_lbl(drawer_stack, drawer_num, 'Jwlry')
+                elif not has_jwl_insert and has_sld_insert:
+                    self.apply_drawer_lbl(drawer_stack, drawer_num, 'SLD')
+                elif has_jwl_insert and has_sld_insert:
+                    self.apply_drawer_lbl(drawer_stack, drawer_num, 'Jwlry + SLD')
+            elif has_velvet_liner:
+                self.apply_drawer_lbl(drawer_stack, drawer_num, 'VL')
 
     def lock_labeling(self, assembly):
         lock_obj = assembly.obj_bp
@@ -1975,42 +2137,64 @@ class SNAP_OT_Auto_Dimension(Operator):
             if hide_pmt and not hide_pmt.get_value():
                 labeled_cleat = cleat_assy
 
-        if labeled_cleat:
-            dim_offset = sn_unit.inch(2)
+        if labeled_cleat: 
+            dim_offset = -sn_unit.inch(3)
             cleat_aff_dist = labeled_cleat.obj_bp.matrix_world.translation.z
             width = labeled_cleat.obj_x.location.x
+            height = labeled_cleat.obj_y.location.y
+            dim_w_anchor_loc = (0, height + dim_offset, 0)
+            dim_h_end_loc = (0, height, 0)
+            aff_dim_anchor_loc = (0, 0, 0)
+            aff_dim_end_loc = (0, cleat_aff_dist, 0)
 
-            if obj.sn_closets.is_accessory_bp:
-                height = labeled_cleat.obj_z.location.z
-                dim_w_anchor_loc = (0, 0, -dim_offset)
-                dim_h_end_loc = (0, 0, height)
-                aff_dim_anchor_loc = (0, 0, -cleat_aff_dist)
-                aff_dim_end_loc = (0, 0, cleat_aff_dist)
-
-            else:
-                height = labeled_cleat.obj_y.location.y
-                dim_w_anchor_loc = (0, dim_offset, 0)
-                dim_h_end_loc = (0, height, 0)
-                aff_dim_anchor_loc = (0, cleat_aff_dist, 0)
-                aff_dim_end_loc = (0, -cleat_aff_dist, 0)
-
+            # Width dimension
             dim_w = self.add_tagged_dimension(labeled_cleat.obj_bp)
             dim_w.set_horizontal_line_txt_pos('BOTTOM')
             lbl_w = self.to_inch_lbl(width)
-            dim_w.anchor.location = dim_w_anchor_loc
+            dim_w.anchor.location = dim_w_anchor_loc 
             dim_w.end_x(value=width)
-            dim_w.set_label(lbl_w)
+            dim_w.set_label(" ")
+            width_lbl = self.add_tagged_dimension(labeled_cleat.obj_bp)
+            width_lbl.anchor.location = (
+                width / 2, height + dim_offset + sn_unit.inch(-2), 0)
+            width_lbl.set_label(lbl_w)
 
+            # Cleat height dimension
             dim_h = self.add_tagged_dimension(labeled_cleat.obj_bp)
             lbl_h = self.to_inch_lbl(abs(height))
-            dim_h.start_x(value=-dim_offset)
+            dim_h.start_x(value=dim_offset)
             dim_h.end_point.location = dim_h_end_loc
             dim_h.set_label(lbl_h)
 
+            # Height above the floor dimension
             aff_dim = self.add_tagged_dimension(labeled_cleat.obj_bp)
             aff_dim.anchor.location = aff_dim_anchor_loc
             aff_dim.end_point.location = aff_dim_end_loc
             aff_dim.set_label(self.to_inch_lbl(cleat_aff_dist))
+
+    def ts_support_corbel_dimensions(self, assy):
+        width = assy.obj_x.location.x
+        wall_bp = sn_utils.get_wall_bp(assy.obj_bp)
+        wall_assy = sn_types.Assembly(wall_bp)
+        fills_wall = False
+
+        if wall_assy:
+            wall_width = round(wall_assy.obj_x.location.x, 2)
+            ts_width = round(assy.obj_x.location.x, 2)
+            if wall_width == ts_width:
+                fills_wall = True
+
+        if not fills_wall:
+            # Width dimension
+            dim_w = self.add_tagged_dimension(assy.obj_bp)
+            dim_w.set_horizontal_line_txt_pos('BOTTOM')
+            lbl_w = self.to_inch_lbl(width)
+            dim_w.anchor.location.z = sn_unit.inch(3)
+            dim_w.end_x(value=width)
+            dim_w.set_label(" ")
+            width_lbl = self.add_tagged_dimension(assy.obj_bp)
+            width_lbl.anchor.location = (width / 2, 0, sn_unit.inch(6))
+            width_lbl.set_label(lbl_w)
 
     def countertop_hashmark(self, context, item):
         material_name = ""
@@ -2283,6 +2467,9 @@ class SNAP_OT_Auto_Dimension(Operator):
         lsh_height = lsh_assy.obj_z.location.z
         bh_dims.append(lsh_height + tk_height + tsh_height)
 
+    def ts_support_corbel_bh(self, bh_dims, item):
+        product = sn_types.Assembly(item)
+        bh_dims.append(product.obj_bp.location.z)
 
     def build_height_dimension(self, wall_bp):
         bh_dims = []
@@ -2293,6 +2480,8 @@ class SNAP_OT_Auto_Dimension(Operator):
                 self.strict_corner_bh(bh_dims, item)
             if 'l shelves' in item.name.lower():
                 self.strict_corner_bh(bh_dims, item)
+            if 'IS_TOPSHELF_SUPPORT_CORBELS' in item:
+                self.ts_support_corbel_bh(bh_dims, item)
         bh_dims = [round(dim, 4) for dim in bh_dims]
         bh_dims = list(set(bh_dims))
         bh_dims = sorted(bh_dims)
@@ -2393,7 +2582,12 @@ class SNAP_OT_Auto_Dimension(Operator):
         panels.sort(key=lambda x: x.location.x)
 
         for i, opn in enumerate(opns):
-            opns_sides[opn] = [panels[i], panels[i + 1]]
+            l_panel = panels[i]
+            if i + 1 != len(opns):
+                r_panel = panels[i + 1]
+            else:
+                r_panel = panels[-1]
+            opns_sides[opn] = [l_panel, r_panel]
 
         return opns_sides
 
@@ -2455,6 +2649,19 @@ class SNAP_OT_Auto_Dimension(Operator):
             hashmark.start_z(value=0)
             hashmark.anchor.name = 'PARTHGT'
             hashmark.end_point.name = 'PARTHGT'
+    
+    def door_has_pointers(self, door_parent):
+        door_parent_pointers = []
+        for door_obj in door_parent.children:
+            if door_obj.sn_closets.is_door_bp:
+                door_mesh = [d for d in door_obj.children if d.type == 'MESH'][0]
+                pointers = [s.pointer_name for s in door_mesh.snap.material_slots]
+                pointers = [p for p in pointers if p != '']
+                door_parent_pointers += pointers
+        pointers_qty = len(list(set(door_parent_pointers)))
+        if pointers_qty > 0:
+            return True
+        return False
 
     def execute(self, context):
         self.clean_up_scene(context)
@@ -2520,27 +2727,30 @@ class SNAP_OT_Auto_Dimension(Operator):
                     shelf_label.set_label("KD")
 
             # DOOR HEIGHT LABEL
-            # fill opening for doors is weird and to make use of hole number
-            # we need to look for the nearest match if it's under a 0.25 inch tolerance.
-            # if it is beyond the tolerance it will be labeled as decimal.
-            #
-            # We also label the doors once, if there is a left and right door, labeling the right one
-            # To find if a door is left or right you look at it's assembly depth (VPDIMY)
             if props.is_door_bp and scene_props.door_face_height:
                 door_obj = assembly.obj_bp
+                has_pointers = self.door_has_pointers(door_obj.parent)
                 door_assy = sn_types.Assembly(door_obj)
                 door_height = door_assy.obj_x.location.x
-                y_offset = (assembly.obj_y.location.y / 5) * 4
-                if 'left' in door_obj.name.lower():
+                if not has_pointers:
                     y_offset = (assembly.obj_y.location.y / 5) * 4
-                elif 'right' in door_obj.name.lower():
-                    y_offset = (assembly.obj_y.location.y / 5) * 1
-                label = self.get_door_size(door_height)
-                dim = self.add_tagged_dimension(door_obj)
-                dim.start_x(
-                    value=(assembly.obj_x.location.x / 5) * 4)
-                dim.start_y(value=y_offset)
-                dim.set_label(label)
+                    if 'left' in door_obj.name.lower():
+                        y_offset = (assembly.obj_y.location.y / 5) * 4
+                    elif 'right' in door_obj.name.lower():
+                        y_offset = (assembly.obj_y.location.y / 5) * 1
+                    label = self.get_door_size(door_height)
+                    dim = self.add_tagged_dimension(door_obj)
+                    dim.start_x(
+                        value=(assembly.obj_x.location.x / 5) * 4)
+                    dim.start_y(value=y_offset)
+                    dim.set_label(label)
+                elif has_pointers:
+                    label = self.get_door_size(door_height)
+                    dim = self.add_tagged_dimension(door_obj)
+                    dim.start_x(
+                        value=(assembly.obj_x.location.x / 5) * 4)
+                    dim.start_y(value=assembly.obj_y.location.y / 2)
+                    dim.set_label(label)
 
             # DRAWER FRONT HEIGHT LABEL
             parent = assembly.obj_bp.parent
@@ -2658,8 +2868,12 @@ class SNAP_OT_Auto_Dimension(Operator):
             if scene_props.wall_cleats and (accy_cleat or wall_cleat):
                 self.wall_cleat_dimensions(assembly)
 
+            # Topshelf support corbel dimensions
+            if assembly.obj_bp.get("IS_TOPSHELF_SUPPORT_CORBELS"):
+                self.ts_support_corbel_dimensions(assembly)
+
             # Top Shelf labeling
-            is_top_shelf = 'topshelf' in assembly.obj_bp.name.lower()
+            is_top_shelf = 'IS_BP_PLANT_ON_TOP' in assembly.obj_bp
             if scene_props.top_shelf_depth and is_top_shelf:
                 self.topshelf_depth(assembly)
 
@@ -2996,7 +3210,7 @@ class SNAP_PT_Closet_2D_Setup(Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "TOOLS"
     bl_context = "objectmode"
-    bl_label = "Closet 2D Setup"
+    bl_label = "2D Setup"
     bl_options = {'DEFAULT_CLOSED'}
     bl_order = 5
 

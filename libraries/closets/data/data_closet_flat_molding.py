@@ -35,6 +35,8 @@ class Flat_Molding(sn_types.Assembly):
         self.add_prompt("Front Overhang", 'DISTANCE', sn_unit.inch(.75))
         self.add_prompt("Molding Height", 'DISTANCE', sn_unit.inch(3))
         self.add_prompt("Molding Location", 'DISTANCE', sn_unit.inch(-24))
+        self.add_prompt('Layered Crown', 'CHECKBOX', False)
+        self.add_prompt('Layers', 'COMBOBOX', 0, ['1', '2'])
         common_prompts.add_thickness_prompts(self)
 
     def update(self):
@@ -152,6 +154,12 @@ class Flat_Crown(Flat_Molding):
         self.add_prompt("Extend To Ceiling", 'CHECKBOX', False)
         self.add_prompt("Distance From Ceiling", 'DISTANCE', 0)
         self.add_prompt("Top KD Holes Down", 'COMBOBOX', 0, ["None", 'One', 'Two'])
+        self.add_prompt('Show Layered Molding', 'CHECKBOX', False)
+        self.add_prompt('Number of Layers', 'COMBOBOX', 0, ['1', '2'])
+        self.add_prompt('Topshelf Exists', 'CHECKBOX', False)
+
+        Show_Layered = self.get_prompt('Show Layered Molding').get_var('Show_Layered')
+        Layer_Num = self.get_prompt('Number of Layers').get_var('Layer_Num')
 
         Width = self.obj_x.snap.get_var('location.x', 'Width')
         Depth = self.obj_y.snap.get_var('location.y', 'Depth')
@@ -168,6 +176,8 @@ class Flat_Crown(Flat_Molding):
         Exposed_Back = self.get_prompt('Exposed Back').get_var()
         Molding_Height = self.get_prompt('Molding Height').get_var()
         Molding_Location = self.get_prompt('Molding Location').get_var()
+        Topshelf_Exists = self.get_prompt('Topshelf Exists').get_var()
+
         ETC = self.get_prompt('Extend To Ceiling').get_var('ETC')
         DFC = self.get_prompt('Distance From Ceiling').get_var('DFC')
         TKDHD = self.get_prompt('Top KD Holes Down').get_var('TKDHD')
@@ -179,9 +189,9 @@ class Flat_Crown(Flat_Molding):
             'IF(Return_Left,-Panel_Thickness+' + str(sn_unit.millimeter(0.1)) + ',0)'
             '-Extend_Left_Amount',
             [Extend_Left, Extend_Left_Amount, Panel_Thickness, Return_Left])
-        flat_crown.loc_y('-Depth-Front_Overhang', [Depth, Front_Overhang])
-        flat_crown.loc_z('IF(ETC,DFC,Molding_Height+Molding_Location)', [Molding_Height, Molding_Location, ETC, DFC])
-        flat_crown.rot_x(value=math.radians(-90))
+        flat_crown.loc_y('-Depth-Front_Overhang+IF(Show_Layered,INCH(3.64)-INCH(0.75),0)', [Depth, Front_Overhang, Show_Layered, Molding_Height])
+        flat_crown.loc_z('IF(Show_Layered,IF(Topshelf_Exists,INCH(0.75),0),IF(ETC,DFC,Molding_Height+Molding_Location))', [Molding_Height, Molding_Location, ETC, DFC, Show_Layered, Topshelf_Exists])
+        flat_crown.rot_x(expression='IF(Show_Layered,radians(-180),radians(-90))', variables=[Show_Layered])
 
         flat_crown.dim_x(
             'Width+Extend_Left_Amount+Extend_Right_Amount'
@@ -189,52 +199,134 @@ class Flat_Crown(Flat_Molding):
             '+IF(Return_Left,Panel_Thickness-' + str(sn_unit.millimeter(0.1)) + ',0)',
             [Width, Extend_Left, Extend_Right, Panel_Thickness, Extend_Right_Amount,
              Extend_Left_Amount, Return_Right, Return_Left])
-        flat_crown.dim_y('IF(ETC,IF(TKDHD == 1,INCH(1.26),IF(TKDHD == 2,INCH(2.52),0))+DFC+INCH(0.25),Molding_Height)',
-                         [Molding_Height, ETC, DFC, TKDHD])
+        flat_crown.dim_y('IF(Show_Layered,INCH(3.64),IF(ETC,IF(TKDHD == 1,INCH(1.26),IF(TKDHD == 2,INCH(2.52),0))+DFC+INCH(0.25),Molding_Height))',
+                         [Molding_Height, ETC, DFC, TKDHD, Show_Layered])
         flat_crown.dim_z('-Panel_Thickness', [Panel_Thickness])
         flat_crown.get_prompt('Exposed Left').set_formula('Exposed_Left', [Exposed_Left])
         flat_crown.get_prompt('Exposed Right').set_formula('Exposed_Right', [Exposed_Right])
+        flat_crown.get_prompt('Exposed Front').set_formula('IF(Show_Layered,True, False)', [Show_Layered])
         flat_crown.get_prompt('Exposed Back').set_formula('Exposed_Back', [Exposed_Back])
+        flat_crown.get_prompt('Hide').set_formula('Hide', [self.hide_var])
+        flat_crown.get_prompt('C1 Miter Inset').set_formula('IF(AND(Show_Layered,Return_Left),INCH(3.64),0)', [Show_Layered, Return_Left])
+        flat_crown.get_prompt('C4 Miter Inset').set_formula('IF(AND(Show_Layered,Return_Right),INCH(3.64),0)', [Show_Layered, Return_Right])
 
         left_return = common_parts.add_flat_crown(self)
         left_return.obj_bp.snap.comment_2 = "1038"
         left_return.set_name("Left")
-        left_return.loc_x('(-Panel_Thickness)-Extend_Left_Amount', [Panel_Thickness, Extend_Left_Amount])
+        left_return.loc_x('-Panel_Thickness-Extend_Left_Amount+IF(Show_Layered,INCH(3.64),0)', [Panel_Thickness, Extend_Left_Amount, Show_Layered, Molding_Height])
         left_return.loc_y(
             '-Depth-Front_Overhang-Panel_Thickness+' + str(sn_unit.millimeter(0.1)) + '',
             [Depth, Front_Overhang, Panel_Thickness])
-        left_return.loc_z('IF(ETC,DFC,Molding_Height+Molding_Location)', [Molding_Height, Molding_Location, ETC, DFC])
-        left_return.rot_x(value=math.radians(90))
+        left_return.loc_z('IF(Show_Layered,IF(Topshelf_Exists,INCH(0.75),0),IF(ETC,DFC,Molding_Height+Molding_Location))', [Molding_Height, Molding_Location, ETC, DFC, Show_Layered, Topshelf_Exists])
+        left_return.rot_x(expression='IF(Show_Layered,0,radians(90))', variables=[Show_Layered])
         left_return.rot_z(value=math.radians(90))
         left_return.dim_x(
             'Depth+Front_Overhang+Panel_Thickness-' + str(sn_unit.millimeter(0.1)) + '',
             [Depth, Panel_Thickness, Front_Overhang])
         left_return.dim_y(
-            'IF(ETC,IF(TKDHD == 1,INCH(1.26),IF(TKDHD == 2,INCH(2.52),0))+DFC+INCH(0.25),Molding_Height) * -1',
-            [Molding_Height, ETC, DFC, TKDHD])
+            'IF(Show_Layered,INCH(3.64),IF(ETC,IF(TKDHD == 1,INCH(1.26),IF(TKDHD == 2,INCH(2.52),0))+DFC+INCH(0.25),Molding_Height) * -1)',
+            [Molding_Height, ETC, DFC, TKDHD, Show_Layered])
         left_return.dim_z('Panel_Thickness', [Panel_Thickness])
         left_return.get_prompt('Hide').set_formula('IF(Return_Left,False,True) or Hide', [Return_Left,self.hide_var])
+        #W
+        left_return.get_prompt('Exposed Front').set_formula('IF(AND(Show_Layered,Exposed_Left),True, False)', [Show_Layered, Exposed_Left])
         left_return.get_prompt('Exposed Back').set_formula('Exposed_Back', [Exposed_Back])
+        left_return.get_prompt('C1 Miter Inset').set_formula('IF(Show_Layered,INCH(3.64),0)', [Show_Layered])
 
         right_return = common_parts.add_flat_crown(self)
         right_return.obj_bp.snap.comment_2 = "1038"
         right_return.set_name("Right")
-        right_return.loc_x('Width+Extend_Right_Amount', [Width, Extend_Right_Amount])
+        right_return.loc_x('Width+Extend_Right_Amount-IF(Show_Layered,-INCH(0.75)+INCH(3.64),0)', [Width, Extend_Right_Amount, Show_Layered, Molding_Height])
         right_return.loc_y(
             '-Depth-Front_Overhang-Panel_Thickness+' + str(sn_unit.millimeter(0.1)) + '',
             [Depth, Front_Overhang, Panel_Thickness])
-        right_return.loc_z('IF(ETC,DFC,Molding_Height+Molding_Location)', [Molding_Height, Molding_Location, ETC, DFC])
-        right_return.rot_x(value=math.radians(90))
+        right_return.loc_z('IF(Show_Layered,IF(Topshelf_Exists,INCH(1.5),INCH(0.75)),IF(ETC,DFC,Molding_Height+Molding_Location))', [Molding_Height, Molding_Location, ETC, DFC, Show_Layered, Topshelf_Exists])
+        right_return.rot_x(expression='IF(Show_Layered,radians(180),radians(90))', variables=[Show_Layered])
         right_return.rot_z(value=math.radians(90))
         right_return.dim_x(
             'Depth+Front_Overhang+Panel_Thickness-' + str(sn_unit.millimeter(0.1)) + '',
             [Depth, Panel_Thickness, Front_Overhang])
         right_return.dim_y(
-            'IF(ETC,IF(TKDHD==1,INCH(1.26),IF(TKDHD==2,INCH(2.52),0))+DFC+INCH(0.25),Molding_Height)*-1',
-            [Molding_Height, ETC, DFC, TKDHD])
+            'IF(Show_Layered,INCH(3.64),IF(ETC,IF(TKDHD==1,INCH(1.26),IF(TKDHD==2,INCH(2.52),0))+DFC+INCH(0.25),Molding_Height)*-1)',
+            [Molding_Height, ETC, DFC, TKDHD, Show_Layered])
         right_return.dim_z('Panel_Thickness', [Panel_Thickness])
         right_return.get_prompt('Hide').set_formula('IF(Return_Right,False,True) or Hide', [Return_Right,self.hide_var])
+        right_return.get_prompt('Exposed Front').set_formula('IF(AND(Show_Layered,Exposed_Right),True, False)', [Show_Layered, Exposed_Right])         
         right_return.get_prompt('Exposed Back').set_formula('Exposed_Back', [Exposed_Back])
+        right_return.get_prompt('C1 Miter Inset').set_formula('IF(Show_Layered,INCH(3.64),0)', [Show_Layered])
+
+        # # Layered Molding
+        flat_crown = common_parts.add_flat_crown(self)
+        flat_crown.obj_bp.snap.comment_2 = "1038"
+        flat_crown.set_name("Flat Crown")
+        flat_crown.loc_x(
+            'IF(Return_Left,-(Panel_Thickness*2)+' + str(sn_unit.millimeter(0.1)) + ',0)'
+            '-Extend_Left_Amount',
+            [Extend_Left, Extend_Left_Amount, Panel_Thickness, Return_Left])
+        flat_crown.loc_y('-Depth-Front_Overhang+IF(Show_Layered,INCH(3.64)-INCH(1.5),0)', [Depth, Front_Overhang, Show_Layered, Molding_Height])
+        flat_crown.loc_z('IF(Show_Layered,IF(Topshelf_Exists,INCH(1.5),INCH(0.75)),IF(ETC,DFC,Molding_Height+Molding_Location))', [Molding_Height, Molding_Location, ETC, DFC, Show_Layered, Panel_Thickness, Topshelf_Exists])
+        flat_crown.rot_x(expression='IF(Show_Layered,radians(-180),radians(-90))', variables=[Show_Layered])
+        flat_crown.get_prompt('C1 Miter Inset').set_formula('IF(AND(Show_Layered,Return_Left),INCH(3.64),0)', [Show_Layered, Return_Left])
+        flat_crown.get_prompt('C4 Miter Inset').set_formula('IF(AND(Show_Layered,Return_Right),INCH(3.64),0)', [Show_Layered, Return_Right])
+
+        flat_crown.dim_x(
+            'Width+Extend_Left_Amount+Extend_Right_Amount'
+            '+IF(Return_Right,(Panel_Thickness*2)-' + str(sn_unit.millimeter(0.1)) + ',0)'
+            '+IF(Return_Left,(Panel_Thickness*2)-' + str(sn_unit.millimeter(0.1)) + ',0)',
+            [Width, Extend_Left, Extend_Right, Panel_Thickness, Extend_Right_Amount,
+             Extend_Left_Amount, Return_Right, Return_Left])
+        flat_crown.dim_y('IF(Show_Layered,INCH(3.64),IF(ETC,IF(TKDHD == 1,INCH(1.26),IF(TKDHD == 2,INCH(2.52),0))+DFC+INCH(0.25),Molding_Height))',
+                         [Molding_Height, ETC, DFC, TKDHD, Show_Layered])
+        flat_crown.dim_z('-Panel_Thickness', [Panel_Thickness])
+        flat_crown.get_prompt('Exposed Left').set_formula('Exposed_Left', [Exposed_Left])
+        flat_crown.get_prompt('Exposed Right').set_formula('Exposed_Right', [Exposed_Right])
+        flat_crown.get_prompt('Exposed Front').set_formula('IF(Show_Layered,True, False)', [Show_Layered])
+        flat_crown.get_prompt('Exposed Back').set_formula('Exposed_Back', [Exposed_Back])
+        flat_crown.get_prompt('Hide').set_formula('Hide or Layer_Num==0 or not Show_Layered', [self.hide_var,Layer_Num,Show_Layered])
+
+        left_return = common_parts.add_flat_crown(self)
+        left_return.obj_bp.snap.comment_2 = "1038"
+        left_return.set_name("Left")
+        left_return.loc_x('INCH(3.64)-Panel_Thickness-Extend_Left_Amount+IF(Show_Layered,-INCH(0.75),0)', [Panel_Thickness, Extend_Left_Amount, Show_Layered, Molding_Height])
+        left_return.loc_y(
+            '-Depth-Front_Overhang-Panel_Thickness+' + str(sn_unit.millimeter(0.1)) + '-INCH(0.75)',
+            [Depth, Front_Overhang, Panel_Thickness])
+        left_return.loc_z('IF(Show_Layered,IF(Topshelf_Exists,INCH(1.5),INCH(0.75)),IF(ETC,DFC,Molding_Height+Molding_Location))', [Molding_Height, Molding_Location, ETC, DFC, Show_Layered, Topshelf_Exists])
+        left_return.rot_x(expression='IF(Show_Layered,radians(0),radians(90))', variables=[Show_Layered])
+        left_return.rot_z(value=math.radians(90))
+        left_return.dim_x(
+            'Depth+Front_Overhang+Panel_Thickness-' + str(sn_unit.millimeter(0.1)) + '+INCH(0.75)',
+            [Depth, Panel_Thickness, Front_Overhang])
+        left_return.dim_y(
+            'IF(Show_Layered,INCH(3.64),IF(ETC,IF(TKDHD == 1,INCH(1.26),IF(TKDHD == 2,INCH(2.52),0))+DFC+INCH(0.25),Molding_Height) * -1)',
+            [Molding_Height, ETC, DFC, TKDHD, Show_Layered])
+        left_return.dim_z('Panel_Thickness', [Panel_Thickness])
+        left_return.get_prompt('Hide').set_formula('IF(Return_Left,False,True) or Hide or Layer_Num==0 or not Show_Layered', [Return_Left,self.hide_var,Layer_Num,Show_Layered])
+        left_return.get_prompt('Exposed Front').set_formula('IF(AND(Show_Layered,Exposed_Left),True, False)', [Show_Layered, Exposed_Left])
+        left_return.get_prompt('Exposed Back').set_formula('Exposed_Back', [Exposed_Back])
+        left_return.get_prompt('C1 Miter Inset').set_formula('IF(Show_Layered,INCH(3.64),0)', [Show_Layered])
+
+        right_return = common_parts.add_flat_crown(self)
+        right_return.obj_bp.snap.comment_2 = "1038"
+        right_return.set_name("Right")
+        right_return.loc_x('Width+Extend_Right_Amount-IF(Show_Layered,-INCH(1.5),0)-INCH(3.64)', [Width, Extend_Right_Amount,Show_Layered,Molding_Height])
+        right_return.loc_y(
+            '-Depth-Front_Overhang-Panel_Thickness+' + str(sn_unit.millimeter(0.1)) + '-INCH(0.75)',
+            [Depth, Front_Overhang, Panel_Thickness])
+        right_return.loc_z('IF(Show_Layered,IF(Topshelf_Exists,INCH(2.25),INCH(1.5)),IF(ETC,DFC,Molding_Height+Molding_Location))', [Molding_Height, Molding_Location, ETC, DFC, Show_Layered, Panel_Thickness, Topshelf_Exists])
+        right_return.rot_x(expression='IF(Show_Layered,radians(180),radians(90))', variables=[Show_Layered])
+        right_return.rot_z(value=math.radians(90))
+        right_return.dim_x(
+            'Depth+Front_Overhang+Panel_Thickness-' + str(sn_unit.millimeter(0.1)) + '+INCH(0.75)',
+            [Depth, Panel_Thickness, Front_Overhang])
+        right_return.dim_y(
+            'IF(Show_Layered,INCH(3.64),IF(ETC,IF(TKDHD==1,INCH(1.26),IF(TKDHD==2,INCH(2.52),0))+DFC+INCH(0.25),Molding_Height)*-1)',
+            [Molding_Height, ETC, DFC, TKDHD, Show_Layered])
+        right_return.dim_z('Panel_Thickness', [Panel_Thickness])
+        right_return.get_prompt('Hide').set_formula('IF(Return_Right,False,True) or Hide or Layer_Num==0 or not Show_Layered', [Return_Right,self.hide_var,Layer_Num,Show_Layered])
+        right_return.get_prompt('Exposed Front').set_formula('IF(AND(Show_Layered,Exposed_Right),True, False)', [Show_Layered, Exposed_Right])
+        right_return.get_prompt('Exposed Back').set_formula('Exposed_Back', [Exposed_Back])
+        right_return.get_prompt('C1 Miter Inset').set_formula('IF(Show_Layered,INCH(3.64),0)', [Show_Layered])
 
         self.update()
 
@@ -247,6 +339,7 @@ class PROMPTS_prompts_flat_molding(sn_types.Prompts_Interface):
     width: FloatProperty(name="Width", unit='LENGTH', precision=4)
     height: FloatProperty(name="Height", unit='LENGTH', precision=4)
     depth: FloatProperty(name="Depth", unit='LENGTH', precision=4)
+    layer_num: EnumProperty(name='Number of Layers', items=(('0','1','1'),('1','2','2')))
     TKHD_VAR: EnumProperty(
         name="Top KD Holes Down",
         items=[
@@ -269,6 +362,11 @@ class PROMPTS_prompts_flat_molding(sn_types.Prompts_Interface):
         tkdhd = self.insert.get_prompt('Top KD Holes Down')
         if tkdhd:
             tkdhd.set_value(int(self.TKHD_VAR))
+
+        layer_num = self.insert.get_prompt('Number of Layers')
+        if layer_num:
+            if layer_num.get_value() != float(self.layer_num):
+                layer_num.set_value(float(self.layer_num))
         if etc and dfc:
             if etc.get_value():
                 wall_bp = sn_utils.get_wall_bp(self.insert.obj_bp)
@@ -276,7 +374,7 @@ class PROMPTS_prompts_flat_molding(sn_types.Prompts_Interface):
                 closet_bp = sn_utils.get_closet_bp(self.insert.obj_bp)
                 closet = sn_types.Assembly(closet_bp)
                 if wall.obj_bp:
-                    dfc.set_value(wall.obj_z.location.z - closet.obj_z.location.z)
+                    dfc.set_value(wall.obj_z.location.z - self.insert.obj_bp.location.z)
 
                 tkdhd = self.insert.get_prompt('Top KD Holes Down')
                 for i in range(0, 9):
@@ -298,7 +396,30 @@ class PROMPTS_prompts_flat_molding(sn_types.Prompts_Interface):
                     if top_KD_vertical_offset:
                         top_KD_vertical_offset.set_value(0)
 
+            if (self.insert.get_prompt("Show Layered Molding")):
+                for obj in self.insert.obj_bp.children:
+                    if obj.get('IS_BP_FLAT_CROWN'):
+                        obj['IS_BP_LAYERED_CROWN'] = self.insert.get_prompt("Show Layered Molding").get_value()
+
+        TE_Prompt = self.insert.get_prompt('Topshelf Exists')
+        if TE_Prompt:
+            TE_Prompt.set_value(self.has_topshelf)
+
+            ts_assembly = None
+            for child in self.insert.obj_bp.parent.children:
+                if not child.hide_get():
+                    if 'IS_BP_CLOSET_TOP' in child:
+                        ts_assembly = sn_types.Assembly(child)
+
+            if ts_assembly:
+                ts_overhang = ts_assembly.get_prompt("Front Overhang")
+                fc_overhang = self.insert.get_prompt("Front Overhang")
+                self.insert.obj_y.location.y = math.fabs(ts_assembly.obj_y.location.y)
+                if(ts_overhang and fc_overhang):
+                    fc_overhang.set_value(ts_overhang.get_value())
+
         closet_props.update_render_materials(self, context)
+
 
         # self.update_product_size()
         return True
@@ -306,6 +427,7 @@ class PROMPTS_prompts_flat_molding(sn_types.Prompts_Interface):
     def execute(self, context):
         """ This is called when the OK button is clicked """
         # self.update_product_size()
+        
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -314,8 +436,20 @@ class PROMPTS_prompts_flat_molding(sn_types.Prompts_Interface):
         tkdhd = self.insert.get_prompt('Top KD Holes Down')
         if tkdhd:
             self.TKHD_VAR = str(tkdhd.get_value())
+        self.layered_crown = self.insert.get_prompt('Layered Crown').get_value()
+        if self.insert.get_prompt('Number of Layers'):
+            self.layer_num = str(self.insert.get_prompt('Number of Layers').get_value())
         wm = context.window_manager
-        return wm.invoke_props_dialog(self, width=sn_utils.get_prop_dialog_width(400))
+
+        # check if topshelf exists
+        self.has_topshelf = False
+        for child in self.insert.obj_bp.parent.children:
+            if not child.hide_get():
+                if 'IS_BP_CLOSET_TOP' in child:
+                    self.has_topshelf = True
+                    break
+
+        return wm.invoke_props_dialog(self, width=sn_utils.get_prop_dialog_width(450))
 
     def draw(self, context):
         """ This is where you draw the interface """
@@ -335,6 +469,8 @@ class PROMPTS_prompts_flat_molding(sn_types.Prompts_Interface):
         front_overhang = self.insert.get_prompt("Front Overhang")
         molding_location = self.insert.get_prompt('Molding Location')
         tkdhd = self.insert.get_prompt('Top KD Holes Down')
+        show_layered = self.insert.get_prompt('Show Layered Molding')
+        layer_num = self.insert.get_prompt('Number of Layers')
         if extend_to_ceiling:
             row = box.row()
             row.prop(extend_to_ceiling, "checkbox_value", text=extend_to_ceiling.name)
@@ -346,13 +482,15 @@ class PROMPTS_prompts_flat_molding(sn_types.Prompts_Interface):
                 row.label(text='Top KD Holes Down')
                 row.prop(self, 'TKHD_VAR', expand=True)
             else:
-                row = box.row()
-                row.prop(molding_height, "distance_value", text=molding_height.name)
+                if show_layered and not show_layered.get_value():
+                    row = box.row()
+                    row.prop(molding_height, "distance_value", text=molding_height.name)
                 row = box.row()
                 row.prop(molding_location, "distance_value", text=molding_location.name)
         else:
-            row = box.row()
-            row.prop(molding_height, "distance_value", text=molding_height.name)
+            if show_layered and not show_layered.get_value():
+                row = box.row()
+                row.prop(molding_height, "distance_value", text=molding_height.name)
             row = box.row()
             row.prop(molding_location, "distance_value", text=molding_location.name)
 
@@ -377,6 +515,13 @@ class PROMPTS_prompts_flat_molding(sn_types.Prompts_Interface):
         row.prop(return_right, "checkbox_value", text="Right Return")
         row = box.row()
         row.prop(front_overhang, "distance_value", text=front_overhang.name)
+        if show_layered:
+            row = box.row()
+            row.prop(show_layered, 'checkbox_value', text='Layered Crown')
+            if show_layered.get_value():
+                row.label(text='Number of Layers')
+                row.prop(self, 'layer_num', expand=True)
+            
 
 
 class DROP_OPERATOR_Place_Top(Operator, PlaceClosetInsert):
@@ -385,10 +530,12 @@ class DROP_OPERATOR_Place_Top(Operator, PlaceClosetInsert):
     bl_description = "This places the top."
     bl_options = {'UNDO'}
 
+    objects = []
     selected_panel_1 = None
     selected_panel_2 = None
 
     def execute(self, context):
+        self.objects = [obj for obj in context.visible_objects if obj.parent and obj.parent.sn_closets.is_panel_bp]
         return super().execute(context)
 
     def get_distance_between_panels(self, panel_1, panel_2):    
@@ -414,7 +561,7 @@ class DROP_OPERATOR_Place_Top(Operator, PlaceClosetInsert):
         return sn_utils.calc_distance((x1, y1, z1), (x2, y2, z1))
 
     def insert_drop(self, context, event):
-        selected_point, selected_obj, _ = sn_utils.get_selection_point(context, event)
+        selected_point, selected_obj, _ = sn_utils.get_selection_point(context, event, objects=self.objects)
         bpy.ops.object.select_all(action='DESELECT')
 
         if selected_obj is not None:
@@ -450,9 +597,10 @@ class DROP_OPERATOR_Place_Top(Operator, PlaceClosetInsert):
                             self.selected_panel_2 = hover_panel
 
                             if self.selected_panel_2.obj_bp.parent is not None:
-                                pard = sn_types.Assembly(self.selected_panel_2.obj_bp.parent)
-                                Height = pard.obj_z.snap.get_var('location.z', 'height')
-                                self.asset.obj_bp.snap.loc_z("height", [Height])
+                                pard = sn_types.Assembly(self.selected_panel_2.obj_bp)
+                                Base_Height = self.selected_panel_2.obj_bp.snap.get_var('location.z', 'Base_Height')
+                                Height = self.selected_panel_2.obj_x.snap.get_var('location.x', 'Height')
+                                self.asset.obj_bp.snap.loc_z("Height+Base_Height", [Height, Base_Height])
 
                             sn_utils.set_wireframe(self.asset.obj_bp, False)
                             bpy.context.window.cursor_set('DEFAULT')
@@ -476,6 +624,23 @@ class DROP_OPERATOR_Place_Top(Operator, PlaceClosetInsert):
                                         self.asset.obj_y.location.y = math.fabs(ts_assembly.obj_y.location.y)
                                         if(ts_overhang and fc_overhang):
                                             fc_overhang.set_value(ts_overhang.get_value())
+
+                                        ts_left_extend = ts_assembly.get_prompt('Extend Left Amount')
+                                        ts_right_extend = ts_assembly.get_prompt('Extend Right Amount')
+                                        if ts_left_extend and ts_right_extend:
+                                            sn_utils.set_prompt_if_exists(self.asset, 'Extend Left Amount', ts_left_extend.get_value())
+                                            sn_utils.set_prompt_if_exists(self.asset, 'Extend Right Amount', ts_right_extend.get_value())
+
+                                        ts_exposed_right = ts_assembly.get_prompt('Exposed Right')
+                                        if ts_exposed_right:
+                                            sn_utils.set_prompt_if_exists(self.asset, 'Return Right', ts_exposed_right.get_value())
+                                        
+                                        ts_exposed_left = ts_assembly.get_prompt('Exposed Left')
+                                        if ts_exposed_left:
+                                            sn_utils.set_prompt_if_exists(self.asset, 'Return Left', ts_exposed_left.get_value())
+
+                                        
+
                             parent = sn_types.Assembly(obj_bp=self.asset.obj_bp.parent)
                             Width = parent.obj_x.snap.get_var('location.x', 'Width')
                             Left_Side_Wall_Filler =\

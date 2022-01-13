@@ -52,6 +52,8 @@ def add_closet_carcass_prompts(assembly):
     assembly.add_prompt("Dog Ear Active", 'CHECKBOX', defaults.dog_ear_active)
     assembly.add_prompt("Front Angle Height", 'DISTANCE', sn_unit.inch(0))
     assembly.add_prompt("Front Angle Depth", 'DISTANCE', defaults.panel_depth)
+    assembly.add_prompt("Corbel Partitions", 'CHECKBOX', False)
+    assembly.add_prompt("Corbel Height All", 'DISTANCE', 0)
     assembly.add_prompt("Cleat Height", 'DISTANCE', sn_unit.inch(3.64))
     assembly.add_prompt("Blind Corner Left", 'CHECKBOX', False)
     assembly.add_prompt("Blind Corner Right", 'CHECKBOX', False)
@@ -59,6 +61,7 @@ def add_closet_carcass_prompts(assembly):
     assembly.add_prompt("Blind Corner Right Depth", 'DISTANCE', sn_unit.inch(18))
     assembly.add_prompt("Opening Height Difference", 'DISTANCE', sn_unit.inch(1.49))
     assembly.add_prompt("Blind Corner Height Difference", 'DISTANCE', sn_unit.inch(0.91))
+    assembly.add_prompt("Thick Adjustable Shelves", 'CHECKBOX', bpy.context.scene.sn_closets.closet_defaults.thick_adjustable_shelves)
 
     # For adding individual opening prompts
     for i in range(1, assembly.opening_qty + 1):

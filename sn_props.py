@@ -16,7 +16,7 @@ from bpy.props import (BoolProperty,
 from bpy.utils import register_class, unregister_class
 from snap.sn_unit import inch
 
-from snap import sn_paths, sn_utils, sn_unit
+from snap import sn_paths, sn_utils, sn_unit, sn_types
 from snap.libraries.closets import closet_library
 from snap.libraries.doors_and_windows import doors_and_windows_library
 from snap.libraries.appliances import appliance_library
@@ -378,6 +378,9 @@ class Calculator_Prompt(PropertyGroup):
     def get_value(self):
         return self.distance_value
 
+    def set_value(self, value):
+        self.distance_value = value
+
 
 class Calculator(PropertyGroup):
     prompts: CollectionProperty(name="Prompts", type=Calculator_Prompt)
@@ -425,26 +428,27 @@ class Calculator(PropertyGroup):
         pass
 
     def calculate(self):
-        self.distance_obj.hide_viewport = False
+        if self.distance_obj:
+            self.distance_obj.hide_viewport = False
 
-        non_equal_prompts_total_value = 0
-        equal_prompt_qty = 0
-        calc_prompts = []
-        for prompt in self.prompts:
-            if prompt.equal:
-                equal_prompt_qty += 1
-                calc_prompts.append(prompt)
-            else:
-                non_equal_prompts_total_value += prompt.distance_value
+            non_equal_prompts_total_value = 0
+            equal_prompt_qty = 0
+            calc_prompts = []
+            for prompt in self.prompts:
+                if prompt.equal:
+                    equal_prompt_qty += 1
+                    calc_prompts.append(prompt)
+                else:
+                    non_equal_prompts_total_value += prompt.distance_value
 
-        if equal_prompt_qty > 0:
-            prompt_value = ((self.distance_obj.snap.calculator_distance - non_equal_prompts_total_value)
-                            / equal_prompt_qty)
+            if equal_prompt_qty > 0:
+                prompt_value = ((self.distance_obj.snap.calculator_distance - non_equal_prompts_total_value)
+                                / equal_prompt_qty)
 
-            for prompt in calc_prompts:
-                prompt.distance_value = prompt_value
+                for prompt in calc_prompts:
+                    prompt.distance_value = prompt_value
 
-            self.id_data.location = self.id_data.location
+                self.id_data.location = self.id_data.location
 
 class accordion_view(PropertyGroup):
 
@@ -1238,6 +1242,35 @@ class Machine_Point(PropertyGroup):
 
 bpy.utils.register_class(Machine_Point)
 
+# ---------bpy property update functions
+def update_exposed_kd(self, context):
+    # Moved this function here from closet_panels.py
+
+    # print("Updating Render Materials")
+    # obj_product_bp = sn_utils.get_bp(context.active_object,'PRODUCT')
+    # if obj_product_bp
+
+    # Get assembly
+    obj_assembly_bp = sn_utils.get_assembly_bp(context.object)
+    assembly = sn_types.Assembly(obj_assembly_bp)
+    # Get mat type
+    material_props = context.scene.closet_materials
+    mat_type = material_props.materials.get_mat_type()
+
+    is_lock_shelf_ppt = assembly.get_prompt("Is Locked Shelf")
+    is_exposed_shelf_prompt = assembly.get_prompt("Is Bottom Exposed KD")
+
+    # If prompt exists, set prompt value from obj.sn_closets.is_bottom_exposed_kd prop
+    if is_lock_shelf_ppt:
+        if is_exposed_shelf_prompt:
+            is_exposed_shelf_prompt.set_value(assembly.obj_bp.snap.is_bottom_exposed_kd)
+        # print("lock shelf prompt", is_lock_shelf_ppt.get_value())
+
+        if is_lock_shelf_ppt.get_value() == False:
+            is_exposed_shelf_prompt.set_value(False)
+            # assembly.obj_bp.snap.is_bottom_exposed_kd = False
+
+        bpy.ops.closet_materials.assign_materials()
 
 class SnapObjectProps(PropertyGroup):
     show_driver_debug_info: BoolProperty(name="Show Driver Debug Info", default=False)
@@ -1369,6 +1402,18 @@ class SnapObjectProps(PropertyGroup):
 
     delete_protected: BoolProperty(name='Delete Protected', description='Flag for sn_object.delete', default=False)
 
+    is_bottom_exposed_kd: BoolProperty(
+        name="Is Bottom Exposed KD",
+        default=False,
+        update=update_exposed_kd
+    )
+
+    material_mapping: EnumProperty(
+        name="Material Mapping",
+        items=[('BOX', "Box", "Box"), ('UV', "UV", "UV")],
+        description="Mesh Mapping Type.",
+        default='BOX')
+
     def add_prompt(self, prompt_type, prompt_name):
         prompt = self.prompts.add()
         prompt.prompt_type = prompt_type
@@ -1380,6 +1425,14 @@ class SnapObjectProps(PropertyGroup):
         calculator.distance_obj = calculator_object
         calculator.name = calculator_name
         return calculator
+
+    def remove_calculator(self, calculator_name, calculator_obj_name):
+        for i, calc in enumerate(self.calculators):
+            if calc.name == calculator_name:
+                self.calculators.remove(i)
+        if calculator_obj_name in bpy.data.objects:
+            obj = bpy.data.objects[calculator_obj_name]
+            bpy.data.objects.remove(obj, do_unlink=True)        
 
     def add_data_driver(self, property_name, index, expression, variables):
         if index == -1:
@@ -1834,7 +1887,7 @@ class SnapAddonPreferences(bpy.types.AddonPreferences):
     project_dir: StringProperty(
         name="Projects Directory",
         subtype='DIR_PATH',
-        default=os.path.join(os.path.expanduser("~"), "Documents", "SNaP Projects"))
+        default=os.path.join(os.path.expanduser("~"), "Documents", "SNaP Projects v2"))
     assets_filepath: StringProperty(
         name="Assets Filepath",
         subtype='FILE_PATH')
@@ -1954,6 +2007,7 @@ class SnapAddonPreferences(bpy.types.AddonPreferences):
             row.prop(self, "debug_mac")
             row = box.row()
             row.prop(self, "enable_franchise_pricing")
+            row.operator('closet_materials.unpack_material_images')
 
             addon_updater_ops.update_settings_ui(self, context)
 

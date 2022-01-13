@@ -59,7 +59,7 @@ def load_libraries(scene=None):
     wm_props = bpy.context.window_manager.snap
 
     wm_props.add_library(
-        name="Closet Library",
+        name="Product Library",
         lib_type='SNAP',
         root_dir=sn_paths.CLOSET_ROOT,
         thumbnail_dir=sn_paths.CLOSET_THUMB_DIR,
@@ -106,7 +106,6 @@ def load_libraries(scene=None):
         icon='MATERIAL'
     )
 
-
     wm_props.get_library_assets()
 
     path = os.path.join(sn_paths.CLOSET_THUMB_DIR, sn_paths.DEFAULT_CATEGORY)
@@ -141,6 +140,10 @@ def default_settings(scene=None):
     scene.cycles.transmission_bounces = 6
     # Prefs
     prefs.use_preferences_save = False  # Disable autosave
+    if not bpy.data.is_saved:
+        scene.closet_materials.set_defaults()
+    else:
+        scene.closet_materials.defaults_set = True
 
 @persistent
 def init_machining_collection(scene=None):
@@ -174,8 +177,8 @@ def register():
     bpy.app.handlers.load_post.append(check_for_update)
     bpy.app.handlers.load_post.append(load_driver_functions)
     bpy.app.handlers.load_post.append(load_materials_from_db)
-    bpy.app.handlers.load_post.append(default_settings)
     bpy.app.handlers.load_post.append(sync_spec_groups)
+    bpy.app.handlers.load_post.append(default_settings)
     bpy.app.handlers.load_post.append(assign_material_pointers)
     bpy.app.handlers.save_pre.append(assign_materials)
     bpy.app.handlers.load_post.append(load_libraries)
@@ -187,8 +190,8 @@ def unregister():
     bpy.app.handlers.load_post.remove(check_for_update)
     bpy.app.handlers.load_post.remove(load_driver_functions)
     bpy.app.handlers.load_post.remove(load_materials_from_db)
-    bpy.app.handlers.load_post.remove(default_settings)
     bpy.app.handlers.load_post.remove(sync_spec_groups)
+    bpy.app.handlers.load_post.remove(default_settings)
     bpy.app.handlers.load_post.remove(assign_material_pointers)
     bpy.app.handlers.save_pre.remove(assign_materials)
     bpy.app.handlers.load_post.remove(load_libraries)

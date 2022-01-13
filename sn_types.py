@@ -33,6 +33,7 @@ class Assembly:
     obj_z = None
     obj_prompts = None
     prompts = {}
+    calculators = []
     assembly_name = ""
 
     def __init__(self, obj_bp=None, filepath=""):
@@ -334,6 +335,23 @@ class Assembly:
     def get_calculator(self, name):
         if name in self.obj_prompts.snap.calculators:
             return self.obj_prompts.snap.calculators[name]
+
+    def get_all_calculators(self, obj=None):
+        if not obj:
+            obj = self.obj_prompts
+        for cal in obj.snap.calculators:
+            self.calculators.append(cal)
+        for child in obj.parent.children:
+            if 'IS_BP_ASSEMBLY' in child:
+                assy = Assembly(child)
+                self.get_all_calculators(assy.obj_prompts)
+
+    def run_all_calculators(self):
+        self.calculators.clear()
+        self.get_all_calculators()
+        for calculator in self.calculators:
+            bpy.context.view_layer.update()
+            calculator.calculate()
 
     def set_prompts(self):
         for key in self.prompts:
@@ -659,14 +677,18 @@ class Assembly:
             return 0
 
     def is_closet_wall_mounted(self, assy):
-        is_clt_wall_mounted = True
-        opening_qty = assy.get_prompt("Opening Quantity").get_value()
+        if 'IS_BP_CLOSET' in assy.obj_bp:
+            is_clt_wall_mounted = True
+            has_opening_qty_prompt = assy.get_prompt("Opening Quantity")
+            if not has_opening_qty_prompt:
+                return False
+            opening_qty = assy.get_prompt("Opening Quantity").get_value()
 
-        for i in range(1, opening_qty + 1):
-            is_wall_mounted = not assy.get_prompt("Opening " + str(i) + " Floor Mounted").get_value()
-            is_clt_wall_mounted = is_clt_wall_mounted and is_wall_mounted
+            for i in range(1, opening_qty + 1):
+                is_wall_mounted = not assy.get_prompt("Opening " + str(i) + " Floor Mounted").get_value()
+                is_clt_wall_mounted = is_clt_wall_mounted and is_wall_mounted
 
-        return is_clt_wall_mounted
+            return is_clt_wall_mounted
 
     def get_adjacent_assembly(self, direction='LEFT'):
         """
@@ -1077,21 +1099,21 @@ class Wall(Assembly):
         return list_obj_bp
 
     def get_connected_wall(self, direction):
-        if direction == 'LEFT':
-            for con in self.obj_bp.constraints:
-                if con.type == 'COPY_LOCATION':
-                    if con.target:
-                        return Wall(obj_bp=con.target.parent)
+        all_walls = [obj for obj in bpy.data.objects if obj.get('IS_BP_WALL') is not None]
+        all_walls.sort(key=lambda a: a.name)
+        current_index = all_walls.index(self.obj_bp)
 
-        if direction == 'RIGHT':
-            for obj in bpy.data.objects:
-                if obj.get('IS_BP_WALL'):
-                    next_wall = Wall(obj_bp=obj)
-                    for con in next_wall.obj_bp.constraints:
-                        if con.type == 'COPY_LOCATION':
-                            if con.target == self.obj_x:
-                                return next_wall
+        if len(all_walls) > 1:
+            if direction == 'LEFT':
+                obj_bp = all_walls[current_index - 1]
+                return Wall(obj_bp=obj_bp)
 
+            if direction == 'RIGHT':
+                if current_index + 1 >= len(all_walls):
+                    obj_bp = all_walls[0]
+                else:
+                    obj_bp = all_walls[current_index + 1]
+                return Wall(obj_bp=obj_bp)
 
 class Dimension():
     anchor = None
@@ -1313,8 +1335,6 @@ class MV_XML():
 
 class Prompts_Interface(Operator):
 
-    calculators = []
-
     def get_product(self):
         obj = bpy.data.objects[bpy.context.object.name]
         obj_product_bp = sn_utils.get_bp(obj, 'PRODUCT')
@@ -1454,15 +1474,7 @@ class Prompts_Interface(Operator):
 
         sn_utils.run_calculators(self.product.obj_bp)
 
-    def get_calculators(self, obj):
-        for cal in obj.snap.calculators:
-            self.calculators.append(cal)
-        for child in obj.children:
-            self.get_calculators(child)
-
     def run_calculators(self, obj):
-        self.get_calculators(obj)
         for calculator in self.calculators:
             bpy.context.view_layer.update()
             calculator.calculate()
-

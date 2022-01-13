@@ -17,7 +17,7 @@ class Closet_Carcass(sn_types.Assembly):
     property_id = "{}.openings".format(closet_utils.CLOSET_LIB_NAME_SPACE)
     plan_draw_id = "{}.draw_plan".format(closet_utils.CLOSET_LIB_NAME_SPACE)
     show_in_library = True
-    category_name = "Closet Products - Partitions"
+    category_name = "Products - Partitions"
     opening_qty = 0
     is_hanging = True
     defaults = None
@@ -124,8 +124,9 @@ class Closet_Carcass(sn_types.Assembly):
 
                 if doors_gap_ppt:
                     Doors_Backing_Gap = doors_gap_ppt.get_var()
+                    TKDVO = self.get_prompt("Top KD " + str(opening_num) + " Vertical Offset").get_var('TKDVO')
                     top_insert_backing = backing.get_prompt('Top Insert Backing')
-                    top_insert_backing.set_formula('Doors_Backing_Gap', [Doors_Backing_Gap])
+                    top_insert_backing.set_formula('Doors_Backing_Gap+TKDVO', [Doors_Backing_Gap, TKDVO])
 
                 if drawers_gap_ppt:
                     Drawer_Stack_Backing_Gap = drawers_gap_ppt.get_var()
@@ -246,9 +247,9 @@ class Closet_Carcass(sn_types.Assembly):
 
         # Left side panel is always '1'
         Front_Angle_Height = self.get_prompt('Front Angle ' + str(1) + ' Height').get_var('Front_Angle_Height')
-        Front_Angle_Depth = self.get_prompt('Front Angle ' + str(1) + ' Depth').get_var('Front_Angle_Depth')
-
         Front_Angle_Depth_All = self.get_prompt('Front Angle Depth').get_var('Front_Angle_Depth_All')
+        Corbel_Partitions = self.get_prompt('Corbel Partitions').get_var('Corbel_Partitions')
+        Corbel_Height_All = self.get_prompt('Corbel Height All').get_var('Corbel_Height_All')
 
         left_filler = common_parts.add_filler(self)
         left_filler.set_name("Left Filler")
@@ -335,7 +336,9 @@ class Closet_Carcass(sn_types.Assembly):
             'Depth_1-Front_Angle_Depth_All, 0),'
             '0)',
             [Dog_Ear_Active, Front_Angle_Depth_All, Depth_1])
-        left_side.get_prompt("CatNum").set_formula('IF(Front_Angle_Height>INCH(0),1017,1004)', [Front_Angle_Height])
+        left_side.get_prompt("CatNum").set_formula('IF(Front_Angle_Height>INCH(0),32,31)', [Front_Angle_Height])
+        left_side.get_prompt("Corbel Height").set_formula("IF(Corbel_Partitions,Corbel_Height_All,0)", [Corbel_Partitions, Corbel_Height_All])
+        left_side.get_prompt("Corbel Partition").set_formula("IF(Corbel_Partitions,True,False)", [Corbel_Partitions])
         left_side.get_prompt("Exposed Bottom").set_formula("Exposed_Bottom_1", [Exposed_Bottom_1])
 
         # Add_Backing = self.get_prompt('Opening ' + str(self.opening_qty) + ' Add Backing').get_var('Add_Backing')
@@ -432,7 +435,9 @@ class Closet_Carcass(sn_types.Assembly):
             'Last_Depth-Front_Angle_Depth_All,0),'
             '0)',
             [Dog_Ear_Active, Front_Angle_Depth_All, Last_Depth])
-        right_side.get_prompt("CatNum").set_formula('IF(Front_Angle_Height>INCH(0),1017,1004)', [Front_Angle_Height])
+        right_side.get_prompt("CatNum").set_formula('IF(Front_Angle_Height>INCH(0),32,31)', [Front_Angle_Height])
+        right_side.get_prompt("Corbel Height").set_formula("IF(Corbel_Partitions,Corbel_Height_All,0)", [Corbel_Partitions, Corbel_Height_All])
+        right_side.get_prompt("Corbel Partition").set_formula("IF(Corbel_Partitions,True,False)", [Corbel_Partitions])
         right_side.get_prompt("Exposed Bottom").set_formula("Last_Exposed_Bottom", [Last_Exposed_Bottom])
 
     def add_panel(self, index, previous_panel):
@@ -460,6 +465,8 @@ class Closet_Carcass(sn_types.Assembly):
         Front_Angle_Height = self.get_prompt('Front Angle ' + str(index) + ' Height').get_var('Front_Angle_Height')
         Front_Angle_Depth = self.get_prompt('Front Angle ' + str(index) + ' Depth').get_var('Front_Angle_Depth')
         Front_Angle_Depth_All = self.get_prompt('Front Angle Depth').get_var('Front_Angle_Depth_All')
+        Corbel_Partitions = self.get_prompt('Corbel Partitions').get_var('Corbel_Partitions')
+        Corbel_Height_All = self.get_prompt('Corbel Height All').get_var('Corbel_Height_All')
 
         panel = common_parts.add_panel(self)
 
@@ -514,9 +521,10 @@ class Closet_Carcass(sn_types.Assembly):
             '0)',
             [Dog_Ear_Active, Front_Angle_Depth_All,
              Depth,Next_Depth])
-
+        panel.get_prompt("Corbel Height").set_formula("IF(Corbel_Partitions,Corbel_Height_All,0)", [Corbel_Partitions, Corbel_Height_All])
+        panel.get_prompt("Corbel Partition").set_formula("IF(Corbel_Partitions,True,False)", [Corbel_Partitions])             
         catnum = panel.get_prompt("CatNum")
-        catnum.set_formula('IF(Front_Angle_Height>INCH(0),1017,1004)', [Front_Angle_Height])
+        catnum.set_formula('IF(Front_Angle_Height>INCH(0),32,31)', [Front_Angle_Height])
         panel.get_prompt("Exposed Bottom").set_formula('EB', [EB])
 
         return panel
@@ -543,13 +551,16 @@ class Closet_Carcass(sn_types.Assembly):
         Remove_Top_Shelf = self.get_prompt('Remove Top Shelf ' + str(i)).get_var('Remove_Top_Shelf')
         Dog_Ear_Active = self.get_prompt('Dog Ear Active').get_var('Dog_Ear_Active')
         Vertical_Offset = self.get_prompt("Top KD " + str(i) + " Vertical Offset").get_var('Vertical_Offset')
+        TAS = self.get_prompt("Thick Adjustable Shelves").get_var('TAS')
 
         shelf = common_parts.add_shelf(self)
         shelf.obj_bp.sn_closets.opening_name = str(i)
         is_locked_shelf = shelf.get_prompt("Is Locked Shelf")
         is_locked_shelf.set_value(value=True)
+        shelf.get_prompt("Is Forced Locked Shelf").set_value(value=True)
 
         Is_Locked_Shelf = shelf.get_prompt('Is Locked Shelf').get_var('Is_Locked_Shelf')
+        IBEKD = shelf.get_prompt('Is Bottom Exposed KD').get_var('IBEKD')
         Adj_Shelf_Setback = shelf.get_prompt('Adj Shelf Setback').get_var('Adj_Shelf_Setback')
         Locked_Shelf_Setback = shelf.get_prompt('Locked Shelf Setback').get_var('Locked_Shelf_Setback')
         Adj_Shelf_Clip_Gap = shelf.get_prompt('Adj Shelf Clip Gap').get_var('Adj_Shelf_Clip_Gap')
@@ -568,7 +579,8 @@ class Closet_Carcass(sn_types.Assembly):
             shelf.loc_z(
                 'IF(Floor,Height+Toe_Kick_Height,Product_Height)-Vertical_Offset',
                 [Floor, Height, Product_Height, Toe_Kick_Height, Vertical_Offset])
-            shelf.dim_z('-Shelf_Thickness', [Shelf_Thickness])
+            # shelf.dim_z('IF(AND(TAS,IBEKD==False), INCH(1),Shelf_Thickness) *-1', [Shelf_Thickness, TAS, IBEKD])
+            shelf.dim_z('-Shelf_Thickness', [Shelf_Thickness, TAS, IBEKD])
             shelf.dim_y("IF(Dog_Ear_Active,-Front_Angle_Depth,-Depth)+IF(Is_Locked_Shelf,Locked_Shelf_Setback,Adj_Shelf_Setback)",
                         [Depth, Dog_Ear_Active, Front_Angle_Depth, Is_Locked_Shelf, Locked_Shelf_Setback, Adj_Shelf_Setback])           
             hide = shelf.get_prompt('Hide')
@@ -582,7 +594,8 @@ class Closet_Carcass(sn_types.Assembly):
             shelf.loc_z(
                 'IF(Floor,Toe_Kick_Height,Product_Height-Height)',
                 [Floor, Toe_Kick_Height, Product_Height, Height])
-            shelf.dim_z('Shelf_Thickness', [Shelf_Thickness])
+            #shelf.dim_z('IF(AND(TAS,IBEKD==False), INCH(1),Shelf_Thickness)', [Shelf_Thickness, TAS, IBEKD])
+            shelf.dim_z('Shelf_Thickness', [Shelf_Thickness, TAS, IBEKD])
             shelf.dim_y("-Depth+" + rear_notch_1_inset + "+" + rear_notch_2_inset + "+IF(Is_Locked_Shelf,Locked_Shelf_Setback,Adj_Shelf_Setback)",
                         [Floor, Depth, Toe_Kick_Height, RN_1_H, RN_2_H, RN_1_D,
                             RN_2_D, Is_Locked_Shelf, Locked_Shelf_Setback, Adj_Shelf_Setback])
@@ -698,7 +711,8 @@ class Closet_Carcass(sn_types.Assembly):
         Left_Side_Wall_Filler = self.get_prompt('Left Side Wall Filler').get_var('Left_Side_Wall_Filler')
         Floor = self.get_prompt('Opening ' + str(i) + ' Floor Mounted').get_var("Floor")
         Toe_Kick_Height = self.get_prompt('Toe Kick Height').get_var('Toe_Kick_Height')
-        Rm_Btm_Hang_Shelf = self.get_prompt('Remove Bottom Hanging Shelf ' + str(i)).get_var('Rm_Btm_Hang_Shelf')              
+        Rm_Btm_Hang_Shelf = self.get_prompt('Remove Bottom Hanging Shelf ' + str(i)).get_var('Rm_Btm_Hang_Shelf')
+        Corbel_Partitions = self.get_prompt('Corbel Partitions').get_var('Corbel_Partitions')       
 
         if panel:
             X_Loc = panel.obj_bp.snap.get_var('location.x','X_Loc')
@@ -711,8 +725,13 @@ class Closet_Carcass(sn_types.Assembly):
         self.add_cover_cleat_opening_name(cleat, str(i))
 
         cleat.loc_y(value=0)
-        cleat.loc_z('IF(Floor,Toe_Kick_Height+Shelf_Thickness+Cleat_Location,Hanging_Height-Height+Cleat_Location+IF(Rm_Btm_Hang_Shelf,Shelf_Thickness,0))',
-                    [Floor,Toe_Kick_Height,Rm_Btm_Hang_Shelf,Shelf_Thickness,Hanging_Height,Height,Cleat_Location])
+        cleat.loc_z(
+            "IF(Floor,"
+            "Toe_Kick_Height+Shelf_Thickness+Cleat_Location,"
+            "Hanging_Height-Height+Cleat_Location"
+            "+IF(Rm_Btm_Hang_Shelf,Shelf_Thickness,0))"
+            "+IF(Corbel_Partitions,INCH(1),0)",
+            [Floor, Toe_Kick_Height, Rm_Btm_Hang_Shelf, Shelf_Thickness, Hanging_Height, Height, Cleat_Location, Corbel_Partitions])
         cleat.rot_x(value=math.radians(-90))
         cleat.rot_y(value=0)
         cleat.rot_z(value=0)
@@ -1478,7 +1497,7 @@ class Closet_Carcass(sn_types.Assembly):
 
         left_blind_panel.get_prompt("Hide").set_formula("IF(Blind_Corner_Left, False, True) or Hide",[Blind_Corner_Left,self.hide_var])
         left_blind_panel.get_prompt("Is Left Blind Corner Panel").set_value(value=True)
-        left_blind_panel.get_prompt("CatNum").set_value(value=1004)
+        left_blind_panel.get_prompt("CatNum").set_value(value=31)
         left_blind_panel.obj_bp.snap.name_object = "Blind Corner Panel"
         left_blind_panel.obj_bp.sn_closets.is_panel_bp = False  # TODO: remove
         left_blind_panel.obj_bp['IS_BP_PANEL'] = False
@@ -1503,7 +1522,7 @@ class Closet_Carcass(sn_types.Assembly):
 
         right_blind_panel.get_prompt("Hide").set_formula("IF(Blind_Corner_Right,False,True) or Hide",[Blind_Corner_Right,self.hide_var])
         right_blind_panel.get_prompt("Is Right Blind Corner Panel").set_value(value=True)
-        right_blind_panel.get_prompt("CatNum").set_value(value=1004)
+        right_blind_panel.get_prompt("CatNum").set_value(value=31)
         right_blind_panel.obj_bp.snap.name_object = "Blind Corner Panel"
         right_blind_panel.obj_bp.sn_closets.is_panel_bp = False  # TODO: remove
         right_blind_panel.obj_bp['IS_BP_PANEL'] = False
@@ -1601,7 +1620,7 @@ class OPERATOR_Closet_Standard_Draw_Plan(Operator):
             has_top_shelf = csh_assy.get_prompt("Add Top Shelf").get_value()
             if has_top_shelf:
                 for tshelf in obj.children:
-                    if 'angled top shelf' in tshelf.name.lower():
+                    if tshelf.get("IS_BP_ANGLE_SHELF"):
                         tshelf_assy = sn_types.Assembly(tshelf)
                         t_x_dim = tshelf_assy.obj_x.location.x
                         t_y_dim = tshelf_assy.obj_y.location.y
@@ -1617,7 +1636,7 @@ class OPERATOR_Closet_Standard_Draw_Plan(Operator):
                         t_chamfer_mesh.location[2] = csh_height
                         t_chamfer_mesh['IS_CAGE'] = True
             for shelf in obj.children:
-                if 'angle shelf' in shelf.name.lower():
+                if shelf.get("IS_BP_ANGLE_SHELF"):
                     assy = sn_types.Assembly(shelf)
                     x_dim = assy.obj_x.location.x
                     y_dim = assy.obj_y.location.y
@@ -1719,11 +1738,22 @@ class OPERATOR_Closet_Standard_Draw_Plan(Operator):
         for part in parts:
             assembly = sn_types.Assembly(part)
             object_name = assembly.obj_bp.snap.name_object
-            mesh_location = (assembly.obj_x.location.x,
-                            assembly.obj_y.location.y,
-                            assembly.obj_z.location.z)
-            assembly_mesh = sn_utils.create_cube_mesh(object_name,
-                                                      mesh_location)
+
+            if assembly.obj_bp.snap.type_group == 'OPENING':
+                opening_num = assembly.obj_bp.sn_closets.opening_name
+                opening_width = self.product.get_prompt("Opening " + opening_num + " Width")
+                opening_depth = self.product.get_prompt("Opening " + opening_num + " Depth")
+                width = opening_width.get_value() 
+                depth = opening_depth.get_value() 
+            else:
+                width = assembly.obj_x.location.x
+                depth = assembly.obj_y.location.y                
+
+            mesh_dimensions = (
+                width,
+                depth,
+                assembly.obj_z.location.z)
+            assembly_mesh = sn_utils.create_cube_mesh(object_name, mesh_dimensions)
             assembly_mesh.parent = part.parent
             assembly_mesh.location = assembly.obj_bp.location
             assembly_mesh.rotation_euler = assembly.obj_bp.rotation_euler

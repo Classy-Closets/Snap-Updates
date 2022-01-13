@@ -248,7 +248,7 @@ class AddonUpdaterCheckNow(bpy.types.Operator):
             return {'CANCELLED'}
 
         if settings.updater_key:
-            updater.private_token = settings.updater_key            
+            updater.private_token = settings.updater_key
 
         updater.set_check_interval(
             enabled=settings.auto_check_update,
@@ -894,6 +894,16 @@ def show_reload_popup():
     ran_update_success_popup = True
 
 
+def show_update_status(self, context):
+    if updater.update_ready:
+        return
+    else:
+        layout = self.layout
+        box = layout.box()
+        col = box.column()
+        col.label(text="SNaP is up to date", icon='KEYTYPE_JITTER_VEC')
+
+
 # -----------------------------------------------------------------------------
 # Example UI integrations
 # -----------------------------------------------------------------------------
@@ -936,13 +946,7 @@ def update_notice_box_ui(self, context):
     col.separator()
 
     if not updater.manual_only:
-        col.operator(AddonUpdaterUpdateNow.bl_idname,
-                      text="Update", icon="LOOP_FORWARDS")
-    else:
-        # ops = col.operator("wm.url_open", text="Direct download")
-        # ops.url=updater.update_link
-        col.operator("wm.url_open", text="Get it now").url = updater.website
-
+        col.operator(AddonUpdaterUpdateNow.bl_idname, text="Update", icon="LOOP_FORWARDS")
 
 def update_settings_ui(self, context, element=None):
     """Preferences - for drawing with full width inside user preferences
@@ -1336,7 +1340,7 @@ def register(bl_info):
 
     updater.engine = "Github"
     updater.user = "Classy-Closets"
-    updater.repo = "Snap-Updates"
+    updater.repo = "Snap-Updater"
     updater.website = "https://https://github.com/Classy-Closets/SNaP-2.0"
     updater.private_token = None
     updater.subfolder_path = ""

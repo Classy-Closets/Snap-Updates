@@ -222,6 +222,8 @@ def draw_object_properties(context, layout, obj):
     if obj.snap.object_tabs == 'MATERIAL':
 
         layout.label(text="Material Assignment Options", icon='MATERIAL_DATA')
+        layout.prop(obj.snap, 'type_mesh')
+        layout.prop(obj.snap, 'material_mapping')
 
         row = layout.row()
         row.template_list("MATERIAL_UL_matslots", "", obj, "material_slots", obj, "active_material_index", rows=3)

@@ -10,7 +10,7 @@ from bpy.props import (
     EnumProperty,
 )
 
-from .. import sn_utils, sn_unit
+from .. import sn_utils, sn_unit, sn_handlers
 
 
 THUMBNAIL_FILE_NAME = "thumbnail.blend"
@@ -44,6 +44,7 @@ class SNAP_OT_load_library_modules(Operator):
     def execute(self, context):
         from importlib import import_module
         wm = context.window_manager.snap
+        scene_props = context.scene.snap
 
         for library in wm.lib_products:
             wm.lib_products.remove(0)
@@ -102,6 +103,19 @@ class SNAP_OT_load_library_modules(Operator):
                             item.has_file = True
                         else:
                             item.has_file = False
+
+        try:
+            active_library = wm.libraries[scene_props.active_library_name]
+            library_name = active_library.name
+        except KeyError as error:
+            print(error)
+            print("Library: {} not found.".format(scene_props.active_library_name))
+            print("Reloading SNaP Libraries...")
+            active_library = wm.libraries[0]
+            library_name = active_library.name
+            scene_props.active_library_name = library_name
+
+                            
         return {'FINISHED'}
 
 

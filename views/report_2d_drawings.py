@@ -14,6 +14,7 @@ from PIL import Image as PImage
 from PIL import ImageChops
 
 from snap.views.pdf_builder.pdf_director import PDF_Director
+from snap.project_manager import pm_utils
 
 
 class OPERATOR_create_pdf(bpy.types.Operator):
@@ -34,7 +35,8 @@ class OPERATOR_create_pdf(bpy.types.Operator):
         project_name = pm_props.current_file_project
         room_name = pm_props.current_file_room
         self.directory = bfile
-        self.filename = f'2D Views - {project_name} - {room_name}.pdf'
+        clean_room_name = pm_utils.clean_name(room_name)
+        self.filename = f'2D Views - {project_name} - {clean_room_name}.pdf'
         context.window_manager.fileselect_add(self)
 
         return {'RUNNING_MODAL'}
@@ -46,9 +48,10 @@ class OPERATOR_create_pdf(bpy.types.Operator):
                 f = open(self.filepath, 'wb')
                 f.close()
             except IOError:
-                self.report(
-                    {'ERROR'},
-                    "The selected file could not be accessed!: {}".format(self.filepath))  # noqa: E501
+                directory, filename = os.path.split(self.filepath)
+                bpy.ops.snap.message_box(
+                    'INVOKE_DEFAULT',
+                    message="\"{}\" is currently open.\nUnable to overwrite file.".format(filename))
                 return False
         return True
 

@@ -21,7 +21,7 @@ class Wall_Cleat(sn_types.Assembly):
     id_prompt = "closet.wall_cleat"
     #drop_id = "sn_closets.place_wall_cleat"
     show_in_library = True
-    category_name = "Closet Products - Add Pards"
+    category_name = "Products - Add Pards"
 
     def update(self):
         self.obj_x.location.x = self.width
@@ -30,7 +30,8 @@ class Wall_Cleat(sn_types.Assembly):
 
         self.obj_bp['ID_PROMPT'] = self.id_prompt
         self.obj_bp["IS_BP_CLOSET"] = True
-        self.obj_bp["IS_BP_WALL_CLEAT"] = True
+        self.obj_bp["IS_WALL_CLEAT"] = True
+        self.obj_bp.sn_closets.is_cleat_bp = True
         self.obj_bp.snap.type_group = self.type_assembly
         self.obj_bp.snap.export_as_subassembly = True
         props = self.obj_bp.sn_closets
@@ -42,10 +43,10 @@ class Wall_Cleat(sn_types.Assembly):
 
         self.add_prompt("Height", 'DISTANCE', sn_unit.inch(3.64))  # TODO: Remove
         self.add_prompt("Distance Above Floor", 'DISTANCE', sn_unit.inch(60))
-        self.add_prompt("Exposed Top", 'CHECKBOX', False)
-        self.add_prompt("Exposed Left", 'CHECKBOX', False)
-        self.add_prompt("Exposed Right", 'CHECKBOX', False)
-        self.add_prompt("Exposed Bottom", 'CHECKBOX', False) 
+        self.add_prompt("Exposed Top", 'CHECKBOX', True)
+        self.add_prompt("Exposed Left", 'CHECKBOX', True)
+        self.add_prompt("Exposed Right", 'CHECKBOX', True)
+        self.add_prompt("Exposed Bottom", 'CHECKBOX', True) 
 
         common_prompts.add_thickness_prompts(self)
 
@@ -60,7 +61,7 @@ class Wall_Cleat(sn_types.Assembly):
 
         cleat = common_parts.add_wall_cleat(self)
         cleat.obj_bp.snap.comment_2 = "1024"
-        cleat.set_name("Cleat")
+        cleat.set_name("Wall Cleat")
 
         cleat.loc_z('Distance_Above_Floor', [Distance_Above_Floor])
         cleat.rot_x(value=math.radians(-90))
@@ -110,6 +111,10 @@ class PROMPTS_Wall_Cleat_Prompts(sn_types.Prompts_Interface):
 
     def check(self, context):
         self.product.obj_x.location.x = self.width
+        self.product.obj_z.location.z = self.depth
+        # We need to mark the object for update, or materials won't change properly
+        self.product.obj_prompts.update_tag()
+
         closet_props.update_render_materials(self, context)
         self.update_placement(context)
         return True
@@ -160,42 +165,55 @@ class PROMPTS_Wall_Cleat_Prompts(sn_types.Prompts_Interface):
         row.prop_enum(self, "placement_on_wall", 'LEFT', icon='TRIA_LEFT', text="Left")
         row.prop_enum(self, "placement_on_wall", 'RIGHT', icon='TRIA_RIGHT', text="Right")
 
-        if self.placement_on_wall in 'LEFT':
-            row = box.row(align=True)
-            row.label(text='Offset', icon='BACK')
-            row.prop(self, "left_offset", icon='TRIA_LEFT', text="Left")
-
-        if self.placement_on_wall in 'RIGHT':
-            row = box.row(align=True)
-            row.label(text='Offset', icon='FORWARD')
-            row.prop(self, "right_offset", icon='TRIA_RIGHT', text="Right")
-
-        if self.placement_on_wall == 'SELECTED_POINT':
-            row = box.row()
-            row.label(text='Location:')
-            row.prop(self, 'current_location', text="")
-
-        row.label(text='Move Off Wall:')
-        row.prop(self.product.obj_bp, 'location', index=1, text="")
+        
 
     def draw(self, context):
         """ This is where you draw the interface """
         layout = self.layout
         layout.label(text=self.product.obj_bp.snap.name_object)
-        self.draw_product_size(layout, use_rot_z=False)
         box = layout.box()
-
+        row = box.row()
+        self.draw_product_placement(layout)
         distance_above_floor = self.product.get_prompt("Distance Above Floor")
         height = self.product.get_prompt("Height")
         exposed_top = self.product.get_prompt("Exposed Top")
         exposed_left = self.product.get_prompt("Exposed Left")
         exposed_right = self.product.get_prompt("Exposed Right")
         exposed_bottom = self.product.get_prompt("Exposed Bottom")
+        Panel_Thickness = self.product.get_prompt('Panel Thickness')
 
-        row = box.row()
-        row.prop(height, "distance_value", text="Height:")
-        row = box.row()
-        row.prop(distance_above_floor, "distance_value", text="Distance Above Floor:")
+
+        row = row.split(factor=0.50)
+
+        col = row.column()
+        row1 = col.split(factor=0.50)
+        row1.label(text='Width:')
+        row1.prop(self, 'width', text="")
+        row1 = col.split(factor=0.50)
+        row1.label(text='Height:')
+        row1.prop(height, "distance_value", text='')
+
+        col = row.column()
+        row2 = col.row()
+        row2.label(text="Distance Above Floor:")
+        row2.prop(distance_above_floor, "distance_value", text='')
+        row2 = col.row()
+        if self.placement_on_wall in 'LEFT':
+            row2.label(text='Offset', icon='BACK')
+            row2.prop(self, "left_offset", icon='TRIA_LEFT', text="Left")
+
+        if self.placement_on_wall in 'RIGHT':
+            row2.label(text='Offset', icon='FORWARD')
+            row2.prop(self, "right_offset", icon='TRIA_RIGHT', text="Right")
+
+        if self.placement_on_wall == 'SELECTED_POINT':
+            row2.label(text='Location:')
+            row2.prop(self, 'current_location', text="")
+
+        
+        row2 = col.row()
+        row2.label(text='Move Off Wall:')
+        row2.prop(self.product.obj_bp, 'location', index=1, text="")
 
         split = box.split()
         col = split.column(align=True)
@@ -211,7 +229,7 @@ class PROMPTS_Wall_Cleat_Prompts(sn_types.Prompts_Interface):
             row.prop(exposed_bottom, 'checkbox_value', text="Bottom")
         row = box.row()
 
-        self.draw_product_placement(layout)
+       
 
 
 bpy.utils.register_class(PROMPTS_Wall_Cleat_Prompts)

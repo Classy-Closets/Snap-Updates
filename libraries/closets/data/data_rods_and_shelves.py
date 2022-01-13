@@ -16,7 +16,7 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
     drop_id = "sn_closets.insert_rods_and_shelves_drop"
     placement_type = "INTERIOR"
     show_in_library = True
-    category_name = "Closet Products - Basic"
+    category_name = "Products - Basic"
     mirror_y = False
 
     shelves = []
@@ -112,6 +112,7 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
         Shelf_Thickness = self.get_prompt("Shelf Thickness").get_var('Shelf_Thickness')
         Bottom_Rod_Location = self.get_prompt("Bottom Rod Location").get_var('Bottom_Rod_Location')
         SBS = self.get_prompt("Shelf Backing Setback").get_var('SBS')
+        TAS = self.get_prompt("Thick Adjustable Shelves").get_var('TAS')
         previous_shelf = None
 
         for i in range(1, amt + 1):
@@ -133,6 +134,7 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
             self.shelves.append(shelf)
 
             Is_Locked_Shelf = shelf.get_prompt('Is Locked Shelf').get_var('Is_Locked_Shelf')
+            IBEKD = shelf.get_prompt('Is Bottom Exposed KD').get_var('IBEKD')
             Adj_Shelf_Setback = shelf.get_prompt('Adj Shelf Setback').get_var('Adj_Shelf_Setback')
             Locked_Shelf_Setback = shelf.get_prompt('Locked Shelf Setback').get_var('Locked_Shelf_Setback')
             Adj_Shelf_Clip_Gap = shelf.get_prompt('Adj Shelf Clip Gap').get_var('Adj_Shelf_Clip_Gap')
@@ -146,7 +148,7 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
                 [Width, Is_Locked_Shelf, Adj_Shelf_Clip_Gap])
             shelf.dim_y('-Depth+IF(Is_Locked_Shelf,Locked_Shelf_Setback,Adj_Shelf_Setback)+Shelf_Setback+SBS',
                            [Depth, Locked_Shelf_Setback, Is_Locked_Shelf, Adj_Shelf_Setback, Shelf_Setback, SBS])
-            shelf.dim_z('Shelf_Thickness', [Shelf_Thickness])
+            shelf.dim_z('IF(AND(TAS,IBEKD==False), INCH(1),Shelf_Thickness)', [Shelf_Thickness, TAS, IBEKD])
 
             previous_shelf = shelf
 
@@ -172,6 +174,7 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
         ATSS = self.get_prompt("Add Top Shelf Setback").get_var('ATSS')
         AMSS = self.get_prompt("Add Middle Shelf Setback").get_var('AMSS')
         ABSS = self.get_prompt("Add Bottom Shelf Setback").get_var('ABSS')
+        TAS = self.get_prompt("Thick Adjustable Shelves").get_var('TAS')
 
         # TOP SECTION
         top_opening_height = "(Top_Rod_Location-Shelf_Thickness-0.064008)"
@@ -182,6 +185,7 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
         adj_shelf = common_parts.add_shelf(self)
 
         Is_Locked_Shelf = adj_shelf.get_prompt('Is Locked Shelf').get_var('Is_Locked_Shelf')
+        IBEKD = adj_shelf.get_prompt('Is Bottom Exposed KD').get_var('IBEKD')
         Adj_Shelf_Setback = adj_shelf.get_prompt('Adj Shelf Setback').get_var('Adj_Shelf_Setback')
         Locked_Shelf_Setback = adj_shelf.get_prompt('Locked Shelf Setback').get_var('Locked_Shelf_Setback')
         Adj_Shelf_Clip_Gap = adj_shelf.get_prompt('Adj Shelf Clip Gap').get_var('Adj_Shelf_Clip_Gap')
@@ -195,7 +199,7 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
                         [Width, Is_Locked_Shelf, Adj_Shelf_Clip_Gap])
         adj_shelf.dim_y('-Depth+IF(Is_Locked_Shelf,Locked_Shelf_Setback,Adj_Shelf_Setback)+ATSS+SBS',
                         [Depth, Locked_Shelf_Setback, Is_Locked_Shelf, Adj_Shelf_Setback, ATSS, SBS])
-        adj_shelf.dim_z('Shelf_Thickness', [Shelf_Thickness])
+        adj_shelf.dim_z('IF(AND(TAS,IBEKD==False), INCH(1),Shelf_Thickness)', [Shelf_Thickness, TAS, IBEKD])
 
         hide = adj_shelf.get_prompt('Hide')
         hide.set_formula('IF(AND(Top_Shelf_Quantity>0,Add_Shelves_In_Top_Section),False,True) or Hide', 
@@ -214,6 +218,7 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
         adj_shelf = common_parts.add_shelf(self)
 
         Is_Locked_Shelf = adj_shelf.get_prompt('Is Locked Shelf').get_var('Is_Locked_Shelf')
+        IBEKD = adj_shelf.get_prompt('Is Bottom Exposed KD').get_var('IBEKD')
         Adj_Shelf_Setback = adj_shelf.get_prompt('Adj Shelf Setback').get_var('Adj_Shelf_Setback')
         Locked_Shelf_Setback = adj_shelf.get_prompt('Locked Shelf Setback').get_var('Locked_Shelf_Setback')
         Adj_Shelf_Clip_Gap = adj_shelf.get_prompt('Adj Shelf Clip Gap').get_var('Adj_Shelf_Clip_Gap')
@@ -227,7 +232,7 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
                         [Width, Is_Locked_Shelf, Adj_Shelf_Clip_Gap])
         adj_shelf.dim_y('-Depth+IF(Is_Locked_Shelf,Locked_Shelf_Setback,Adj_Shelf_Setback)+AMSS+SBS',
                         [Depth, Locked_Shelf_Setback, Is_Locked_Shelf, Adj_Shelf_Setback, AMSS, SBS])
-        adj_shelf.dim_z('Shelf_Thickness', [Shelf_Thickness])
+        adj_shelf.dim_z('IF(AND(TAS,IBEKD==False), INCH(1),Shelf_Thickness)', [Shelf_Thickness, TAS, IBEKD])
 
         hide = adj_shelf.get_prompt('Hide')
         hide.set_formula('IF(Is_Hang_Single,True,IF(AND(Middle_Shelf_Quantity>0,Add_Shelves_In_Middle_Section),False,True)) or Hide', 
@@ -246,6 +251,7 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
         short_adj_shelf = common_parts.add_shelf(self)
 
         Is_Locked_Shelf = short_adj_shelf.get_prompt('Is Locked Shelf').get_var('Is_Locked_Shelf')
+        IBEKD = short_adj_shelf.get_prompt('Is Bottom Exposed KD').get_var('IBEKD')
         Adj_Shelf_Setback = short_adj_shelf.get_prompt('Adj Shelf Setback').get_var('Adj_Shelf_Setback')
         Locked_Shelf_Setback = short_adj_shelf.get_prompt('Locked Shelf Setback').get_var('Locked_Shelf_Setback')
         Adj_Shelf_Clip_Gap = short_adj_shelf.get_prompt('Adj Shelf Clip Gap').get_var('Adj_Shelf_Clip_Gap')
@@ -259,7 +265,7 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
                               [Width, Is_Locked_Shelf, Adj_Shelf_Clip_Gap])
         short_adj_shelf.dim_y('-Depth+IF(Is_Locked_Shelf,Locked_Shelf_Setback,Adj_Shelf_Setback)+AMSS+SBS', [
                               Depth, Locked_Shelf_Setback, Is_Locked_Shelf, Adj_Shelf_Setback, AMSS, SBS])
-        short_adj_shelf.dim_z('Shelf_Thickness', [Shelf_Thickness])
+        short_adj_shelf.dim_z('IF(AND(TAS,IBEKD==False), INCH(1),Shelf_Thickness)', [Shelf_Thickness, TAS, IBEKD])
 
         hide = short_adj_shelf.get_prompt('Hide')
         hide.set_formula('IF(Is_Hang_Single, IF(AND(Middle_Shelf_Quantity>0,Add_Shelves_In_Middle_Section),False,True),True) or Hide', 
@@ -278,6 +284,7 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
         adj_shelf = common_parts.add_shelf(self)
 
         Is_Locked_Shelf = adj_shelf.get_prompt('Is Locked Shelf').get_var('Is_Locked_Shelf')
+        IBEKD = adj_shelf.get_prompt('Is Bottom Exposed KD').get_var('IBEKD')
         Adj_Shelf_Setback = adj_shelf.get_prompt('Adj Shelf Setback').get_var('Adj_Shelf_Setback')
         Locked_Shelf_Setback = adj_shelf.get_prompt('Locked Shelf Setback').get_var('Locked_Shelf_Setback')
         Adj_Shelf_Clip_Gap = adj_shelf.get_prompt('Adj Shelf Clip Gap').get_var('Adj_Shelf_Clip_Gap')
@@ -289,7 +296,7 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
         adj_shelf.dim_x('Width-IF(Is_Locked_Shelf,0,Shelf_Clip_Gap*2)',[Width,Is_Locked_Shelf,Shelf_Clip_Gap])
         adj_shelf.dim_y('-Depth+IF(Is_Locked_Shelf,Locked_Shelf_Setback,Adj_Shelf_Setback)+ABSS+SBS',
                         [Depth, Locked_Shelf_Setback, Is_Locked_Shelf, Adj_Shelf_Setback, ABSS, SBS])
-        adj_shelf.dim_z('Shelf_Thickness',[Shelf_Thickness])
+        adj_shelf.dim_z('IF(AND(TAS,IBEKD==False), INCH(1),Shelf_Thickness)', [Shelf_Thickness, TAS, IBEKD])
 
         hide = adj_shelf.get_prompt('Hide')
         hide.set_formula('IF(AND(Bottom_Shelf_Quantity>0,Add_Shelves_In_Bottom_Section),False,True) or Hide', 
@@ -317,9 +324,11 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
         ATSS = self.get_prompt("Add Top Shelf Setback").get_var('ATSS')
         ABSS = self.get_prompt("Add Bottom Shelf Setback").get_var('ABSS')
         ABDSS = self.get_prompt("Add Bottom Deep Shelf Setback").get_var('ABDSS')
+        TAS = self.get_prompt("Thick Adjustable Shelves").get_var('TAS')
 
         shelf = common_parts.add_shelf(self)
         Is_Locked_Shelf = shelf.get_prompt('Is Locked Shelf').get_var('Is_Locked_Shelf')
+        IBEKD = shelf.get_prompt('Is Bottom Exposed KD').get_var('IBEKD')
         Adj_Shelf_Setback = shelf.get_prompt('Adj Shelf Setback').get_var('Adj_Shelf_Setback')
         Locked_Shelf_Setback = shelf.get_prompt('Locked Shelf Setback').get_var('Locked_Shelf_Setback')
         Adj_Shelf_Clip_Gap = shelf.get_prompt('Adj Shelf Clip Gap').get_var('Adj_Shelf_Clip_Gap')
@@ -334,12 +343,13 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
 
         shelf.dim_y('-Depth+IF(Is_Locked_Shelf,Locked_Shelf_Setback,Adj_Shelf_Setback)+ATSS+SBS',
                     [Depth, Locked_Shelf_Setback, Is_Locked_Shelf, Adj_Shelf_Setback, ATSS, SBS])
-        shelf.dim_z('-Shelf_Thickness', [Shelf_Thickness])
+        shelf.dim_z('IF(AND(TAS,IBEKD==False), INCH(1),Shelf_Thickness) *-1', [Shelf_Thickness, TAS, IBEKD])
         hide = shelf.get_prompt('Hide')
         hide.set_formula('IF(Add_Top_Shelf,False,True) or Hide', [Add_Top_Shelf,self.hide_var])
 
         shelf = common_parts.add_shelf(self)
         Is_Locked_Shelf = shelf.get_prompt('Is Locked Shelf').get_var('Is_Locked_Shelf')
+        IBEKD = shelf.get_prompt('Is Bottom Exposed KD').get_var('IBEKD')
         Adj_Shelf_Setback = shelf.get_prompt('Adj Shelf Setback').get_var('Adj_Shelf_Setback')
         Locked_Shelf_Setback = shelf.get_prompt('Locked Shelf Setback').get_var('Locked_Shelf_Setback')
         Adj_Shelf_Clip_Gap = shelf.get_prompt('Adj Shelf Clip Gap').get_var('Adj_Shelf_Clip_Gap')
@@ -353,7 +363,7 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
                     [Width, Adj_Shelf_Clip_Gap, Is_Locked_Shelf])
         shelf.dim_y('IF(IHD,IF(Depth>=EDP,-Depth+IF(Is_Locked_Shelf,Locked_Shelf_Setback,Adj_Shelf_Setback)+ABDSS,-Depth+IF(Is_Locked_Shelf,Locked_Shelf_Setback,Adj_Shelf_Setback)+ABSS),-Depth+IF(Is_Locked_Shelf,Locked_Shelf_Setback,Adj_Shelf_Setback)+ABSS)+SBS',
                     [Depth, Locked_Shelf_Setback, Is_Locked_Shelf, Adj_Shelf_Setback, ABSS, IHD, DDS, EDP, ABDSS, SBS])
-        shelf.dim_z('Shelf_Thickness', [Shelf_Thickness])
+        shelf.dim_z('IF(AND(TAS,IBEKD==False), INCH(1),Shelf_Thickness)', [Shelf_Thickness, TAS, IBEKD])
         hide = shelf.get_prompt('Hide')
         hide.set_formula('IF(Add_Bottom_Shelf,False,True) or Hide', [Add_Bottom_Shelf,self.hide_var])
 
@@ -428,6 +438,8 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
         self.add_prompt("Add Deep Rod Setback", 'DISTANCE', sn_unit.inch(0))
         self.add_prompt("Shelf Backing Setback", 'DISTANCE', 0)
 
+        self.add_prompt("Thick Adjustable Shelves", 'CHECKBOX', bpy.context.scene.sn_closets.closet_defaults.thick_adjustable_shelves)
+
         self.add_shelves_above_rod()
 
         opts = bpy.context.scene.sn_closets.closet_options
@@ -456,7 +468,7 @@ class Shelves_Only(sn_types.Assembly):
     id_prompt = "sn_closets.shelves_only"
     placement_type = "INTERIOR"
     show_in_library = True
-    category_name = "Closet Products - Basic"
+    category_name = "Products - Basic"
     mirror_y = False
 
     def add_adj_prompts(self):
@@ -468,9 +480,11 @@ class Shelves_Only(sn_types.Assembly):
         Depth = self.obj_y.snap.get_var('location.y', 'Depth')
         Shelf_Qty = self.get_prompt("Shelf Qty").get_var()
         Shelf_Thickness = self.get_prompt("Shelf Thickness").get_var()
+        TAS = self.get_prompt("Thick Adjustable Shelves").get_var('TAS')
 
         adj_shelf = common_parts.add_shelf(self)
         Is_Locked_Shelf = adj_shelf.get_prompt('Is Locked Shelf').get_var()
+        IBEKD = adj_shelf.get_prompt('Is Bottom Exposed KD').get_var('IBEKD')
         Adj_Shelf_Setback = adj_shelf.get_prompt('Adj Shelf Setback').get_var()
         Locked_Shelf_Setback = adj_shelf.get_prompt('Locked Shelf Setback').get_var()
         Adj_Shelf_Clip_Gap = adj_shelf.get_prompt('Adj Shelf Clip Gap').get_var()
@@ -483,7 +497,7 @@ class Shelves_Only(sn_types.Assembly):
                         [Width, Is_Locked_Shelf, Adj_Shelf_Clip_Gap])
         adj_shelf.dim_y('-Depth+IF(Is_Locked_Shelf,Locked_Shelf_Setback,Adj_Shelf_Setback)',
                         [Depth, Is_Locked_Shelf, Locked_Shelf_Setback, Adj_Shelf_Setback])
-        adj_shelf.dim_z('Shelf_Thickness', [Shelf_Thickness])
+        adj_shelf.dim_z('IF(AND(TAS,IBEKD==False), INCH(1),Shelf_Thickness)', [Shelf_Thickness, TAS, IBEKD])
         adj_shelf.get_prompt('Hide').set_formula('IF(Shelf_Qty==0,True,False) or Hide', [Shelf_Qty,self.hide_var])
         adj_shelf.get_prompt('Z Quantity').set_formula('Shelf_Qty', [Shelf_Qty])
         adj_shelf.get_prompt('Z Offset').set_formula(
@@ -516,7 +530,7 @@ class Glass_Shelves(sn_types.Assembly):
     id_prompt = "sn_closets.glass_shelves"
     placement_type = "INTERIOR"
     show_in_library = True
-    category_name = "Closet Products - Basic"
+    category_name = "Products - Basic"
     mirror_y = False
     shelf_thickness_ppt_obj = None
 
@@ -704,6 +718,35 @@ class PROMPTS_Hanging_Rod_With_Shelves_Prompts(sn_types.Prompts_Interface):
 
         self.shelf_quantity_prompt.set_value(int(self.below_shelf_quantity))
 
+        add_rod_setback = self.insert.get_prompt("Add Rod Setback")
+        add_deep_rod_setback = self.insert.get_prompt("Add Deep Rod Setback")
+        add_top_shelf_setback = self.insert.get_prompt("Add Top Shelf Setback")
+        add_middle_shelf_setback = self.insert.get_prompt("Add Middle Shelf Setback")
+        add_bottom_shelf_setback = self.insert.get_prompt("Add Bottom Shelf Setback")
+        add_deep_rod_setback = self.insert.get_prompt("Add Deep Rod Setback")
+        add_shelves_in_top_section = self.insert.get_prompt("Add Shelves In Top Section")
+        add_top_shelf = self.insert.get_prompt("Add Top Shelf")
+        add_shelves_in_middle_section = self.insert.get_prompt("Add Shelves In Middle Section")
+        add_bottom_shelf = self.insert.get_prompt("Add Bottom Shelf")
+        is_hang_double = self.insert.get_prompt("Is Hang Double")
+        extra_deep_pard = self.insert.get_prompt("Extra Deep Pard")
+        prompts = [
+            add_top_shelf_setback, add_middle_shelf_setback, add_bottom_shelf_setback, add_deep_rod_setback,
+            add_shelves_in_top_section, add_top_shelf, add_shelves_in_middle_section, add_bottom_shelf,
+            is_hang_double, add_rod_setback, add_deep_rod_setback, extra_deep_pard]
+
+        if all(prompts):
+            if not add_top_shelf.get_value() and not add_shelves_in_top_section.get_value():
+                add_top_shelf_setback.set_value(0)
+            if not add_shelves_in_middle_section.get_value():
+                add_middle_shelf_setback.set_value(0)
+            if not add_bottom_shelf.get_value():
+                add_bottom_shelf_setback.set_value(0)
+            if self.insert.obj_y.location.y >= extra_deep_pard.get_value():
+                add_rod_setback.set_value(0)
+            else:
+                add_deep_rod_setback.set_value(0)
+
         for i in range(1,9):
             shelf = self.insert.get_prompt("Below Shelf " + str(i) + " Height")
             if shelf:
@@ -885,9 +928,14 @@ class PROMPTS_Hanging_Rod_With_Shelves_Prompts(sn_types.Prompts_Interface):
                         row.prop(add_middle_shelf_setback, "distance_value", text="Bottom Shelves Setback: ")
 
                     if add_bottom_shelf.get_value() and is_hang_double.get_value():
-                        row = box.row()
-                        row.label(text="", icon='BLANK1')
-                        row.prop(add_bottom_shelf_setback, "distance_value", text="Dust Shelf Setback: ")
+                        if extra_deep_pard and self.insert.obj_y.location.y >= extra_deep_pard.get_value():
+                            row = box.row()
+                            row.label(text="", icon='BLANK1')
+                            row.prop(add_bottom_deep_shelf_setback, "distance_value", text="Dust Shelf Setback: ")
+                        else:
+                            row = box.row()
+                            row.label(text="", icon='BLANK1')
+                            row.prop(add_bottom_shelf_setback, "distance_value", text="Dust Shelf Setback: ")
                 
                     #Below
                     shelf_quantity = self.insert.get_prompt("Below Shelf Quantity")    
@@ -1018,9 +1066,9 @@ class OPS_Rods_And_Shelves_Drop(Operator, PlaceClosetInsert):
         ihd = self.insert.get_prompt("Is Hang Double")
 
         if self.insert.obj_y.location.y >= edp.get_value():
-            if ihd.get_value():
+            if ihd and ihd.get_value():
                 abdss.set_value(self.insert.obj_y.location.y - sn_unit.inch(12))
-            adrs.set_value(self.insert.obj_y.location.y - sn_unit.inch(12))        
+            adrs.set_value(self.insert.obj_y.location.y - sn_unit.inch(12))
 
 bpy.utils.register_class(OPS_Rods_And_Shelves_Drop)
 bpy.utils.register_class(PROMPTS_Shelf_Only_Prompts)

@@ -150,7 +150,7 @@ class Wood_Drawer_Box(sn_types.Assembly):
         bottom.dim_y(
             'IF(Use_Dovetail_Construction,Drawer_Width-IF(Slide_Type==0,INCH(.05),-INCH(0.375))-INCH(.625),Drawer_Width+INCH(.05))*-1',
             [Use_Dovetail_Construction, Drawer_Width, Slide_Type])
-        bottom.dim_z('Drawer_Bottom_Thickness', [Drawer_Bottom_Thickness])
+        bottom.dim_z('IF(Use_Dovetail_Construction,INCH(0.25),Drawer_Bottom_Thickness)', [Drawer_Bottom_Thickness, Use_Dovetail_Construction])
         bottom.get_prompt('Hide').set_formula('Hide', [Hide])
         bottom.get_prompt('Use Dovetail Construction').set_formula('Use_Dovetail_Construction', [Use_Dovetail_Construction])
 

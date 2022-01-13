@@ -1,4 +1,6 @@
 import math
+import time
+
 
 import bpy
 from bpy.props import (
@@ -40,11 +42,14 @@ def update_closet_height(self, context):
     self.Opening_9_Height = self.height
     obj_product_bp = sn_utils.get_closet_bp(context.active_object)
     product = sn_types.Assembly(obj_product_bp)
+    product.run_all_calculators()
 
     for i in range(1, 10):
         opening_height = product.get_prompt("Opening " + str(i) + " Height")
         if opening_height:
             opening_height.set_value(sn_unit.millimeter(float(self.height)))
+
+    product.run_all_calculators()
 
 
 class PanelHeights:
@@ -185,7 +190,7 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
     drawers = None
     interior_assembly = None
     exterior_assembly = None
-    splitter = None
+    splitters = []
 
     is_island = None
     is_single_island = None
@@ -210,7 +215,7 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
         self.drawers = None
         self.interior_assembly = None
         self.exterior_assembly = None
-        self.splitter = None    
+        self.splitters = []
 
     def update_product_size(self):
         if 'IS_MIRROR' in self.closet.obj_x and self.closet.obj_x['IS_MIRROR']:
@@ -229,11 +234,23 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
             self.closet.obj_z.location.z = self.height
 
     def update_opening_heights(self):
-        for i in range(1, 10):
+        opening_qty = self.closet.get_prompt("Opening Quantity").get_value()
+
+        for i in range(1, opening_qty + 1):
             opening_height = self.closet.get_prompt("Opening " + str(i) + " Height")
             if opening_height:
                 height = eval("float(self.Opening_" + str(i) + "_Height)/1000")
                 opening_height.set_value(height)
+
+    def update_flat_molding_heights(self):
+        molding_bps = [obj for obj in self.closet.obj_bp.children if 'IS_BP_CROWN_MOLDING' in obj]
+        wall_bp = self.closet.obj_bp.parent
+        wall = sn_types.Assembly(wall_bp)
+        for obj_bp in molding_bps:
+            molding = sn_types.Assembly(obj_bp)
+            dfc = molding.get_prompt('Distance From Ceiling')
+            if dfc:
+                dfc.set_value(wall.obj_z.location.z - molding.obj_bp.location.z)
 
     def update_fillers(self, context):
         if self.right_filler_changed:
@@ -265,41 +282,39 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
         right_thk = closet.get_prompt("Left Side Thickness").get_value()
         width_1 = closet.get_prompt("Opening 1 Width").distance_value
         tk_height = closet.get_prompt("Toe Kick Height").distance_value
-        opening_x0 = 0
-        opening_xf = left_thk + width_1 + panel_thk
-        top_x0 = top_shelf.location.x
-        dim_x = top_assembly.obj_x.location.x
-        if dim_x > sn_unit.inch(96):
-            dim_x = sn_unit.inch(96)
-        top_xf = top_shelf.location.x + dim_x
+        opening_loc_x = left_thk
+        opening_dim_x = width_1
+        top_loc_x = top_assembly.obj_bp.location.x
+        top_dim_x = top_assembly.obj_x.location.x
         is_all_floor = True
         max_op_height = 0
+
         for i in range(1, opening_qty + 1):
             height = closet.get_prompt("Opening " + str(i) + " Height")
-            width =\
-                closet.get_prompt(
-                    "Opening " + str(i) + " Width").distance_value
+            width = closet.get_prompt("Opening " + str(i) + " Width").distance_value
             height = height.distance_value
-            is_floor_mounted =\
-                closet.get_prompt(
-                    "Opening " + str(i) + " Floor Mounted").get_value()
-            if round(top_x0, 2) <= round(opening_x0, 2) and round(top_xf, 2) >= round(opening_xf, 2):
-                is_op_reached = True
-            else:
-                is_op_reached = False
-            if is_op_reached:
+            is_floor_mounted = closet.get_prompt("Opening " + str(i) + " Floor Mounted").get_value()
+            is_op_covered = False
+
+            if round(top_loc_x, 2) <= round(opening_loc_x, 2):
+                if round(top_loc_x + top_dim_x - panel_thk * i, 2) >= round(opening_loc_x, 2):
+                    is_op_covered = True
+
+            if is_op_covered:
                 is_all_floor = is_all_floor and is_floor_mounted
                 if height > max_op_height:
                     max_op_height = height
-            opening_x0 = opening_xf
-            if i == opening_qty-1:
-                opening_xf += width + right_thk
+
+            if i == opening_qty - 1:
+                opening_dim_x = width + right_thk
             else:
-                opening_xf += width + panel_thk
+                opening_dim_x = width + panel_thk
+            opening_loc_x += opening_dim_x
+
         if is_all_floor:
-            top_shelf.location.z = max_op_height + tk_height
+            top_assembly.obj_bp.location.z = max_op_height + tk_height
         else:
-            top_shelf.location.z = closet.obj_z.location.z
+            top_assembly.obj_bp.location.z = closet.obj_z.location.z
 
     def update_top_location(self):
         children = self.closet.obj_bp.children
@@ -313,7 +328,7 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
             self.closet.get_prompt("Toe Kick Height").distance_value
         if toe_kick_height < sn_unit.inch(3):
             self.closet.get_prompt("Toe Kick Height").set_value(sn_unit.inch(3))
-            self.countertop.obj_bp.location.z +=  sn_unit.inch(3) - toe_kick_height
+            self.countertop.obj_bp.location.z += sn_unit.inch(3) - toe_kick_height
             # we need to make sure everything else is synched up with the forced change
             bpy.ops.snap.log_window('INVOKE_DEFAULT',
                                     message="Minimum Toe Kick Height is 3\"",
@@ -370,18 +385,24 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
         if not Dog_Ear_Active:
             Front_Angle_Depth.set_value(sn_unit.inch(12))
 
+    def check_corbel_height(self):
+        Corbel_Partitions = self.get_prompt('Corbel Partitions').get_var('Corbel_Partitions')
+        Corbel_Height = self.get_prompt('Corbel Height').get_var('Corbel_Height')
+        if Corbel_Partitions:
+            Corbel_Height.set_value(sn_unit.inch(12))
+
     def check_hang_height(self):
         closet = self.closet
         opening_qty = closet.get_prompt("Opening Quantity").get_value()
         for i in range(1, opening_qty + 1):
-            is_floor_mounted =\
-                closet.get_prompt(
-                    "Opening " + str(i) + " Floor Mounted").get_value()
+            is_floor_mounted = closet.get_prompt("Opening " + str(i) + " Floor Mounted").get_value()
+            is_floor_mounted = closet.get_prompt("Opening " + str(i) + " Floor Mounted").get_value()
+            remove_btm_kd = closet.get_prompt("Remove Bottom Hanging Shelf " + str(i))
+
             if is_floor_mounted:
+                remove_btm_kd.set_value(True)
                 tk_height = closet.get_prompt("Toe Kick Height").distance_value
-                opening_height =\
-                    closet.get_prompt(
-                        "Opening " + str(i) + " Height").distance_value
+                opening_height = closet.get_prompt("Opening " + str(i) + " Height").distance_value
                 height = opening_height + tk_height
                 if height > closet.obj_z.location.z:
                     self.closet.obj_z.location.z = height
@@ -448,7 +469,9 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
             self.countertop.obj_bp.location.y = - max_depth
 
     def check(self, context):
+        start_time = time.perf_counter()
 
+        self.run_calculators(self.closet.obj_bp)
         self.closet.obj_x.location.x = self.width
         self.check_tk_height()
         self.update_tk_height()
@@ -458,6 +481,7 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
         self.update_placement(context)
         self.update_fillers(context)
         self.update_backing(context)
+        self.update_flat_molding_heights()
 
         # props = context.scene.sn_closets
 
@@ -476,13 +500,14 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
         left_end_condition = self.closet.get_prompt("Left End Condition")
         right_end_condition = self.closet.get_prompt("Right End Condition")
 
-        if left_end_condition:
+        if left_end_condition and right_end_condition:
             enum_index = self.properties['Left_End_Condition']
             left_end_condition.set_value(enum_index)
-
-        if right_end_condition:
             enum_index = self.properties['Right_End_Condition']
             right_end_condition.set_value(enum_index)
+            mat_type = context.scene.closet_materials.materials.get_mat_type()
+            if mat_type.name == "Garage Material":
+                closet_props.update_render_materials(self, context)
 
         if blind_corner_left and blind_corner_right:
             if more_than_one_opening:
@@ -494,13 +519,19 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                 elif blind_corner_right.get_value():
                     blind_corner_left.set_value(False)
 
-        closet_props.update_render_materials(self, context)
+        # Skip udating materials here for now, is this still needed?
+        # closet_props.update_render_materials(self, context)
         self.update_hang_height()
         self.check_hang_height()
         self.update_top_location()
         self.update_countertop()
 
         self.closet.obj_bp.select_set(True)
+        self.run_calculators(self.closet.obj_bp)
+
+        print("{} : Check Time --- {} seconds ---".format(
+            self.bl_idname,
+            round(time.perf_counter() - start_time, 8)))
 
         return True
 
@@ -517,7 +548,8 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                 obj_props.is_closet_bottom_bp,
                 obj_props.is_closet_top_bp,
                 obj_props.is_splitter_bp, 
-                "IS_BP_ROD_AND_SHELF" in child]
+                "IS_BP_ROD_AND_SHELF" in child,
+                "IS_BP_TOE_KICK_INSERT" in child]
 
             if any(props):
                 insert_bp.append(child)
@@ -536,6 +568,20 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
             opening = insert.obj_bp.sn_closets.opening_name
 
             if insert and opening:
+                if insert.obj_bp.sn_closets.is_splitter_bp:
+                    floor = self.closet.get_prompt("Opening " + str(obj_bp.sn_closets.opening_name) + " Floor Mounted")
+                    parent_remove_bottom_shelf = self.closet.get_prompt('Remove Bottom Hanging Shelf ' + str(obj_bp.sn_closets.opening_name))
+                    remove_bottom_shelf = insert.get_prompt("Remove Bottom Shelf")
+                    parent_has_bottom_kd = insert.get_prompt("Parent Has Bottom KD")
+                    prompts = [floor, parent_remove_bottom_shelf, remove_bottom_shelf, parent_has_bottom_kd]
+
+                    if all(prompts):
+                        if parent_remove_bottom_shelf.get_value() or floor.get_value():
+                            parent_has_bottom_kd.set_value(True)
+                        else:
+                            parent_remove_bottom_shelf.set_value(False)
+                            parent_has_bottom_kd.set_value(False)
+
                 for child in self.closet.obj_bp.children:
                     if child.sn_closets.is_back_bp and not child.sn_closets.is_hutch_back_bp:
                         if child.sn_closets.opening_name == opening:
@@ -758,12 +804,6 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                                     else:
                                         insert.get_prompt("Pard Has Bottom KD").set_value(False)
 
-                                if obj_props.is_splitter_bp:
-                                    # For Splitter, Remove_Bottom_Shelf == True
-                                    # means that there is no bottom shelf
-                                    if(RBS.get_value() or floor.get_value()):
-                                        Remove_Bottom_Shelf.set_value(True)
-
                     if child.sn_closets.is_closet_bottom_bp:
                         capping_bottom_assembly = sn_types.Assembly(child)
                         capping_bottoms += 1
@@ -791,6 +831,20 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                             if(extend_right_end_pard_down.get_value() and height_right_side.get_value() > 0):
                                 against_right_wall.set_value(False)
 
+                    if "IS_BP_ROD_AND_SHELF" in obj_bp:
+                        extra_deep_pard = insert.get_prompt("Extra Deep Pard")
+                        add_deep_rod_setback = insert.get_prompt("Add Deep Rod Setback")
+                        depth = self.closet.get_prompt('Opening {} Depth'.format(opening))
+                        add_bottom_deep_shelf_setback = insert.get_prompt("Add Bottom Deep Shelf Setback")
+                        is_hang_double = insert.get_prompt("Is Hang Double")
+                        prompts = [extra_deep_pard, add_deep_rod_setback, depth, is_hang_double, add_bottom_deep_shelf_setback]
+
+                        if all(prompts):
+                            if depth.get_value() >= extra_deep_pard.get_value():
+                                add_deep_rod_setback.set_value(depth.get_value() - sn_unit.inch(12))
+                                if is_hang_double.get_value():
+                                    add_bottom_deep_shelf_setback.set_value(depth.get_value() - sn_unit.inch(12))
+
             if obj_props.is_closet_top_bp:
                 extend_left = insert.get_prompt("Extend Left Amount")
                 extend_right = insert.get_prompt("Extend Right Amount")
@@ -814,6 +868,47 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                         extend_right.set_value(right_wall_filler.get_value())
                     elif self.add_right_filler and add_right_filler.get_value() is False and on_right_most_panel.get_value():
                         extend_right.set_value(sn_unit.inch(0))
+
+            if "IS_BP_TOE_KICK_INSERT" in obj_bp:
+                toe_kick_thickness = 0
+                if insert.get_prompt('Toe Kick Thickness'):
+                    toe_kick_thickness = insert.get_prompt('Toe Kick Thickness').get_value()
+                far_left_panel_selected = insert.get_prompt("Far Left Panel Selected")
+                if far_left_panel_selected:
+                    if far_left_panel_selected.get_value():
+                        left_filler = self.closet.get_prompt("Add Left Filler")
+                        left_filler_length = self.closet.get_prompt("Left Side Wall Filler")
+                        left_filler_setback = self.closet.get_prompt("Left Filler Setback Amount")
+                        filler_prompts = [left_filler, left_filler_length, left_filler_setback]
+                        if all(filler_prompts):
+                            extend_left_amount = insert.get_prompt("Extend Left Amount")
+                            if extend_left_amount:
+                                if left_filler.get_value():
+                                    if left_filler_setback.get_value() == 0:
+                                        extend_left_amount.set_value(left_filler_length.get_value() - (toe_kick_thickness/2))
+                                    else:
+                                        extend_left_amount.set_value(0)
+                                else:
+                                    extend_left_amount.set_value(0)
+
+
+                far_right_panel_selected = insert.get_prompt("Far Right Panel Selected")
+                if far_right_panel_selected:
+                    if far_right_panel_selected.get_value():
+                        right_filler = self.closet.get_prompt("Add Right Filler")
+                        right_filler_length = self.closet.get_prompt("Right Side Wall Filler")
+                        right_filler_setback = self.closet.get_prompt("Right Filler Setback Amount")
+                        filler_prompts = [right_filler, right_filler_length, right_filler_setback]
+                        if all(filler_prompts):
+                            extend_right_amount = insert.get_prompt("Extend Right Amount")
+                            if extend_right_amount:
+                                if right_filler.get_value():
+                                    if right_filler_setback.get_value() == 0:
+                                        extend_right_amount.set_value(right_filler_length.get_value() + (toe_kick_thickness/2))
+                                    else:
+                                        extend_right_amount.set_value(0)
+                                else:
+                                    extend_right_amount.set_value(0)
 
         has_capping_bottom = self.closet.get_prompt("Has Capping Bottom")
         if(has_capping_bottom):
@@ -969,7 +1064,9 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
         self.drawer_calculator = None
         self.doors = None
         self.back = None
-        self.get_calculators(self.closet.obj_bp)
+        opening_widths_calculator = self.closet.get_calculator('Opening Widths Calculator')
+        if opening_widths_calculator:
+            self.calculators.append(opening_widths_calculator)
 
         for child in self.closet.obj_bp.children:
             if "IS_CARCASS_BP" in child and child["IS_CARCASS_BP"]:
@@ -985,10 +1082,14 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                 # self.calculators.append(self.drawers.get_calculator('Front Height Calculator'))
             if "IS_DOORS_BP" in child and child["IS_DOORS_BP"]:
                 self.doors = sn_types.Assembly(child)
-            if "IS_VERTICAL_SPLITTER_BP" in child and child["IS_VERTICAL_SPLITTER_BP"]:
-                self.splitter = sn_types.Assembly(child)
-                # self.calculators.append(self.splitter.get_calculator('Opening Height Calculator'))
-    
+            if "IS_BP_SPLITTER" in child and child["IS_BP_SPLITTER"]:
+                assy = sn_types.Assembly(child)
+                calculator = assy.get_calculator('Opening Heights Calculator')
+                if assy:
+                    self.splitters.append(assy)
+                if calculator:
+                    self.calculators.append(calculator)
+
     def invoke(self, context, event):
         self.reset_variables()
         bp = sn_utils.get_closet_bp(context.object)
@@ -1058,14 +1159,13 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
         self.current_location = self.closet.obj_bp.location.x
         self.selected_location = self.closet.obj_bp.location.x
         self.default_width = self.closet.obj_x.location.x
-        self.width = self.closet.obj_x.location.x
         self.placement_on_wall = 'SELECTED_POINT'
         self.left_offset = 0
         self.right_offset = 0
         self.all_floor_mounted = self.is_closet_floor_mounted()
-                
+
         wm = context.window_manager
-        return wm.invoke_props_dialog(self, width=600)        
+        return wm.invoke_props_dialog(self, width=600)
 
     def convert_to_height(self, number, context):
         panel_heights = get_panel_heights(self,context)
@@ -1243,7 +1343,7 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
             if extend_left_end_pard_down.get_value() and extend_right_end_pard_down.get_value():
                 hutch_row.prop(add_hutch_backing, 'checkbox_value', text="Add Hutch Backing")
 
-        self.draw_dogear_options(box)
+        self.draw_dogear_and_corbel_options(box)
 
         # CARCASS OPTIONS:
         col = box.column(align=True)
@@ -1479,13 +1579,15 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                 loc_prompt = self.closet.get_prompt("Cleat " + str(i + 1) + " Location")
                 cleat_row.prop(loc_prompt, "distance_value", text=str(i + 1))
 
-    def draw_dogear_options(self,layout):
+    def draw_dogear_and_corbel_options(self, layout):
         front_angle_height = self.closet.get_prompt("Front Angle Height")
         front_angle_depth = self.closet.get_prompt("Front Angle Depth")
-        dog_ear_active = self.closet.get_prompt("Dog Ear Active")        
-                
+        dog_ear_active = self.closet.get_prompt("Dog Ear Active")
+        corbel_partitions = self.closet.get_prompt('Corbel Partitions')
+        corbel_height_all = self.closet.get_prompt('Corbel Height All')
+
         row = layout.row()
-        row.label(text="Dog Ear Options:")        
+        row.label(text="Dog Ear and Corbel Options:")
         box = layout.box()
         col = box.column()
         split = col.split(factor=0.5)
@@ -1496,10 +1598,21 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
         row.prop(dog_ear_active, "checkbox_value",text="")
 
         if dog_ear_active.get_value():
-            row  = col.row()
+            row = col.row()
             row.label(text="Dog Ear To Depth:")
             col = row.column()
             col.prop(front_angle_depth, 'distance_value', text="")
+
+        col = split.column()
+        row = col.row()
+        row.label(text="Corbel Partitions:")
+        row.prop(corbel_partitions, "checkbox_value",text="")
+
+        if corbel_partitions.get_value():
+            row = col.row()
+            row.label(text="Corbel Height:")
+            col = row.column()
+            col.prop(corbel_height_all, 'distance_value', text="")
 
     def draw_top_options(self,layout):
         prompts = []

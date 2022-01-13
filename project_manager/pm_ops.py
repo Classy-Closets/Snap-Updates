@@ -5,14 +5,86 @@ from snap import sn_utils
 import pathlib
 from distutils.dir_util import copy_tree
 import xml.etree.ElementTree as ET
+from copy import deepcopy
 import subprocess
 from bpy.types import Operator
 from bpy.props import (StringProperty,
                        BoolProperty,
                        EnumProperty,
                        IntProperty)
+from shutil import copyfile
 
 from . import pm_utils
+
+
+class SNAP_OT_Copy_Room(Operator):
+    bl_idname = "product_manager.copy_room"
+    bl_label = "Copies the selected Room"
+    bl_description = "Copies selected Room"
+
+    file_path: StringProperty(name="File Path", description="Room File Path", subtype="FILE_PATH")
+    new_room_name: StringProperty(name="Room Name", description="Room Name", default="")
+    src_room = None
+
+    def register_room_in_xml(self):
+        project_root, room_file = os.path.split(self.file_path)
+        project_name = os.path.split(project_root)[1]
+        room_relative_path = os.path.join(project_name, room_file)
+        xml_path = os.path.join(project_root, '.snap', project_name + '.ccp')
+
+        xml = ET.parse(xml_path)
+        room_node = None
+
+        rooms_node = xml.findall('.//Rooms')[0]
+        for i, room in enumerate(rooms_node):
+            if room.attrib['path'] == room_relative_path:
+                room_node = room
+                index = i
+                break
+
+        new_attrib = deepcopy(room_node.attrib)
+        new_attrib['name'] = self.new_room_name
+        new_attrib['path'] = os.path.join(project_name, new_attrib['name'] + '.blend')
+        new_element = ET.Element('Room', attrib=new_attrib)
+        new_element.text = new_attrib['name']
+        rooms_node.insert(index + 1, new_element)
+        xml.write(xml_path)
+
+    def invoke(self, context, event):
+        wm = context.window_manager
+
+        proj_wm = wm.sn_project
+        project = proj_wm.projects[proj_wm.project_index]
+        self.src_room = project.rooms[project.room_index]
+        self.new_room_name = self.src_room.name + " - Copy"
+        return wm.invoke_props_dialog(self, width=sn_utils.get_prop_dialog_width(400))
+
+    def draw(self, context):
+        layout = self.layout
+        box = layout.box()
+        col = box.column(align=True)
+        col.label(text="'{}'".format(self.src_room.name))
+        col.separator()
+        col.label(text="New Room Name:")
+        col.prop(self, "new_room_name", text="")
+
+    def execute(self, context):
+        # only really necessary when the user copies the current room
+        if len(bpy.data.filepath) > 0:
+            bpy.ops.wm.save_as_mainfile(filepath=bpy.data.filepath)
+
+        self.register_room_in_xml()
+
+        new_filepath = os.path.join(os.path.dirname(self.file_path), self.new_room_name) + ".blend"
+        copyfile(self.file_path, new_filepath)
+        props = context.window_manager.sn_project
+
+        if len(props.projects) > 0:
+            project = props.projects[props.project_index]
+            project.add_room_from_file(self.new_room_name, new_filepath)
+            project.main_tabs = 'ROOMS'
+        bpy.ops.wm.open_mainfile(filepath=new_filepath)
+        return {'FINISHED'}
 
 
 class SNAP_OT_Create_Project(Operator):
@@ -46,7 +118,8 @@ class SNAP_OT_Create_Project(Operator):
             return {'FINISHED'}
 
         proj = wm.projects.add()
-        proj.init(self.project_name)
+
+        proj.init(self.project_name.strip())
         pm_utils.reload_projects()
 
         for index, project in enumerate(wm.projects):
@@ -228,20 +301,25 @@ class SNAP_OT_Add_Room(Operator):
     room_name: StringProperty(name="Room Name", description="Room Name")
     room_category: EnumProperty(name="Room Category",
                                 description="Select the Category of the Room",
-                                items=[("Please Select", "REQUIRED Please Select a Category",
-                                        "Please Select a Category"),
-                                       ("41110", "Closet", "Closet"),
-                                       ("41120", "Entertainment Center", "Entertainment Center"),
-                                       ("41130", "Garage", "Garage"),
-                                       ("41140", "Home Office", "Home Office"),
-                                       ("41150", "Laundry", "Laundry"),
-                                       ("41160", "Mud Room", "Mud Room"),
-                                       ("41170", "Pantry", "Pantry"),
-                                       ("41210", "Kitchen", "Kitchen"),
-                                       ("41220", "Bathroom", "Bathroom"),
-                                       ("41230", "Reface", "Reface"),
-                                       ("41240", "Remodel", "Remodel"),
-                                       ("41250", "Stone", "Stone")])
+                                items=[
+                                    ("Please Select", "REQUIRED Please Select a Category",
+                                    "Please Select a Category"),
+                                    ("FG-CLST", "Closet", "Closet"),
+                                    ("FG-ENTC", "Entertainment Center", "Entertainment Center"),
+                                    ("FG-GARG", "Garage", "Garage"),
+                                    ("FG-HMOF", "Home Office", "Home Office"),
+                                    ("FG-LNDY", "Laundry", "Laundry"),
+                                    ("FG-MDRM", "Mud Room", "Mud Room"),
+                                    ("FG-PNTY", "Pantry", "Pantry"),
+                                    ("FG-KITN", "Kitchen", "Kitchen"),
+                                    ("FG-BATH", "Bathroom", "Bathroom"),
+                                    ("FG-RFCE", "Reface", "Reface"),
+                                    ("FG-RMDL", "Remodel", "Remodel"),
+                                    ("FG-STNE", "Stone", "Stone"),
+                                    ("FG-SPEC", "Specialty", "Specialty"),
+                                    ("FG-COMM", "Commercial", "Commercial"),
+                                    ("FG-CMSS", "Commercial Solid Surface", "Commercial Solid Surface"),
+                                    ("FG-CMST", "Commercial Stone", "Commercial Stone")])
 
     def execute(self, context):
         props = context.window_manager.sn_project
@@ -350,6 +428,7 @@ class SNAP_OT_Select_All_Rooms(Operator):
     bl_idname = "project_manager.select_all_rooms"
     bl_label = "Select All Rooms"
     bl_description = "This will select all of the rooms in the project"
+
 
     select_all: BoolProperty(name="Select All", default=True)
 
@@ -462,6 +541,7 @@ classes = (
     SNAP_OT_Delete_Room,
     SNAP_OT_Select_All_Rooms,
     SNAP_OT_Prepare_Project_XML,
+    SNAP_OT_Copy_Room,
     SNAP_OT_Load_Projects
 )
 

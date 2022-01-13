@@ -43,7 +43,7 @@ class Garage_Leg(sn_types.Assembly):
         self.add_prompt("Opening Quantity", "QUANTITY", 1)
         self.add_prompt("Material Type", "COMBOBOX", 0, ["Plastic", "Metal"])
         self.add_prompt("Metal Color", "COMBOBOX", 0,
-                        ["Satin Nickel", "Polished Chrome", "Black Textured", "Silver Aluminum"])
+                        ["Brushed Steel", "Black Matte", "Polished Chrome"])
 
     def draw(self):
         bpy.context.view_layer.update()
@@ -61,7 +61,7 @@ class Garage_Leg(sn_types.Assembly):
         left_front_plastic_leg = common_parts.add_plastic_leg(self)
         constraint = left_front_plastic_leg.obj_z.constraints.new(type='LIMIT_LOCATION')
         constraint.use_max_z = True
-        constraint.max_z = sn_unit.millimeter(168)
+        constraint.max_z = sn_unit.millimeter(150)
         constraint.owner_space = 'LOCAL'
         left_front_plastic_leg.obj_bp['IS_BP_GARAGE_LEG'] = True
         left_front_plastic_leg.dim_x(value=0)
@@ -75,7 +75,7 @@ class Garage_Leg(sn_types.Assembly):
         left_back_plastic_leg = common_parts.add_plastic_leg(self)
         constraint = left_back_plastic_leg.obj_z.constraints.new(type='LIMIT_LOCATION')
         constraint.use_max_z = True
-        constraint.max_z = sn_unit.millimeter(168)
+        constraint.max_z = sn_unit.millimeter(150)
         constraint.owner_space = 'LOCAL'
         left_back_plastic_leg.dim_x(value=0)
         left_back_plastic_leg.dim_y(value=0)
@@ -88,7 +88,7 @@ class Garage_Leg(sn_types.Assembly):
         right_front_plastic_leg = common_parts.add_plastic_leg(self)
         constraint = right_front_plastic_leg.obj_z.constraints.new(type='LIMIT_LOCATION')
         constraint.use_max_z = True
-        constraint.max_z = sn_unit.millimeter(168)
+        constraint.max_z = sn_unit.millimeter(150)
         constraint.owner_space = 'LOCAL'
         right_front_plastic_leg.dim_x(value=0)
         right_front_plastic_leg.dim_y(value=0)
@@ -102,7 +102,7 @@ class Garage_Leg(sn_types.Assembly):
         right_back_plastic_leg = common_parts.add_plastic_leg(self)
         constraint = right_back_plastic_leg.obj_z.constraints.new(type='LIMIT_LOCATION')
         constraint.use_max_z = True
-        constraint.max_z = sn_unit.millimeter(168)
+        constraint.max_z = sn_unit.millimeter(150)
         constraint.owner_space = 'LOCAL'
         right_back_plastic_leg.dim_x(value=0)
         right_back_plastic_leg.dim_y(value=0)
@@ -157,7 +157,7 @@ class Garage_Leg(sn_types.Assembly):
             opening_plastic = common_parts.add_plastic_leg(self)
             constraint = opening_plastic.obj_z.constraints.new(type='LIMIT_LOCATION')
             constraint.use_max_z = True
-            constraint.max_z = sn_unit.millimeter(168)
+            constraint.max_z = sn_unit.millimeter(150)
             opening_plastic.dim_x(value=0)
             opening_plastic.dim_y(value=0)
             opening_plastic.dim_z("Left_Height", [Left_Height])
@@ -184,7 +184,7 @@ class Garage_Leg(sn_types.Assembly):
             panel_front_plastic = common_parts.add_plastic_leg(self)
             constraint = panel_front_plastic.obj_z.constraints.new(type='LIMIT_LOCATION')
             constraint.use_max_z = True
-            constraint.max_z = sn_unit.millimeter(168)
+            constraint.max_z = sn_unit.millimeter(150)
             panel_front_plastic.dim_x(value=0)
             panel_front_plastic.dim_y(value=0)
             panel_front_plastic.dim_z("Left_Height", [Left_Height])
@@ -197,7 +197,7 @@ class Garage_Leg(sn_types.Assembly):
             panel_back_plastic = common_parts.add_plastic_leg(self)
             constraint = panel_back_plastic.obj_z.constraints.new(type='LIMIT_LOCATION')
             constraint.use_max_z = True
-            constraint.max_z = sn_unit.millimeter(168)
+            constraint.max_z = sn_unit.millimeter(150)
             panel_back_plastic.dim_x(value=0)
             panel_back_plastic.dim_y(value=0)
             panel_back_plastic.dim_z("Left_Height", [Left_Height])
@@ -255,10 +255,9 @@ class PROMPTS_Garage_Leg_Prompts(sn_types.Prompts_Interface):
     metal_color: EnumProperty(
         name="Metal Color",
         items=[
-            ('0', 'Satin Nickel', 'Satin Nickel'),
-            ('1', 'Polished Chrome', 'Polished Chrome'),
-            ('2', 'Black Textured', 'Black Textured'),
-            ('3', 'Silver Aluminum', 'Silver Aluminum')],
+            ('0', 'Brushed Steel', 'Brushed Steel'),
+            ('1', 'Black Matte', 'Black Matte'),
+            ('2', 'Polished Chrome', 'Polished Chrome')],
         default='0')
 
     product = None

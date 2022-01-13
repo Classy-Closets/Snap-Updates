@@ -287,15 +287,33 @@ class SNAP_OT_move_closet(Operator):
         return {'FINISHED'}
 
 
-class SNAP_OT_delete_closet(Operator):
+class Delete_Closet_Assembly(Operator):
+
+    obj_bp = None
+
+    def invoke(self, context, event):
+        wm = context.window_manager
+        return wm.invoke_props_dialog(self, width=400)
+
+    def draw(self, context):
+        layout = self.layout
+        box = layout.box()
+        col = box.column()
+        col.label(text="'{}'".format(self.obj_bp.snap.name_object))
+        col.label(text="Are you sure you want to delete this?")
+
+class SNAP_OT_delete_closet(Delete_Closet_Assembly):
     bl_idname = "sn_closets.delete_closet"
     bl_label = "Delete Closet"
 
+    def invoke(self, context, event):
+        self.obj_bp = sn_utils.get_closet_bp(context.object)
+        return super().invoke(context, event)
+
     def execute(self, context):
-        obj_bp = sn_utils.get_closet_bp(context.object)
-        has_bool = 'IS_BP_WINDOW' in obj_bp or 'IS_BP_ENTRY_DOOR' in obj_bp
-        wall = obj_bp.parent
-        sn_utils.delete_object_and_children(obj_bp)
+        has_bool = 'IS_BP_WINDOW' in self.obj_bp or 'IS_BP_ENTRY_DOOR' in self.obj_bp
+        wall = self.obj_bp.parent
+        sn_utils.delete_object_and_children(self.obj_bp)
 
         # if it is an entry window or door, we need to remove the bool modifier
         if wall and has_bool:
@@ -312,19 +330,21 @@ class SNAP_OT_delete_closet(Operator):
         return {'FINISHED'}
 
 
-class SNAP_OT_delete_closet_insert(Operator):
+class SNAP_OT_delete_closet_insert(Delete_Closet_Assembly):
     bl_idname = "sn_closets.delete_closet_insert"
     bl_label = "Delete Insert"
 
-    insert_bp = None
-
     @classmethod
     def poll(cls, context):
-        obj_insert_bp = sn_utils.get_bp(context.object, 'INSERT')
-        if obj_insert_bp:
+        insert_bp = sn_utils.get_bp(context.object, 'INSERT')
+        if insert_bp:
             return True
         else:
             return False
+
+    def invoke(self, context, event):
+        self.obj_bp = sn_utils.get_bp(context.object, 'INSERT')
+        return super().invoke(context, event)
 
     def make_opening_available(self, obj_bp):
         insert = sn_types.Assembly(obj_bp)
@@ -346,12 +366,11 @@ class SNAP_OT_delete_closet_insert(Operator):
 
     def execute(self, context):
         start_time = time.perf_counter()
-        obj_insert_bp = sn_utils.get_bp(context.object, 'INSERT')
-        self.make_opening_available(obj_insert_bp)
-        insert_name = obj_insert_bp.snap.name_object
+        insert_name = self.obj_bp.snap.name_object
+        self.make_opening_available(self.obj_bp)
         obs = len(bpy.data.objects)
         vis_obs = len([ob for ob in bpy.context.view_layer.objects if ob.visible_get()])
-        sn_utils.delete_object_and_children(obj_insert_bp)
+        sn_utils.delete_object_and_children(self.obj_bp)
 
         print("{}: ({}) --- {} seconds --- Objects in scene: {} ({} visible)".format(
             self.bl_idname,
@@ -494,8 +513,8 @@ class SNAP_OT_copy_insert(Operator):
 
     @classmethod
     def poll(cls, context):
-        obj_insert_bp = sn_utils.get_bp(context.object, 'INSERT')
-        if obj_insert_bp:
+        insert_bp = sn_utils.get_bp(context.object, 'INSERT')
+        if insert_bp:
             return True
         else:
             return False

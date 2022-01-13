@@ -240,7 +240,7 @@ class SN_OT_Place_Appliance_Object(bpy.types.Operator, PlaceApplianceAsset):
 class SN_OT_drop_appliance(Operator, PlaceApplianceAsset):
     bl_idname = "sn_appliances.drop"
     bl_label = "Drag and Drop"
-    bl_description = "This is called when an asset is dropped from the Closet library"
+    bl_description = "This is called when an asset is dropped from the Product library"
     bl_options = {'UNDO'}
 
     filepath: StringProperty(name="Library Name")

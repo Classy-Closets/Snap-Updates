@@ -41,6 +41,11 @@ class WM_PROPERTIES_2d_views(bpy.types.PropertyGroup):
                                      'Generates the Plan View, Elevations and existing islands')],
                              default='ACCORDIONS')
 
+    single_views_option: EnumProperty(name="2D Views Options",
+                                     items=[('ELEVATIONS', 'PV + Elevations + Islands',
+                                            'Generates the Plan View, Elevations and existing islands')],
+                                     default='ELEVATIONS')
+
     @classmethod
     def register(cls):
         bpy.types.WindowManager.views_2d = PointerProperty(

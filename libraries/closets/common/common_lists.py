@@ -531,3 +531,282 @@ DOOR_SIZES_DICT = {
     '94.33': '75 H',
     '95.59': '76 H'
 }
+
+JEWELRY_INSERTS_18IN_LIST = [
+    'Jewelry Insert Black',
+    'Jewelry Insert Maroon',
+    'Jewelry Insert Sterling Grey',
+    'Velvet Liner Black',
+    'Velvet Liner Maroon',
+    'Velvet Liner Sterling Grey'
+]
+
+JEWELRY_INSERTS_21IN_LIST = [
+    'Jewelry Insert Black',
+    'Jewelry Insert Clear',
+    'Jewelry Insert Maroon'
+    'Jewelry Insert Sterling Grey',
+    'Velvet Liner Black',
+    'Velvet Liner Maroon',
+    'Velvet Liner Sterling Grey'
+]
+
+JEWELRY_INSERTS_24IN_LIST = [
+    'Jewelry Insert Black',
+    'Jewelry Insert Clear',
+    'Jewelry Insert Maroon'
+    'Jewelry Insert Sterling Grey',
+    'Velvet Liner Black',
+    'Velvet Liner Maroon',
+    'Velvet Liner Sterling Grey'
+]
+
+JEWELRY_INSERTS_VELVET_LINERS_18IN_LIST = [
+    'None',
+    'Jewelry Insert Black',
+    'Jewelry Insert Maroon',
+    'Jewelry Insert Sterling Grey',
+    'Velvet Liner Black',
+    'Velvet Liner Maroon',
+    'Velvet Liner Sterling Grey'
+]
+
+JEWELRY_INSERTS_VELVET_LINERS_21IN_LIST = [
+    'None',
+    'Jewelry Insert Black',
+    'Jewelry Insert Clear',
+    'Jewelry Insert Maroon',
+    'Jewelry Insert Sterling Grey',
+    'Velvet Liner Black',
+    'Velvet Liner Maroon',
+    'Velvet Liner Sterling Grey'
+]
+
+JEWELRY_INSERTS_VELVET_LINERS_24IN_LIST = [
+    'None',
+    'Jewelry Insert Black',
+    'Jewelry Insert Clear',
+    'Jewelry Insert Maroon',
+    'Jewelry Insert Sterling Grey',
+    'Velvet Liner Black',
+    'Velvet Liner Maroon',
+    'Velvet Liner Sterling Grey'
+]
+
+SLIDING_INSERTS_18IN_LIST = [
+    'Sliding Insert Black',
+    'Sliding Insert Maroon',
+    'Sliding Insert Sterling Grey'
+]
+
+SLIDING_INSERTS_21IN_LIST = [
+    'Sliding Insert Black',
+    'Sliding Insert Maroon',
+    'Sliding Insert Sterling Grey'
+]
+
+SLIDING_INSERTS_24IN_LIST = [
+    'Sliding Insert Black',
+    'Sliding Insert Maroon',
+    'Sliding Insert Sterling Grey'
+]
+
+VELVET_LINERS_LIST = [
+    'Velvet Liner Black',
+    'Velvet Liner Maroon',
+    'Velvet Liner Sterling Grey'
+]
+
+PLACEMENT_X = ['Left', 'Right']
+
+PLACEMENT_Y = ['Front', 'Back']
+
+JEWELRY_TYPE_LIST = [
+    'Double Jewelry', 
+    'Std Opening', 
+    'Non Std Opening GT 16', 
+    'Non Std Opening LT 16'
+]
+
+JEWELRY_INSERTS_18IN_OPTIONS = [
+    ('0', 'Jewelry Insert Black', 'Jewelry Insert Black'),
+    ('1', 'Jewelry Insert Maroon', 'Jewelry Insert Maroon'),
+    ('2', 'Jewelry Insert Sterling Grey', 'Jewelry Insert Sterling Grey'),
+    ('3', 'Velvet Liner Black', 'Velvet Liner Black'),
+    ('4', 'Velvet Liner Maroon', 'Velvet Liner Maroon'),
+    ('5', 'Velvet Liner Sterling Grey', 'Velvet Liner Sterling Grey')
+]
+
+JEWELRY_INSERTS_21IN_OPTIONS = [
+    ('0', 'Jewelry Insert Black', 'Jewelry Insert Black'),
+    ('1', 'Jewelry Insert Clear', 'Jewelry Insert Clear'),
+    ('2', 'Jewelry Insert Maroon', 'Jewelry Insert Maroon'),
+    ('3', 'Jewelry Insert Sterling Grey', 'Jewelry Insert Sterling Grey'),
+    ('4', 'Velvet Liner Black', 'Velvet Liner Black'),
+    ('5', 'Velvet Liner Maroon', 'Velvet Liner Maroon'),
+    ('6', 'Velvet Liner Sterling Grey', 'Velvet Liner Sterling Grey')
+]
+
+JEWELRY_INSERTS_24IN_OPTIONS = [
+    ('0', 'Jewelry Insert Black', 'Jewelry Insert Black'),
+    ('1', 'Jewelry Insert Clear', 'Jewelry Insert Clear'),
+    ('2', 'Jewelry Insert Maroon', 'Jewelry Insert Maroon'),
+    ('3', 'Jewelry Insert Sterling Grey', 'Jewelry Insert Sterling Grey'),
+    ('4', 'Velvet Liner Black', 'Velvet Liner Black'),
+    ('5', 'Velvet Liner Maroon', 'Velvet Liner Maroon'),
+    ('6', 'Velvet Liner Sterling Grey', 'Velvet Liner Sterling Grey')
+]
+
+JEWELRY_INSERTS_VELVET_LINERS_18IN_OPTIONS = [
+    ('0', 'None', 'None'),
+    ('1', 'Jewelry Insert Black', 'Jewelry Insert Black'),
+    ('2', 'Jewelry Insert Maroon', 'Jewelry Insert Maroon'),
+    ('3', 'Jewelry Insert Sterling Grey', 'Jewelry Insert Sterling Grey'),
+    ('4', 'Velvet Liner Black', 'Velvet Liner Black'),
+    ('5', 'Velvet Liner Maroon', 'Velvet Liner Maroon'),
+    ('6', 'Velvet Liner Sterling Grey', 'Velvet Liner Sterling Grey')
+]
+
+JEWELRY_INSERTS_VELVET_LINERS_21IN_OPTIONS = [
+    ('0', 'None', 'None'),
+    ('1', 'Jewelry Insert Black', 'Jewelry Insert Black'),
+    ('2', 'Jewelry Insert Clear', 'Jewelry Insert Clear'),
+    ('3', 'Jewelry Insert Maroon', 'Jewelry Insert Maroon'),
+    ('4', 'Jewelry Insert Sterling Grey', 'Jewelry Insert Sterling Grey'),
+    ('5', 'Velvet Liner Black', 'Velvet Liner Black'),
+    ('6', 'Velvet Liner Maroon', 'Velvet Liner Maroon'),
+    ('7', 'Velvet Liner Sterling Grey', 'Velvet Liner Sterling Grey')
+]
+
+JEWELRY_INSERTS_VELVET_LINERS_24IN_OPTIONS = [
+    ('0', 'None', 'None'),
+    ('1', 'Jewelry Insert Black', 'Jewelry Insert Black'),
+    ('2', 'Jewelry Insert Clear', 'Jewelry Insert Clear'),
+    ('3', 'Jewelry Insert Maroon', 'Jewelry Insert Maroon'),
+    ('4', 'Jewelry Insert Sterling Grey', 'Jewelry Insert Sterling Grey'),
+    ('5', 'Velvet Liner Black', 'Velvet Liner Black'),
+    ('6', 'Velvet Liner Maroon', 'Velvet Liner Maroon'),
+    ('7', 'Velvet Liner Sterling Grey', 'Velvet Liner Sterling Grey')
+]
+
+SLIDING_INSERTS_18IN_OPTIONS = [
+    ('0', 'Sliding Insert Black', 'Sliding Insert Black'),
+    ('1', 'Sliding Insert Maroon', 'Sliding Insert Maroon'),
+    ('2', 'Sliding Insert Sterling Grey', 'Sliding Insert Sterling Grey')
+]
+
+SLIDING_INSERTS_21IN_OPTIONS = [
+    ('0', 'Sliding Insert Black', 'Sliding Insert Black'),
+    ('1', 'Sliding Insert Maroon', 'Sliding Insert Maroon'),
+    ('2', 'Sliding Insert Sterling Grey', 'Sliding Insert Sterling Grey')
+]
+
+SLIDING_INSERTS_24IN_OPTIONS = [
+    ('0', 'Sliding Insert Black', 'Sliding Insert Black'),
+    ('1', 'Sliding Insert Maroon', 'Sliding Insert Maroon'),
+    ('2', 'Sliding Insert Sterling Grey', 'Sliding Insert Sterling Grey')
+]
+
+VELVET_LINERS_OPTIONS = [
+    ('0', 'Velvet Liner Black', 'Velvet Liner Black'),
+    ('1', 'Velvet Liner Maroon', 'Velvet Liner Maroon'),
+    ('2', 'Velvet Liner Sterling Grey', 'Velvet Liner Sterling Grey')
+]
+
+JEWELRY_TYPE_OPTIONS = [
+    ('0', 'Double Jewelry', 'Double Jewelry'),
+    ('1', 'Std Opening', 'Std Opening'),
+    ('2', 'Non Std Opening GT 16', 'Non Std Opening GT 16'),
+    ('3', 'Non Std Opening LT 16', 'Non Std Opening LT 16')
+]
+
+PLACEMENT_OPTIONS_X = [('0','Left', 'Left'), 
+                       ('1', 'Right', 'Right')]
+
+PLACEMENT_OPTIONS_Y = [('0','Front', 'Front'), 
+                       ('1', 'Back', 'Back')]
+
+JEWELRY_INSERTS_18IN_DICT = {
+    0: 'Jewelry 18in Black',
+    1: 'Jewelry 18in Maroon',
+    2: 'Jewelry 18in Sterling Grey',
+    3: 'Velvet Liner - Black',
+    4: 'Velvet Liner - Burgandy',
+    5: 'Velvet Liner - Sterling Grey'
+}
+
+JEWELRY_INSERTS_21IN_DICT = {
+    0: 'Jewelry 21in Black',
+    1: 'Jewelry 21in Lucite',
+    2: 'Jewelry 21in Maroon',
+    3: 'Jewelry 21in Sterling Grey',
+    4: 'Velvet Liner - Black',
+    5: 'Velvet Liner - Burgandy',
+    6: 'Velvet Liner - Sterling Grey'
+}
+
+JEWELRY_INSERTS_24IN_DICT = {
+    0: 'Jewelry 24in Black',
+    1: 'Jewelry 24in Lucite',
+    2: 'Jewelry 24in Maroon',
+    3: 'Jewelry 24in Sterling Grey',
+    4: 'Velvet Liner - Black',
+    5: 'Velvet Liner - Burgandy',
+    6: 'Velvet Liner - Sterling Grey'
+}
+
+SLIDING_INSERTS_18IN_DICT = {
+    0: 'Jewelry 18in Black Sliding',
+    1: 'Jewelry 18in Maroon Sliding',
+    2: 'Jewelry 18in Sterling Grey Sliding',
+}
+
+SLIDING_INSERTS_21IN_DICT = {
+    0: 'Jewelry 21in Black Sliding',
+    1: 'Jewelry 21in Maroon Sliding',
+    2: 'Jewelry 21in Sterling Grey Sliding',
+}
+
+SLIDING_INSERTS_24IN_DICT = {
+    0: 'Jewelry 24in Black Sliding',
+    1: 'Jewelry 24in Maroon Sliding',
+    2: 'Jewelry 24in Sterling Grey Sliding',
+}
+
+JEWELRY_INSERTS_VELVET_LINERS_18IN_DICT = {
+    0: 'None',
+    1: 'Jewelry 18in Black',
+    2: 'Jewelry 18in Maroon',
+    3: 'Jewelry 18in Sterling Grey',
+    4: 'Velvet Liner - Black',
+    5: 'Velvet Liner - Burgandy',
+    6: 'Velvet Liner - Sterling Grey'
+}
+
+JEWELRY_INSERTS_VELVET_LINERS_21IN_DICT = {
+    0: 'None',
+    1: 'Jewelry 21in Black',
+    2: 'Jewelry 21in Lucite',
+    3: 'Jewelry 21in Maroon',
+    4: 'Jewelry 21in Sterling Grey',
+    5: 'Velvet Liner - Black',
+    6: 'Velvet Liner - Burgandy',
+    7: 'Velvet Liner - Sterling Grey'
+}
+
+JEWELRY_INSERTS_VELVET_LINERS_24IN_DICT = {
+    0: 'None',
+    1: 'Jewelry 24in Black',
+    2: 'Jewelry 24in Lucite',
+    3: 'Jewelry 24in Maroon',
+    4: 'Jewelry 24in Sterling Grey',
+    5: 'Velvet Liner - Black',
+    6: 'Velvet Liner - Burgandy',
+    7: 'Velvet Liner - Sterling Grey'
+}
+
+VELVET_LINERS_DICT = {
+    0: 'Velvet Liner - Black',
+    1: 'Velvet Liner - Maroon',
+    2: 'Velvet Liner - Sterling Grey'
+}

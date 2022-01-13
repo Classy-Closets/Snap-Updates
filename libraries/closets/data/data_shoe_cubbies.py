@@ -61,8 +61,79 @@ class Shoe_Cubbies(sn_types.Assembly):
     type_assembly = "INSERT"
     mirror_y = False
     show_in_library = True
-    category_name = "Closet Products - Shelves"
+    category_name = "Products - Shelves"
     id_prompt = 'sn_closets.shoe_cubbies'
+
+    vert_dividers = []
+    horz_dividers = []
+
+    def __init__(self, obj_bp=None):
+        super().__init__(obj_bp=obj_bp)
+        self.vert_dividers = []
+        self.horz_dividers = []
+        self.get_vert_dividers()
+        self.get_horz_dividers()
+        self.get_driver_vars()
+
+    def get_driver_vars(self):
+        self.Width = self.obj_x.snap.get_var('location.x', 'Width')
+        self.Height = self.obj_z.snap.get_var('location.z', 'Height')
+        self.Depth = self.obj_y.snap.get_var('location.y', 'Depth')
+        self.Cubby_Setback = self.get_prompt("Cubby Setback").get_var()
+        self.Cubby_Height = self.get_prompt("Cubby Height").get_var()
+        self.Divider_Thickness = self.get_prompt("Divider Thickness").get_var()
+        self.Cubby_Placement = self.get_prompt("Cubby Placement").get_var()
+
+    def get_vert_dividers(self):
+        for child in self.obj_bp.children:
+            if child.get("IS_BP_VERT_DIV"):
+                div = sn_types.Assembly(child)
+                self.vert_dividers.append(div)
+
+    def get_horz_dividers(self):
+        for child in self.obj_bp.children:
+            if child.get("IS_BP_HORZ_DIV"):
+                div = sn_types.Assembly(child)
+                self.horz_dividers.append(div)
+
+    def add_vert_dividers(self, qty=2):
+        for i in range(1, qty + 1):
+            vert = common_parts.add_divider(self)
+            vert.obj_bp["IS_BP_VERT_DIV"] = True
+            self.vert_dividers.append(vert)
+            vert.set_name("Vertical Divider")
+
+            vert.loc_x(
+                "((Width-(Divider_Thickness*{}))/({}+1))*{}+Divider_Thickness*{}".format(
+                    qty, qty, i, str(i - 1), str(i - 1)),
+                [self.Width, self.Divider_Thickness])
+            vert.loc_y("Depth", [self.Depth])
+            vert.loc_z(
+                'IF(Cubby_Placement==1,Height-Cubby_Height,0)', [self.Cubby_Placement, self.Height, self.Cubby_Height])
+
+            vert.rot_y(value=math.radians(-90))
+
+            vert.dim_x(
+                "IF(Cubby_Placement==2,Height,Cubby_Height)", [self.Height, self.Cubby_Placement, self.Cubby_Height])
+            vert.dim_y("(Depth*-1)+Cubby_Setback", [self.Depth, self.Cubby_Setback])
+            vert.dim_z("-Divider_Thickness", [self.Divider_Thickness])
+
+    def add_horz_dividers(self, qty=2):
+        for i in range(1, qty + 1):
+            start_placement = "IF(Cubby_Placement==1,Height-Cubby_Height,0)"
+            horz_spacing = "((IF(Cubby_Placement==2,Height,Cubby_Height)-(Divider_Thickness*{}))/({}+1))".format(qty, qty)
+            horz_qty = 'IF({}>{},0,{})+IF({}>{},0,Divider_Thickness*{})'.format(str(i), str(qty), str(i), str(i), str(qty), str(i - 1))
+
+            horz = common_parts.add_divider(self)
+            horz.obj_bp["IS_BP_HORZ_DIV"] = True
+            self.horz_dividers.append(horz)
+            horz.set_name("Horizontal Divider")
+            horz.loc_y("Depth", [self.Depth])
+            horz.loc_z("{}+{}*{}".format(start_placement, horz_spacing, horz_qty), [self.Cubby_Placement, self.Cubby_Height, self.Height, self.Divider_Thickness])
+
+            horz.dim_x("Width", [self.Width])
+            horz.dim_y("(Depth*-1)+Cubby_Setback", [self.Depth, self.Cubby_Setback])
+            horz.dim_z("Divider_Thickness", [self.Divider_Thickness])
 
     def draw(self):
         self.create_assembly()
@@ -80,77 +151,32 @@ class Shoe_Cubbies(sn_types.Assembly):
         self.add_prompt("Horizontal Spacing", 'DISTANCE', sn_unit.inch(.25))
         self.add_prompt("Cubby Height", 'DISTANCE', sn_unit.millimeter(557.276))
 
-        Width = self.obj_x.snap.get_var('location.x', 'Width')
-        Height = self.obj_z.snap.get_var('location.z', 'Height')
-        Depth = self.obj_y.snap.get_var('location.y', 'Depth')
-        Horizontal_Quantity = self.get_prompt("Horizontal Quantity").get_var()
-        Vertical_Quantity = self.get_prompt("Vertical Quantity").get_var()
-        Cubby_Setback = self.get_prompt("Cubby Setback").get_var()
-        Cubby_Height = self.get_prompt("Cubby Height").get_var()
-        Divider_Thickness = self.get_prompt("Divider Thickness").get_var()
+        self.get_driver_vars()
         Shelf_Thickness = self.get_prompt("Shelf Thickness").get_var()
-        Cubby_Placement = self.get_prompt("Cubby Placement").get_var()
 
         top_shelf = common_parts.add_shelf(self)
         top_shelf.get_prompt("Is Locked Shelf").set_value(True)
-        top_shelf.loc_x(value = 0)
-        top_shelf.loc_y(value = 0)
-        top_shelf.loc_z('IF(Cubby_Placement==0,Cubby_Height+Shelf_Thickness,Height-Cubby_Height)',[Shelf_Thickness,Cubby_Placement,Cubby_Height,Height])
-        top_shelf.rot_x(value = 0)
-        top_shelf.rot_y(value = 0)
-        top_shelf.rot_z(value = 0)
-        top_shelf.dim_x('Width',[Width])
-        top_shelf.dim_y('Depth',[Depth])
-        top_shelf.dim_z('-Shelf_Thickness',[Shelf_Thickness])
-        top_shelf.get_prompt('Hide').set_formula('IF(Cubby_Placement==2,True,False)',[Cubby_Placement])
+        top_shelf.loc_z(
+            'IF(Cubby_Placement==0,Cubby_Height+Shelf_Thickness,Height-Cubby_Height)',
+            [Shelf_Thickness, self.Cubby_Placement, self.Cubby_Height, self.Height])
+        top_shelf.dim_x('Width', [self.Width])
+        top_shelf.dim_y('Depth', [self.Depth])
+        top_shelf.dim_z('-Shelf_Thickness', [Shelf_Thickness])
+        top_shelf.get_prompt('Hide').set_formula('IF(Cubby_Placement==2,True,False)', [self.Cubby_Placement])
 
         opening = common_parts.add_opening(self)
-        opening.loc_x(value = 0)
-        opening.loc_y(value = 0)
-        opening.loc_z('IF(Cubby_Placement==0,Cubby_Height+Shelf_Thickness,0)',[Cubby_Placement,Cubby_Height,Shelf_Thickness])
-        opening.rot_x(value = 0)
-        opening.rot_y(value = 0)
-        opening.rot_z(value = 0)
-        opening.dim_x('IF(Cubby_Placement==2,0,Width)',[Cubby_Placement,Width])
-        opening.dim_y('IF(Cubby_Placement==2,0,Depth)',[Cubby_Placement,Depth])
-        opening.dim_z('IF(Cubby_Placement==2,0,Height-Cubby_Height-Shelf_Thickness)',[Cubby_Placement,Height,Cubby_Height,Shelf_Thickness])
+        opening.loc_z(
+            'IF(Cubby_Placement==0,Cubby_Height+Shelf_Thickness,0)',
+            [self.Cubby_Placement, self.Cubby_Height, Shelf_Thickness])
+        opening.dim_x('IF(Cubby_Placement==2,0,Width)', [self.Cubby_Placement, self.Width])
+        opening.dim_y('IF(Cubby_Placement==2,0,Depth)', [self.Cubby_Placement, self.Depth])
+        opening.dim_z(
+            'IF(Cubby_Placement==2,0,Height-Cubby_Height-Shelf_Thickness)',
+            [self.Cubby_Placement, self.Height, self.Cubby_Height, Shelf_Thickness])
 
-        for i in range(1,30):
-            vert_spacing = "((Width-(Divider_Thickness*Vertical_Quantity))/(Vertical_Quantity+1))"
-            vert_qty = 'IF(' + str(i) + '>Vertical_Quantity,0,' + str(i) + ')+IF(' + str(i) + '>Vertical_Quantity,0,Divider_Thickness*' + str(i - 1) + ')'
-            
-            vert = common_parts.add_divider(self)
-            vert.set_name("Vertical Divider")
-            vert.loc_x('(' + vert_spacing + ')*' + vert_qty,[Width,Divider_Thickness,Vertical_Quantity])
-            vert.loc_y("Depth",[Depth])
-            vert.loc_z('IF(Cubby_Placement==1,Height-Cubby_Height,0)',[Cubby_Placement,Height,Cubby_Height])
-            vert.rot_x(value = 0)
-            vert.rot_y(value = math.radians(-90))
-            vert.rot_z(value = 0)
-            vert.dim_x("IF(Cubby_Placement==2,Height,Cubby_Height)",[Height,Cubby_Placement,Cubby_Height])
-            vert.dim_y("(Depth*-1)+Cubby_Setback",[Depth,Cubby_Setback])
-            vert.dim_z("-Divider_Thickness",[Divider_Thickness])
-            vert.get_prompt('Hide').set_formula('IF(' + str(i) + '>Vertical_Quantity,True,False)',[Vertical_Quantity])
-            
-            start_placement = "IF(Cubby_Placement==1,Height-Cubby_Height,0)"
-            horz_spacing = "((IF(Cubby_Placement==2,Height,Cubby_Height)-(Divider_Thickness*Horizontal_Quantity))/(Horizontal_Quantity+1))"
-            horz_qty = 'IF(' + str(i) + '>Horizontal_Quantity,0,' + str(i) + ')+IF(' + str(i) + '>Horizontal_Quantity,0,Divider_Thickness*' + str(i - 1) + ')'
-            
-            horz = common_parts.add_divider(self)
-            horz.set_name("Horizontal Divider")
-            horz.loc_x(value = 0)
-            horz.loc_y("Depth",[Depth])
-            horz.loc_z(start_placement + '+(' + horz_spacing + ')*' + horz_qty,[Cubby_Placement,Cubby_Height,Height,Divider_Thickness,Horizontal_Quantity])
-            horz.rot_x(value = 0)
-            horz.rot_y(value = 0)
-            horz.rot_z(value = 0)
-            horz.dim_x("Width",[Width])
-            horz.dim_y("(Depth*-1)+Cubby_Setback",[Depth,Cubby_Setback])
-            horz.dim_z("Divider_Thickness",[Divider_Thickness])
-            horz.get_prompt('Hide').set_formula('IF(' + str(i) + '>Horizontal_Quantity,True,False)',[Horizontal_Quantity])
-
+        self.add_vert_dividers()
+        self.add_horz_dividers()
         self.obj_bp["ID_PROMPT"] = self.id_prompt
-            
         self.update()
 
 class PROMPTS_Shoe_Cubbies(sn_types.Prompts_Interface):
@@ -179,7 +205,32 @@ class PROMPTS_Shoe_Cubbies(sn_types.Prompts_Interface):
     def poll(cls, context):
         return True
         
+    def update_vert_divs(self):
+        vert_qty = self.assembly.get_prompt("Vertical Quantity")
+        vert_qty_changed = len(self.assembly.vert_dividers) != int(vert_qty.get_value())
+
+        if vert_qty_changed:
+            for assembly in self.assembly.vert_dividers:
+                sn_utils.delete_object_and_children(assembly.obj_bp)
+            self.assembly.vert_dividers.clear()
+            self.assembly.add_vert_dividers(qty=int(vert_qty.get_value()))
+
+        self.assembly.update()
+
+    def update_horz_divs(self):
+        horz_qty = self.assembly.get_prompt("Horizontal Quantity")
+        horz_qty_changed = len(self.assembly.horz_dividers) != int(horz_qty.get_value())
+
+        if horz_qty_changed:
+            for assembly in self.assembly.horz_dividers:
+                sn_utils.delete_object_and_children(assembly.obj_bp)
+            self.assembly.horz_dividers.clear()
+            self.assembly.add_horz_dividers(qty=int(horz_qty.get_value()))
+
     def check(self, context):
+        self.update_vert_divs()
+        self.update_horz_divs()
+
         props = bpy.context.scene.sn_closets
         if props.closet_defaults.use_32mm_system:
             cubby_height = self.assembly.get_prompt("Cubby Height")
@@ -205,7 +256,7 @@ class PROMPTS_Shoe_Cubbies(sn_types.Prompts_Interface):
     def invoke(self,context,event):
         obj = bpy.data.objects[context.object.name]
         obj_insert_bp = sn_utils.get_bp(obj,'INSERT')
-        self.assembly = sn_types.Assembly(obj_insert_bp)
+        self.assembly = Shoe_Cubbies(obj_insert_bp)
         self.set_properties_from_prompts()
         wm = context.window_manager
         return wm.invoke_props_dialog(self, width=sn_utils.get_prop_dialog_width(330))

@@ -89,7 +89,7 @@ class L_Shelves(sn_types.Assembly):
         self.add_prompt("Edge Bottom of Right Filler", 'CHECKBOX', False)
 
         for i in range(1, 11):
-            self.add_prompt("Shelf " + str(i) + " Height", 'DISTANCE', sn_unit.millimeter(493.014))
+            self.add_prompt("Shelf " + str(i) + " Height", 'DISTANCE', sn_unit.millimeter(653.034))
 
         common_prompts.add_toe_kick_prompts(self)
         common_prompts.add_thickness_prompts(self)
@@ -469,7 +469,7 @@ class L_Shelves(sn_types.Assembly):
             l_shelf.dim_z('Shelf_Thickness', [Shelf_Thickness])
             l_shelf.get_prompt('Left Depth').set_formula('Left_Depth-IF(Add_Backing,Backing_Thickness,0)', [Left_Depth, Add_Backing, Backing_Thickness])
             l_shelf.get_prompt('Right Depth').set_formula('Right_Depth-IF(Add_Backing,Backing_Thickness,0)', [Right_Depth, Add_Backing, Backing_Thickness])
-            l_shelf.get_prompt('Hide').set_formula('IF(Shelf_Quantity+1>' + str(i) + ',False,True)', [Shelf_Quantity])
+            l_shelf.get_prompt('Hide').set_formula('IF(Shelf_Quantity>' + str(i) + ',False,True)', [Shelf_Quantity])
             previous_l_shelf = l_shelf
 
     def draw(self):
@@ -503,7 +503,7 @@ def create_corner_toe_kicks(obj_bp, Left_Depth, Toe_Kick_Setback, Depth,
                             Width, Right_Depth):
     tk_path = path.join(
         closet_paths.get_library_path(),
-        "/Closet Products - Basic/Toe Kick.png")
+        "/Products - Basic/Toe Kick.png")
     wm_props = bpy.context.window_manager.snap
 
     left_tk = wm_props.get_asset(tk_path)
@@ -760,7 +760,7 @@ class Corner_Shelves(sn_types.Assembly):
         self.add_prompt("Edge Bottom of Right Filler", 'CHECKBOX', False)
 
         for i in range(1, 11):
-            self.add_prompt("Shelf " + str(i) + " Height", 'DISTANCE', sn_unit.millimeter(493.014))
+            self.add_prompt("Shelf " + str(i) + " Height", 'DISTANCE', sn_unit.millimeter(653.034))
 
         common_prompts.add_toe_kick_prompts(self)
         common_prompts.add_thickness_prompts(self)
@@ -1082,7 +1082,7 @@ class Corner_Shelves(sn_types.Assembly):
             shelf_angled.dim_z('Shelf_Thickness', [Shelf_Thickness])
             shelf_angled.get_prompt('Left Depth').set_formula('Left_Depth-IF(Add_Backing,Backing_Thickness,0)', [Left_Depth, Add_Backing, Backing_Thickness])
             shelf_angled.get_prompt('Right Depth').set_formula('Right_Depth-IF(Add_Backing,Backing_Thickness,0)', [Right_Depth, Add_Backing, Backing_Thickness])
-            shelf_angled.get_prompt('Hide').set_formula('IF(Shelf_Quantity+1>' + str(i) + ',False,True)', [Shelf_Quantity])
+            shelf_angled.get_prompt('Hide').set_formula('IF(Shelf_Quantity>' + str(i) + ',False,True)', [Shelf_Quantity])
 
             previous_angled_shelf = shelf_angled
 
@@ -1274,8 +1274,7 @@ class PROMPTS_L_Shelves(sn_types.Prompts_Interface):
                                   items=common_lists.SHELF_IN_DOOR_HEIGHTS)
 
     shelf_quantity: EnumProperty(name="Shelf Quantity",
-                                 items=[('0', "0", '0'),
-                                        ('1', "1", '1'),
+                                 items=[('1', "1", '1'),
                                         ('2', "2", '2'),
                                         ('3', "3", '3'),
                                         ('4', "4", '4'),
@@ -1396,11 +1395,11 @@ class PROMPTS_L_Shelves(sn_types.Prompts_Interface):
                 self.product.obj_z.location.z = float(self.Product_Height) / 1000
 
             shelf_quantity.set_value(int(self.shelf_quantity))
-            for i in range(1, int(self.shelf_quantity) + 1):
+            for i in range(1, int(self.shelf_quantity)):
                 shelf = self.product.get_prompt("Shelf " + str(i) + " Height")
 
                 hole_count = round(((panel_height.get_value()) * 1000) / 32)
-                holes_per_shelf = round(hole_count / (int(self.shelf_quantity) + 1))
+                holes_per_shelf = round(hole_count / int(self.shelf_quantity))
                 remainder = hole_count - (holes_per_shelf * (int(self.shelf_quantity)))
 
                 if(i <= remainder):
@@ -1714,8 +1713,7 @@ class PROMPTS_Corner_Shelves(sn_types.Prompts_Interface):
                                   items=common_lists.SHELF_IN_DOOR_HEIGHTS)
 
     shelf_quantity: EnumProperty(name="Shelf Quantity",
-                                 items=[('0', "0", '0'),
-                                        ('1', "1", '1'),
+                                 items=[('1', "1", '1'),
                                         ('2', "2", '2'),
                                         ('3', "3", '3'),
                                         ('4', "4", '4'),
@@ -1792,11 +1790,11 @@ class PROMPTS_Corner_Shelves(sn_types.Prompts_Interface):
                 self.product.obj_z.location.z = float(self.Product_Height) / 1000
 
             shelf_quantity.set_value(int(self.shelf_quantity))
-            for i in range(1, int(self.shelf_quantity) + 1):
+            for i in range(1, int(self.shelf_quantity)):
                 shelf = self.product.get_prompt("Shelf " + str(i) + " Height")
 
                 hole_count = round(((panel_height.get_value()) * 1000) / 32)
-                holes_per_shelf = round(hole_count / (int(self.shelf_quantity) + 1))
+                holes_per_shelf = round(hole_count / int(self.shelf_quantity))
                 remainder = hole_count - (holes_per_shelf * (int(self.shelf_quantity)))
 
                 if(i <= remainder):

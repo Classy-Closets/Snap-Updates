@@ -49,11 +49,16 @@ def update_render_materials(self, context):
 def update_back_mat_pointer(self, context):
     back_mesh = context.object
     back_bp = back_mesh.parent
+    cab_mat_props = context.scene.closet_materials
+    mat_type = cab_mat_props.materials.get_mat_type()
 
     if back_bp.sn_closets.use_unique_material:
         back_mesh.snap.material_slots[0].pointer_name = ""
     else:
-        back_mesh.snap.material_slots[0].pointer_name = "Closet_Part_Surfaces"
+        if mat_type.name == "Garage Material":
+            back_mesh.snap.material_slots[0].pointer_name = "Garage_Interior_Surface"
+        else:
+            back_mesh.snap.material_slots[0].pointer_name = "Closet_Part_Surfaces"
 
     update_render_materials(self, context)
 
@@ -432,10 +437,42 @@ def get_tex_mel_colors(self, context):
 
 def get_veneer_colors(self, context):
     return bpy.context.scene.closet_materials.materials.veneer_backing_color_list
-    
-# ---------PROPERTY GROUPS
 
-    
+
+# ---------bpy property update functions
+def update_exposed_kd(self, context):
+    # Moved this function here from closet_panels.py
+
+    # print("Updating Render Materials")
+    # obj_product_bp = sn_utils.get_bp(context.active_object,'PRODUCT')
+    # if obj_product_bp
+
+    # Get assembly
+    obj_assembly_bp = sn_utils.get_assembly_bp(context.object)
+    assembly = sn_types.Assembly(obj_assembly_bp)
+    # Get mat type
+    material_props = context.scene.closet_materials
+    mat_type = material_props.materials.get_mat_type()
+
+    is_lock_shelf_ppt = assembly.get_prompt("Is Locked Shelf")
+
+    # If prompt exists, set prompt value from obj.sn_closets.is_bottom_exposed_kd prop
+    if is_lock_shelf_ppt:
+        is_lock_shelf_ppt.set_value(assembly.obj_bp.sn_closets.is_bottom_exposed_kd)
+
+        print("lock shelf prompt", is_lock_shelf_ppt.get_value())
+
+        if is_lock_shelf_ppt.get_value() and mat_type.name == "Garage Material":
+            bpy.ops.closet_materials.assign_materials()
+
+
+def update_all_thick_adj_shelves(self, context):
+    bpy.ops.sn_prompt.update_all_prompts_in_scene(
+        prompt_name='Thick Adjustable Shelves',
+        prompt_type='CHECKBOX',
+        bool_value=self.thick_adjustable_shelves)
+
+# ---------PROPERTY GROUPS
 class Closet_Defaults(PropertyGroup):
 
     defaults_tabs: EnumProperty(name="Defaults Tabs",
@@ -566,7 +603,16 @@ class Closet_Defaults(PropertyGroup):
     
     drawer_box_slide_gap: FloatProperty(name="Drawer Box Slide Gap",
                                              description="This sets the drawer box slide gap",
-                                             default=sn_unit.inch(0.5),unit='LENGTH')  
+                                             default=sn_unit.inch(1.05/2),unit='LENGTH')
+
+    thick_adjustable_shelves: BoolProperty(name="Thick Adjustable Shelves",
+                                    description='This will set all adjustable shelves to be 1" when true',
+                                    default=False,
+                                    update=update_all_thick_adj_shelves)
+
+    temp_mat_type_name: StringProperty(name="Temporary Material Type Name",
+                                    description='This is to temporarily store the material type name to check if it has changed',
+                                    default="Material")
     
     def draw_door_defaults(self,layout):
         box = layout.box()
@@ -638,7 +684,13 @@ class Closet_Defaults(PropertyGroup):
         props.prompt_name = 'Toe Kick Setback'
         props.prompt_type = 'DISTANCE'
         props.float_value = self.toe_kick_setback
-        
+
+        mat_type = bpy.context.scene.closet_materials.materials.get_mat_type()
+        if mat_type.name == "Garage Material":
+            row = box.row()
+            row.label(text='1" Adjustable Shelves: ')
+            row.prop(self, 'thick_adjustable_shelves', text="")
+
     def draw_construction_defaults(self, layout):
         main_col = layout.column(align=True)
 
@@ -865,31 +917,14 @@ class PROPERTIES_Scene_Variables(PropertyGroup):
         box = layout.box()
         col = box.column(align=True)
         row = col.row(align=True)
-        row.scale_y = 1.3
-        row.prop_enum(self, "main_tabs", 'DEFAULTS',icon='MODIFIER',  text="Closet Defaults")
-        row.prop_enum(self, "main_tabs", 'HARDWARE',icon='NOCURVE', text="Hardware")
-        row = col.row(align=True)
-        row.scale_y = 1.3
-        row.prop_enum(self, "main_tabs", 'DOORS',icon='MESH_PLANE', text="Wood Doors + Drawer Faces")
-        row.prop_enum(self, "main_tabs", 'MOLDING',icon='IPO_CONSTANT', text="Molding")
         
-        if self.main_tabs == 'DEFAULTS':
-            defaults.draw(box)
+        defaults.draw(box)
             
-        if self.main_tabs == 'MOLDING':
-            options.draw_molding_options(box)
-            
-        if self.main_tabs == 'DOORS':
-            options.draw_door_options(box)
-            
-        if self.main_tabs == 'HARDWARE':
-            options.draw_hardware_options(box)
-
     @classmethod
     def register(cls):
         bpy.types.Scene.sn_closets = PointerProperty(
-            name="SNaP Closet Library Scene Properties",
-            description="SNaP Closet Library Scene Properties",
+            name="SNaP Product Library Scene Properties",
+            description="SNaP Product Library Scene Properties",
             type=cls,
         )
         
@@ -1199,6 +1234,12 @@ class PROPERTIES_Object_Properties(PropertyGroup):
                               description="Used to determine if the assembly is an Flat Crown",
                               default=False)   
 
+    is_bottom_exposed_kd: BoolProperty(
+        name="Is Bottom Exposed KD",
+        default=False,
+        update=update_exposed_kd
+    )
+
     opening_type: StringProperty(name="Opening Type",
                                   description="Type of Opening")
     
@@ -1246,8 +1287,8 @@ class PROPERTIES_Object_Properties(PropertyGroup):
     @classmethod
     def register(cls):
         bpy.types.Object.sn_closets = PointerProperty(
-            name="SNaP Closet Library Object Properties",
-            description="SNaP Closet Library Object Properties",
+            name="SNaP Product Library Object Properties",
+            description="SNaP Product Library Object Properties",
             type=cls,
         )
         

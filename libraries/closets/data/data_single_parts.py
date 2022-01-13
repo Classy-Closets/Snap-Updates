@@ -6,8 +6,7 @@ from bpy.props import StringProperty, IntProperty, EnumProperty
 from snap import sn_types, sn_unit, sn_utils
 from ..ops.drop_closet import PlaceClosetInsert
 from .. import closet_props
-from ..common import common_parts
-from ..common import common_prompts
+from ..common import common_parts, common_lists, common_prompts
 
 
 class Pants_Rack(sn_types.Assembly):
@@ -146,9 +145,8 @@ class Wire_Basket(sn_types.Assembly):
 
 class Hanging_Rod(sn_types.Assembly):
 
-    # id_prompt = "sn_closets.single_hanging_rod_prompts"
-    id_prompt = ""
-    drop_id = "sn_closets.place_single_part"
+    id_prompt = "sn_closets.single_hanging_rod_prompts"
+    drop_id = "sn_closets.insert_rods_and_shelves_drop"
     show_in_library = True
     placement_type = "INTERIOR"
     type_assembly = "INSERT"
@@ -157,44 +155,78 @@ class Hanging_Rod(sn_types.Assembly):
     library_name = ""
     category_name = ""
 
+    def add_rod(self, assembly, is_hanger=False):
+        Width = self.obj_x.snap.get_var('location.x', 'Width')
+        Depth = self.obj_y.snap.get_var('location.y', 'Depth')
+        Height = self.obj_z.snap.get_var('location.z', 'Height')
+        # Setback_from_Rear = self.get_var("Setback from Rear")
+        Z_Loc = self.get_prompt("Top Rod Location From Top").get_var('Z_Loc')
+        Top_Rod_Location = self.get_prompt("Top Rod Location").get_var('Top_Rod_Location')
+        Turn_Off_Hangers = self.get_prompt("Turn Off Hangers").get_var('Turn_Off_Hangers')
+        Hanging_Rod_Width_Deduction = self.get_prompt(
+            "Hanging Rod Width Deduction").get_var('Hanging_Rod_Width_Deduction')
+        Hanging_Rod_Setback = self.get_prompt("Hanging Rod Setback").get_var('Hanging_Rod_Setback')
+        Add_Rod_Setback = self.get_prompt("Add Rod Setback").get_var('Add_Rod_Setback')
+        Add_Deep_Rod_Setback = self.get_prompt("Add Deep Rod Setback").get_var('Add_Deep_Rod_Setback')
+        Default_Deep_Setback = self.get_prompt("Default Deep Setback").get_var('Default_Deep_Setback')
+        Extra_Deep_Pard = self.get_prompt("Extra Deep Pard").get_var('Extra_Deep_Pard')
+        Top_Rod = self.get_prompt('Add Top Rod').get_var('Add_Top_Rod')
+
+        assembly.loc_x('Hanging_Rod_Width_Deduction/2', [Hanging_Rod_Width_Deduction])
+        assembly.dim_x('Width-Hanging_Rod_Width_Deduction', [Width, Hanging_Rod_Width_Deduction])
+        assembly.dim_y(value=sn_unit.inch(.5))
+        assembly.dim_z(value=sn_unit.inch(-1))
+
+    
+        Add_Middle_Rod = self.get_prompt("Add Middle Rod").get_var('Add_Middle_Rod')
+        assembly.loc_z('Height-Z_Loc+IF(Add_Top_Rod,0,-Top_Rod_Location+0.032004)',
+                        [Height, Top_Rod_Location, Z_Loc, Top_Rod])
+        assembly.loc_y('IF(Depth>=Extra_Deep_Pard,Hanging_Rod_Setback+Add_Deep_Rod_Setback,Hanging_Rod_Setback+Add_Rod_Setback)',
+                       [Hanging_Rod_Setback, Add_Rod_Setback, Extra_Deep_Pard, Depth, Default_Deep_Setback, Add_Deep_Rod_Setback])
+        if is_hanger:
+            hide = assembly.get_prompt("Hide")
+            hide.set_formula(
+                'IF(Turn_Off_Hangers,True,IF(Add_Middle_Rod,False,True)) or Hide',
+                [Add_Middle_Rod, Turn_Off_Hangers,self.hide_var])
+        else:
+            hide = assembly.get_prompt("Hide")
+            hide.set_formula('IF(Add_Middle_Rod,False,True) or Hide', [Add_Middle_Rod,self.hide_var])
+
+        return assembly
+
     def draw(self):
         self.create_assembly()
         # we are adding a master hide for everything
         hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
         self.hide_var = hide_prompt.get_var()
-        self.obj_bp.sn_closets.is_accessory_bp = True
         props = bpy.context.scene.sn_closets.closet_defaults
-        self.add_prompt("Setback from Rear", 'CHECKBOX', False)
-        self.add_prompt("Hanging Rod Location From Top", 'DISTANCE', sn_unit.inch(2.145))
-        self.add_prompt("Hanging Rod Setback", 'DISTANCE', sn_unit.inch(2))
-        self.add_prompt("Add Hanging Setback", 'DISTANCE', sn_unit.inch(0))
-        self.add_prompt("Hanging Rod Deduction", 'DISTANCE', sn_unit.inch(.375))
+        self.obj_bp.sn_closets.is_accessory_bp = True
+
+        self.add_prompt("Add Top Rod", 'CHECKBOX', False)
+        self.add_prompt("Add Middle Rod", 'CHECKBOX', True)
+
+        self.add_prompt("Top Rod Location", 'DISTANCE', sn_unit.millimeter(428.95))
+        self.add_prompt("Hanging Rod Width Deduction", 'DISTANCE', sn_unit.inch(0))
+
+        self.add_prompt("Top Rod Location From Top", 'DISTANCE', sn_unit.inch(1.26))
         self.add_prompt("Turn Off Hangers", 'CHECKBOX', props.hide_hangers)
 
-        Width = self.obj_x.snap.get_var('location.x', 'Width')
-        Depth = self.obj_y.snap.get_var('location.y', 'Depth')
-        Setback_from_Rear = self.get_prompt("Setback from Rear").get_var()
-        Hanging_Rod_Setback = self.get_prompt("Hanging Rod Setback").get_var()
-        Turn_Off_Hangers = self.get_prompt("Turn Off Hangers").get_var()
-        Hanging_Rod_Deduction = self.get_prompt("Hanging Rod Deduction").get_var()
+        self.add_prompt("Hanging Rod Setback", 'DISTANCE', sn_unit.inch(1.69291))
+        self.add_prompt("Add Rod Setback", 'DISTANCE', sn_unit.inch(0))
 
-        rod = common_parts.add_oval_hanging_rod(self)
-        rod.loc_x('Hanging_Rod_Deduction/2', [Hanging_Rod_Deduction])
-        rod.loc_y(
-            'IF(Setback_from_Rear,Depth-Hanging_Rod_Setback,Hanging_Rod_Setback)',
-            [Setback_from_Rear, Depth, Hanging_Rod_Setback])
-        rod.dim_x('Width-Hanging_Rod_Deduction', [Width, Hanging_Rod_Deduction])
-        rod.dim_y('-Depth', [Depth])
+        self.add_prompt("Default Deep Setback", 'DISTANCE', sn_unit.inch(12))
+        self.add_prompt("Extra Deep Pard", 'DISTANCE', sn_unit.inch(16))
+        self.add_prompt("Add Deep Rod Setback", 'DISTANCE', sn_unit.inch(0))
 
-        hangers = common_parts.add_hangers(self)
-        hangers.loc_y(
-            'IF(Setback_from_Rear,Depth-Hanging_Rod_Setback,Hanging_Rod_Setback)',
-            [Setback_from_Rear, Depth, Hanging_Rod_Setback])
-        hangers.dim_x('Width', [Width])
-        hangers.dim_y('-Depth', [Depth])
-        hangers.get_prompt("Hide").set_formula(
-            'Hide or Turn_Off_Hangers', [Turn_Off_Hangers, self.hide_var])
-        hangers.get_prompt("Quantity").set_value(value=3)
+        opts = bpy.context.scene.sn_closets.closet_options
+
+        if "Oval" in opts.rods_name:
+            self.add_rod(common_parts.add_oval_hanging_rod(self))
+
+        else:
+            self.add_rod(common_parts.add_round_hanging_rod(self))
+
+        self.add_rod(common_parts.add_hangers(self), is_hanger=True)
 
         self.update()
 
@@ -218,6 +250,7 @@ class Shelf(sn_types.Assembly):
         self.add_prompt("Shelf Type", 'COMBOBOX', ['Adjustable','Fixed','Sliding'])
         self.add_prompt("Drawer Slide Gap", 'DISTANCE', sn_unit.inch(.25))
         self.add_prompt("Shelf Spacing", 'DISTANCE', sn_unit.inch(6))
+        self.add_prompt("Thick Adjustable Shelves", 'CHECKBOX', bpy.context.scene.sn_closets.closet_defaults.thick_adjustable_shelves)
 
         common_prompts.add_thickness_prompts(self)
 
@@ -228,10 +261,12 @@ class Shelf(sn_types.Assembly):
         Drawer_Slide_Gap = self.get_var('Drawer Slide Gap')
         Shelf_Quantity = self.get_var('Shelf Quantity')
         Shelf_Spacing = self.get_var('Shelf Spacing')
+        TAS = self.get_prompt("Thick Adjustable Shelves").get_var('TAS')
 
         shelf = common_parts.add_shelf(self)
 
         Is_Locked_Shelf = shelf.get_var('Is Locked Shelf')
+        IBEKD = shelf.get_prompt('Is Bottom Exposed KD').get_var('IBEKD')
         Adj_Shelf_Setback = shelf.get_var('Adj Shelf Setback')
         Locked_Shelf_Setback = shelf.get_var('Locked Shelf Setback')
         Adj_Shelf_Clip_Gap = shelf.get_var('Adj Shelf Clip Gap')
@@ -240,7 +275,7 @@ class Shelf(sn_types.Assembly):
         shelf.loc_y('Depth',[Depth])
         shelf.dim_x('Width-IF(Shelf_Type==2,Drawer_Slide_Gap*2,IF(Is_Locked_Shelf,0,Adj_Shelf_Clip_Gap*2))',[Width,Shelf_Type,Drawer_Slide_Gap,Is_Locked_Shelf,Adj_Shelf_Clip_Gap])
         shelf.dim_y('-Depth+IF(Is_Locked_Shelf,Locked_Shelf_Setback,Adj_Shelf_Setback)',[Depth,Is_Locked_Shelf,Locked_Shelf_Setback,Adj_Shelf_Setback])
-        shelf.dim_z('Shelf_Thickness',[Shelf_Thickness])
+        shelf.dim_z('IF(AND(TAS,IBEKD==False), INCH(1),Shelf_Thickness)', [Shelf_Thickness, TAS, IBEKD])
         shelf.get_prompt('Is Locked Shelf').set_formula('IF(Shelf_Type==1,True,False)',[Shelf_Type])
         shelf.get_prompt('Z Quantity').set_formula('Shelf_Quantity',[Shelf_Quantity])
         shelf.get_prompt('Z Offset').set_formula('Shelf_Spacing',[Shelf_Spacing])
@@ -516,55 +551,91 @@ class Slanted_Shoe_Shelves(sn_types.Assembly):
         self.update()
         
 #----------PROMPTS PAGES
-# class PROMPTS_Single_Hanging_Rod_Prompts(bpy.types.Operator):
-    # bl_idname = "sn_closets.single_hanging_rod_prompts"
-    # bl_label = "Single Hanging Rod Prompts" 
-    # bl_description = "This shows all of the available door options"
-    # bl_options = {'UNDO'}
+class PROMPTS_Single_Hanging_Rod_Prompts(sn_types.Prompts_Interface):
+    bl_idname = "sn_closets.single_hanging_rod_prompts"
+    bl_label = "Single Hanging Rod Prompts" 
+    bl_description = "This shows all of the available door options"
+    bl_options = {'UNDO'}
     
-    # object_name: StringProperty(name="Object Name")
-    
-    # assembly = None
-    
-    # @classmethod
-    # def poll(cls, context):
-    #     return True
-        
-    # def check(self, context):
-    #     self.assembly.obj_bp.location = self.assembly.obj_bp.location # Redraw Viewport
-    #     return True
-        
-    # def execute(self, context):
-    #     return {'FINISHED'}
-        
-    # def invoke(self,context,event):
-    #     obj = bpy.data.objects[self.object_name]
-    #     obj_insert_bp = sn_utils.get_bp(obj,'INSERT')
-    #     self.assembly = sn_types.Assembly(obj_insert_bp)
-    #     wm = context.window_manager
-    #     return wm.invoke_props_dialog(self, width=330)
-        
-    # def draw(self, context):
-    #     layout = self.layout
-    #     if self.assembly.obj_bp:
-    #         if self.assembly.obj_bp.name in context.scene.objects:
-                
-    #             hangers = self.assembly.get_prompt("Turn Off Hangers")
-    #             setback_from_rear = self.assembly.get_prompt("Setback from Rear")
-    #             setback_amount = self.assembly.get_prompt("Hanging Rod Setback")
-                
-    #             box = layout.box()
-    #             row = box.row()
-    #             row.label(text="Set Offset from Back")
-    #             row.prop(setback_from_rear,setback_from_rear.prompt_type,text="")   
-    #             row = box.row()
-    #             row.label(text="Setback Amount")
-    #             row.prop(setback_amount,setback_amount.prompt_type,text="")                                  
-    #             row = box.row()
-    #             row.label(text=hangers.name)
-    #             row.prop(hangers,hangers.prompt_type,text="")
-    #             row = box.row()
-    #             row.prop(self.assembly.obj_bp,'location',index=2,text="Height")
+    object_name: bpy.props.StringProperty(name="Object Name")
+
+    top_rod_location: bpy.props.EnumProperty(name="Top Rod Location",
+                                              items=common_lists.ROD_HEIGHTS)
+
+    assembly = None
+
+    def check(self, context):
+        self.set_prompts_from_properties()
+        self.insert.obj_bp.location = self.insert.obj_bp.location  # Redraw Viewport
+        return True
+
+    def set_prompts_from_properties(self):
+        ''' This should be called in the check function to set the prompts
+            to the same values as the class properties
+        '''
+        top_rod_location = self.insert.get_prompt("Top Rod Location")
+        if top_rod_location:
+            top_rod_location.set_value(sn_unit.inch(
+                float(self.top_rod_location) / 25.4))
+
+    def set_properties_from_prompts(self):
+        ''' This should be called in the invoke function to set the class properties
+            to the same values as the prompts
+        '''
+        top_rod_location = self.insert.get_prompt("Top Rod Location")
+        if top_rod_location:
+            value = round(top_rod_location.get_value() * 1000, 2)
+            for index, height in enumerate(common_lists.ROD_HEIGHTS):
+                if not value >= float(height[0]):
+                    self.top_rod_location = common_lists.ROD_HEIGHTS[index - 1][0]
+                    break
+
+    def execute(self, context):
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        self.insert = Hanging_Rod(self.get_insert().obj_bp)
+        self.set_properties_from_prompts()
+        wm = context.window_manager
+        return wm.invoke_props_dialog(self, width=330)
+
+    def draw(self, context):
+        layout = self.layout
+        if self.insert.obj_bp:
+            if self.insert.obj_bp.name in context.scene.objects:
+                add_top_rod = self.insert.get_prompt("Add Top Rod")
+                add_middle_rod = self.insert.get_prompt("Add Middle Rod")
+                rod_setback = self.insert.get_prompt("Hanging Rod Setback")
+                Add_Rod_Setback = self.insert.get_prompt("Add Rod Setback")
+                extra_deep_pard = self.insert.get_prompt("Extra Deep Pard")
+                Add_Deep_Rod_Setback = self.insert.get_prompt(
+                    "Add Deep Rod Setback")
+
+                if add_top_rod and add_middle_rod:
+                    column = layout.column(align=True)
+
+                    # Top
+                    box = column.box()
+                    row = box.row()
+                    row.label(text="", icon='BLANK1')
+                    row.prop(add_top_rod, "checkbox_value", text="Rod at Top")
+
+
+                    row = box.row()
+                    row.label(text="", icon='BLANK1')
+                    row.prop(self, 'top_rod_location', text="")
+                    row.label(text="", icon='TRIA_DOWN')
+
+                    row = box.row()
+                    if(extra_deep_pard and self.insert.obj_y.location.y >= extra_deep_pard.get_value()):
+                            row = box.row()
+                            row.label(text="", icon='BLANK1')
+                            row.prop(Add_Deep_Rod_Setback, "distance_value", text="Rod Setback: ")
+                    else:
+                        row = box.row()
+                        row.label(text="", icon='BLANK1')
+                        row.prop(Add_Rod_Setback, "distance_value", text="Rod Setback: ")
+
 
 
 class PROMPTS_Pants_Rack_Prompts(bpy.types.Operator):
@@ -1069,6 +1140,13 @@ class OPERATOR_Drop_Single_Part(bpy.types.Operator, PlaceClosetInsert):
                     loc_z = self.get_32mm_position(loc_pos[2])     
                     self.insert.obj_bp.location.z += loc_z
 
+            edp = self.insert.get_prompt("Extra Deep Pard")
+            adrs = self.insert.get_prompt("Add Deep Rod Setback")
+            
+            if edp and adrs:
+                if self.insert.obj_y.location.y >= edp.get_value():
+                    adrs.set_value(self.insert.obj_y.location.y - sn_unit.inch(12))
+
 class OPERATOR_Place_Panel_Accessory_Y(bpy.types.Operator):
     bl_idname = "sn_closets.place_panel_accessory_y"
     bl_label = "Place Panel Accessory Y"
@@ -1311,7 +1389,7 @@ class OPERATOR_Place_Panel_Accessory_X(bpy.types.Operator, PlaceClosetInsert):
         return self.accessory_drop(context,event)    
 
 bpy.utils.register_class(PROMPTS_Pants_Rack_Prompts)
-# bpy.utils.register_class(PROMPTS_Single_Hanging_Rod_Prompts)
+bpy.utils.register_class(PROMPTS_Single_Hanging_Rod_Prompts)
 bpy.utils.register_class(PROMPTS_Single_Hamper_Prompts)
 bpy.utils.register_class(PROMPTS_Shelf_Prompts)
 bpy.utils.register_class(PROMPTS_Tray_Prompts)
