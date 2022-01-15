@@ -1091,7 +1091,7 @@ class VIEW_OT_generate_2d_views(Operator):
                 tk_width = sn_types.Assembly(child).obj_x.location.x
                 tk_x_loc = child.location[0]
                 ending_tk = tk_width + tk_x_loc
-                tk_at_start = left_offset < tk_x_loc < right_offset
+                tk_at_start = left_offset <= tk_x_loc < right_offset
                 tk_at_end = left_max_offset < ending_tk < right_max_offset
                 if tk_at_start and opening_at == 'MIN':
                     toe_kicks.append(child)

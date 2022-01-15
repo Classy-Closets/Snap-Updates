@@ -628,8 +628,10 @@ class DROP_OPERATOR_Place_Top(Operator, PlaceClosetInsert):
                                         ts_left_extend = ts_assembly.get_prompt('Extend Left Amount')
                                         ts_right_extend = ts_assembly.get_prompt('Extend Right Amount')
                                         if ts_left_extend and ts_right_extend:
-                                            sn_utils.set_prompt_if_exists(self.asset, 'Extend Left Amount', ts_left_extend.get_value())
-                                            sn_utils.set_prompt_if_exists(self.asset, 'Extend Right Amount', ts_right_extend.get_value())
+                                            if ts_left_extend.get_value() > 0:
+                                                sn_utils.set_prompt_if_exists(self.asset, 'Extend Left Amount', ts_left_extend.get_value())
+                                            if ts_right_extend.get_value() > 0:
+                                                sn_utils.set_prompt_if_exists(self.asset, 'Extend Right Amount', ts_right_extend.get_value())
 
                                         ts_exposed_right = ts_assembly.get_prompt('Exposed Right')
                                         if ts_exposed_right:

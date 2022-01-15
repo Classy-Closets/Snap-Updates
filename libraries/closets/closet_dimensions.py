@@ -1690,46 +1690,49 @@ class SNAP_OT_Auto_Dimension(Operator):
             insert_width = 21
         elif 24 <= width_in:
             insert_width = 24
-        insert_type = drawer_stack.get_prompt(
-            f'Jewelry Insert Type {drawer_num}').get_value()
-        # Double Jewelry
-        if insert_type == 0:
-            upper = f'Upper Jewelry Insert Velvet Liner {insert_width}in {drawer_num}'
-            lower = f'Lower Jewelry Insert Velvet Liner {insert_width}in {drawer_num}'
-            u_choice = drawer_stack.get_prompt(upper).get_value()
-            l_choice = drawer_stack.get_prompt(lower).get_value()
-            if insert_width == 18 and (u_choice in vl18 or l_choice in vl18):
+
+        insert_type_ppt = drawer_stack.get_prompt(f'Jewelry Insert Type {drawer_num}')
+
+        if insert_type_ppt:
+            insert_type = insert_type_ppt.get_value()
+            # Double Jewelry
+            if insert_type == 0:
+                upper = f'Upper Jewelry Insert Velvet Liner {insert_width}in {drawer_num}'
+                lower = f'Lower Jewelry Insert Velvet Liner {insert_width}in {drawer_num}'
+                u_choice = drawer_stack.get_prompt(upper).get_value()
+                l_choice = drawer_stack.get_prompt(lower).get_value()
+                if insert_width == 18 and (u_choice in vl18 or l_choice in vl18):
+                    return True
+                elif insert_width == 21 and (u_choice in vl21 or l_choice in vl21):
+                    return True
+                elif insert_width == 24 and (u_choice in vl24 or l_choice in vl24):
+                    return True
+            # STD Insert
+            elif insert_type == 1:
+                jwl_ins = f'Jewelry Insert {insert_width}in {drawer_num}'
+                sld_ins = f'Sliding Insert {insert_width}in {drawer_num}'
+                j_choice = drawer_stack.get_prompt(jwl_ins).get_value()
+                s_choice = drawer_stack.get_prompt(sld_ins).get_value()
+                drawer_stack.get_prompt(sld_ins)
+                if insert_width == 18 and (j_choice in vl18 or s_choice in vl18):
+                    return True
+                elif insert_width == 21 and (j_choice in vl21 or s_choice in vl21):
+                    return True
+                elif insert_width == 24 and (j_choice in vl24 or s_choice in vl24):
+                    return True
+            # Non-STD Insert GT 16
+            elif insert_type == 2:
+                lower = f'Lower Jewelry Insert Velvet Liner {insert_width}in {drawer_num}'
+                l_choice = drawer_stack.get_prompt(lower).get_value()
+                if insert_width == 18 and l_choice in vl18:
+                    return True
+                elif insert_width == 21 and l_choice in vl21:
+                    return True
+                elif insert_width == 24 and l_choice in vl24:
+                    return True
+            # Non-STD Insert LT 16
+            elif insert_type == 3:
                 return True
-            elif insert_width == 21 and (u_choice in vl21 or l_choice in vl21):
-                return True
-            elif insert_width == 24 and (u_choice in vl24 or l_choice in vl24):
-                return True
-        # STD Insert
-        elif insert_type == 1:
-            jwl_ins = f'Jewelry Insert {insert_width}in {drawer_num}'
-            sld_ins = f'Sliding Insert {insert_width}in {drawer_num}'
-            j_choice = drawer_stack.get_prompt(jwl_ins).get_value()
-            s_choice = drawer_stack.get_prompt(sld_ins).get_value()
-            drawer_stack.get_prompt(sld_ins)
-            if insert_width == 18 and (j_choice in vl18 or s_choice in vl18):
-                return True
-            elif insert_width == 21 and (j_choice in vl21 or s_choice in vl21):
-                return True
-            elif insert_width == 24 and (j_choice in vl24 or s_choice in vl24):
-                return True
-        # Non-STD Insert GT 16
-        elif insert_type == 2:
-            lower = f'Lower Jewelry Insert Velvet Liner {insert_width}in {drawer_num}'
-            l_choice = drawer_stack.get_prompt(lower).get_value()
-            if insert_width == 18 and l_choice in vl18:
-                return True
-            elif insert_width == 21 and l_choice in vl21:
-                return True
-            elif insert_width == 24 and l_choice in vl24:
-                return True
-        # Non-STD Insert LT 16
-        elif insert_type == 3:
-            return True
         return False
 
     def jewelry_drawer_labeling(self, assembly):
@@ -1744,20 +1747,21 @@ class SNAP_OT_Auto_Dimension(Operator):
             has_sld_insert_pmpt = drawer_stack.get_prompt(f'Has Sliding Insert {drawer_num}')
             has_velvet_liner = self.query_velvet_liner(drawer_stack, drawer_num)
 
-            has_jwl_insert = has_jwl_insert_pmpt.get_value()
-            has_sld_insert = has_sld_insert_pmpt.get_value()
+            if has_jwl_insert_pmpt and has_sld_insert_pmpt:
+                has_jwl_insert = has_jwl_insert_pmpt.get_value()
+                has_sld_insert = has_sld_insert_pmpt.get_value()
 
-            if is_dbl_drawer and not has_velvet_liner:
-                self.apply_drawer_lbl(drawer_stack, drawer_num, 'Db Jwlry')
-            elif not is_dbl_drawer and not has_velvet_liner:
-                if has_jwl_insert and not has_sld_insert:
-                    self.apply_drawer_lbl(drawer_stack, drawer_num, 'Jwlry')
-                elif not has_jwl_insert and has_sld_insert:
-                    self.apply_drawer_lbl(drawer_stack, drawer_num, 'SLD')
-                elif has_jwl_insert and has_sld_insert:
-                    self.apply_drawer_lbl(drawer_stack, drawer_num, 'Jwlry + SLD')
-            elif has_velvet_liner:
-                self.apply_drawer_lbl(drawer_stack, drawer_num, 'VL')
+                if is_dbl_drawer and not has_velvet_liner:
+                    self.apply_drawer_lbl(drawer_stack, drawer_num, 'Db Jwlry')
+                elif not is_dbl_drawer and not has_velvet_liner:
+                    if has_jwl_insert and not has_sld_insert:
+                        self.apply_drawer_lbl(drawer_stack, drawer_num, 'Jwlry')
+                    elif not has_jwl_insert and has_sld_insert:
+                        self.apply_drawer_lbl(drawer_stack, drawer_num, 'SLD')
+                    elif has_jwl_insert and has_sld_insert:
+                        self.apply_drawer_lbl(drawer_stack, drawer_num, 'Jwlry + SLD')
+                elif has_velvet_liner:
+                    self.apply_drawer_lbl(drawer_stack, drawer_num, 'VL')
 
     def lock_labeling(self, assembly):
         lock_obj = assembly.obj_bp
