@@ -1952,7 +1952,7 @@ class SnapAddonPreferences(bpy.types.AddonPreferences):
     updater_interval_days: bpy.props.IntProperty(
         name='Days',
         description="Number of days between checking for updates",
-        default=7,
+        default=0,
         min=0,
         max=31)
 
