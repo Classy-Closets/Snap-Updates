@@ -365,7 +365,7 @@ class Accessory(sn_types.Assembly):
 class Valet_Rod(sn_types.Assembly):
 
     id_prompt = "sn_closets.valet_rod"
-    drop_id = "sn_closets.place_closet_accessory"
+    drop_id = "sn_closets.place_valet_rod"
     show_in_library = True
     placement_type = "INTERIOR"
     type_assembly = "INSERT"
@@ -1386,7 +1386,131 @@ class OPERATOR_Place_Panel_Accessory_X(bpy.types.Operator, PlaceClosetInsert):
             self.cancel_drop(context,event)
             return {'FINISHED'}    
         
-        return self.accessory_drop(context,event)    
+        return self.accessory_drop(context,event)
+
+class OPERATOR_Place_Valet_Rod(bpy.types.Operator, PlaceClosetInsert):
+    bl_idname = "sn_closets.place_valet_rod"
+    bl_label = "Place Accessory"
+    bl_description = "This allows you to place a Valet Rod onto a panel"
+
+    def execute(self, context):
+        self.draw_asset()
+        self.get_insert(context)
+
+        if self.insert is None:
+            bpy.ops.snap.message_box(
+                'INVOKE_DEFAULT',
+                message="Could Not Find Insert Class: " + self.object_name)
+            return {'CANCELLED'}
+
+        self.exclude_objects = sn_utils.get_child_objects(self.insert.obj_bp)
+        self.set_wire_and_xray(self.insert.obj_bp, True)
+        if self.header_text:
+            context.area.header_text_set(text=self.header_text)
+        context.view_layer.update()  # THE SCENE MUST BE UPDATED FOR RAY CAST TO WORK
+        context.window_manager.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
+
+    def accessory_drop(self, context, event):
+        selected_point, selected_obj, _ = sn_utils.get_selection_point(
+            context, event, exclude_objects=self.exclude_objects)
+        bpy.ops.object.select_all(action='DESELECT')
+        self.asset.obj_bp.location = selected_point
+        self.asset.obj_bp.parent = None
+
+        if selected_obj:
+            wall_bp = sn_utils.get_wall_bp(selected_obj)
+            selected_assembly_bp = sn_utils.get_assembly_bp(selected_obj)
+            selected_assembly = sn_types.Assembly(selected_assembly_bp)
+
+            if wall_bp:
+                self.asset.obj_bp.parent = wall_bp
+                loc_pos = wall_bp.matrix_world.inverted() @ selected_point
+                self.asset.obj_bp.location = loc_pos
+                self.asset.obj_bp.rotation_euler.z = 0
+                self.asset.obj_bp.rotation_euler.y = 0
+                self.asset.obj_bp.rotation_euler.x = 0
+
+            if selected_assembly and selected_assembly.obj_bp:
+                if "IS_BP_PANEL" in selected_assembly.obj_bp:
+                    assy_world_loc = (
+                        selected_assembly.obj_bp.matrix_world[0][3],
+                        selected_assembly.obj_bp.matrix_world[1][3],
+                        selected_assembly.obj_bp.matrix_world[2][3])
+
+                    assy_z_world_loc = (
+                        selected_assembly.obj_z.matrix_world[0][3],
+                        selected_assembly.obj_z.matrix_world[1][3],
+                        selected_assembly.obj_z.matrix_world[2][3])
+
+                    dist_to_bp = math.fabs(sn_utils.calc_distance(selected_point, assy_world_loc))
+                    dist_to_z = math.fabs(sn_utils.calc_distance(selected_point, assy_z_world_loc))
+                    loc_pos = selected_assembly.obj_bp.matrix_world.inverted() @ selected_point
+                    self.asset.obj_bp.parent = selected_assembly.obj_bp
+                    self.asset.obj_bp.location.x = loc_pos[0]
+                    self.asset.obj_bp.location.z = 0
+                    self.asset.obj_x.location.x = math.fabs(selected_assembly.obj_y.location.y)  # SET DEPTH
+
+                    if selected_assembly.obj_z.location.z < 0:  # LEFT PANEL
+                        if dist_to_bp > dist_to_z:  # PLACE ON RIGHT SIDE
+                            self.asset.obj_bp.location.y = 0
+                            self.asset.obj_bp.rotation_euler.x = math.radians(90)
+                            self.asset.obj_bp.rotation_euler.y = math.radians(0)
+                            self.asset.obj_bp.rotation_euler.z = math.radians(270)
+                            self.asset.obj_bp.location.z = selected_assembly.obj_z.location.z
+                        else:  # PLACE ON LEFT SIDE
+                            self.asset.obj_bp.location.y = 0
+                            self.asset.obj_bp.rotation_euler.x = math.radians(90)
+                            self.asset.obj_bp.rotation_euler.y = math.radians(180)
+                            self.asset.obj_bp.rotation_euler.z = math.radians(90)
+                            self.asset.obj_bp.location.z = 0
+                    else:  # CENTER AND RIGHT PANEL
+                        if dist_to_bp > dist_to_z:  # PLACE ON LEFT SIDE
+                            self.asset.obj_bp.location.y = 0
+                            self.asset.obj_bp.rotation_euler.x = math.radians(90)
+                            self.asset.obj_bp.rotation_euler.y = math.radians(180)
+                            self.asset.obj_bp.rotation_euler.z = math.radians(90)
+                            self.asset.obj_bp.location.z = selected_assembly.obj_z.location.z
+                        else:  # PLACE ON RIGHT SIDE
+                            self.asset.obj_bp.location.y = 0
+                            self.asset.obj_bp.rotation_euler.x = math.radians(90)
+                            self.asset.obj_bp.rotation_euler.y = math.radians(0)
+                            self.asset.obj_bp.rotation_euler.z = math.radians(270)
+                            self.asset.obj_bp.location.z = 0
+
+        if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
+            print("Place Test")
+            bpy.context.window.cursor_set('DEFAULT')
+            bpy.ops.object.select_all(action='DESELECT')
+            sn_utils.set_wireframe(self.asset.obj_bp, False)
+            context.view_layer.objects.active = self.asset.obj_bp
+            self.asset.obj_bp.select_set(True)
+            obj = self.asset.obj_bp
+
+            if obj and "ID_PROMPT" in obj and obj["ID_PROMPT"] != "":
+                id_prompt = obj["ID_PROMPT"]
+                eval("bpy.ops." + id_prompt + "('INVOKE_DEFAULT')")
+            else:
+                bpy.ops.sn_closets.accessories('INVOKE_DEFAULT')
+            return {'FINISHED'}
+
+        return {'RUNNING_MODAL'}
+
+    def modal(self, context, event):
+        bpy.ops.object.select_all(action='DESELECT')
+        context.area.tag_redraw()
+        context.area.header_text_set(text=self.header_text)
+        self.reset_selection()
+
+        if self.event_is_cancel_command(event):
+            context.area.header_text_set(None)
+            return self.cancel_drop(context)
+
+        if self.event_is_pass_through(event):
+            return {'PASS_THROUGH'}
+
+        return self.accessory_drop(context, event)
+
 
 bpy.utils.register_class(PROMPTS_Pants_Rack_Prompts)
 bpy.utils.register_class(PROMPTS_Single_Hanging_Rod_Prompts)
@@ -1400,3 +1524,4 @@ bpy.utils.register_class(PROMPTS_Shoe_Shelf_Prompts)
 bpy.utils.register_class(OPERATOR_Drop_Single_Part)
 bpy.utils.register_class(OPERATOR_Place_Panel_Accessory_Y)
 bpy.utils.register_class(OPERATOR_Place_Panel_Accessory_X)
+bpy.utils.register_class(OPERATOR_Place_Valet_Rod)
