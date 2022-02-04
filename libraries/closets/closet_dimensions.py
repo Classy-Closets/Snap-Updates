@@ -1693,7 +1693,7 @@ class SNAP_OT_Auto_Dimension(Operator):
 
         insert_type_ppt = drawer_stack.get_prompt(f'Jewelry Insert Type {drawer_num}')
 
-        if insert_type_ppt:
+        if insert_type_ppt and insert_width > 0:
             insert_type = insert_type_ppt.get_value()
             # Double Jewelry
             if insert_type == 0:
@@ -2234,7 +2234,13 @@ class SNAP_OT_Auto_Dimension(Operator):
             material += context_material
         material += " "
         for spec_group in context.scene.snap.spec_groups:
-            material += spec_group.materials["Countertop_Surface"].item_name
+            if material_str == "Melamine":
+                material += spec_group.materials["Countertop_Surface"].item_name
+            if material_str == "HPL":
+                material += spec_group.materials["Countertop_HPL_Surface"].item_name
+            if material_str == "Granite":
+                material += spec_group.materials["Countertop_Granite_Surface"].item_name
+
         x_offset = width / 2
         z_offset = counter_top_height
         hashmark = sn_types.Line(sn_unit.inch(3), (0, 45, 0))

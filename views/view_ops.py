@@ -4123,6 +4123,7 @@ class VIEW_OT_generate_2d_views(Operator):
         return self.execute(context)
 
     def execute(self, context):
+        self.pre_2d_cleanup(context)
         dimprops = get_dimension_props()
         room_type = context.scene.sn_roombuilder.room_type
         views_props = context.window_manager.views_2d
@@ -4247,6 +4248,25 @@ class VIEW_OT_generate_2d_views(Operator):
         hide_dim_handles()
         self.enable_all_elvs()
         return {'FINISHED'}
+
+    def pre_2d_cleanup(self, context):
+        all_scenes = bpy.data.scenes
+        for scene in all_scenes:
+            if scene.name not in ["_Main", "Scene"]:
+                bpy.data.scenes.remove(scene)
+        for view in context.window_manager.snap.image_views:
+            context.window_manager.snap.image_views.remove(0)
+        for obj in bpy.data.objects:
+            # Profiles have no users, but most be preserved
+            if obj.get('IS_MOLDING_PROFILE') is not None:
+                continue
+            if len(obj.users_scene) == 0:
+                # first, remove mesh data, if its sole user is the object
+                mesh = obj.data
+                if obj.name in bpy.data.objects:
+                    bpy.data.objects.remove(obj)
+                if isinstance(mesh, bpy.types.Mesh) and mesh.users == 0:
+                    bpy.data.meshes.remove(mesh)
 
     
 

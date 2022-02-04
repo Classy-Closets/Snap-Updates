@@ -91,6 +91,13 @@ class SN_WM_OT_load_snap_defaults(Operator):
         shutil.copyfile(src, dst)
         print("Found testing environment, using auto-set scripts directory:", dst)
 
+    def remove_old_data(self):
+        for subdir, dirs, files in os.walk(sn_paths.CLOSET_THUMB_DIR):
+            for dir in dirs:
+                if "Closet Products -" in dir:
+                    print("Removing:", os.path.join(subdir, dir))
+                    shutil.rmtree(os.path.join(subdir, dir))
+
     def execute(self, context):
         config_path = sn_paths.CONFIG_PATH
         app_template_path = sn_paths.APP_TEMPLATE_PATH
@@ -100,6 +107,7 @@ class SN_WM_OT_load_snap_defaults(Operator):
             menu_idname='USERPREF_MT_interface_theme_presets')
         self.copy_config_files(config_path)
         self.copy_config_files(app_template_path)
+        self.remove_old_data()
         self.use_auto_set_scripts_dir()
         context.preferences.addons['snap'].preferences.franchise_location = franchise_location
         self.init_db()

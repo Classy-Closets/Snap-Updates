@@ -32,6 +32,11 @@ NAME = ''
 TYPE = ''
 VALUE = ''
 
+#Counters for edgebanding field
+S_COUNT = []
+L_COUNT = []
+EDGEBANDING = []
+
 R_MATERIAL_PRICES = []
 R_HARDWARE_PRICES = []
 R_ACCESSORY_PRICES = []
@@ -673,6 +678,9 @@ def generate_retail_parts_list():
                 if 'SF' in MATERIAL_PARTS_LIST[i][13]:
                     sheet1["L" + str((i + 1) + 1)] = get_square_footage(float(MATERIAL_PARTS_LIST[i][8]), float(MATERIAL_PARTS_LIST[i][9]))
                     sheet1["P" + str((i + 1) + 1)] = (((float(MATERIAL_PARTS_LIST[i][11]) * int(MATERIAL_PARTS_LIST[i][7])) * get_square_footage(float(MATERIAL_PARTS_LIST[i][8]), float(MATERIAL_PARTS_LIST[i][9])))  + float(MATERIAL_PARTS_LIST[i][12]))   #CALCULATED_PRICE
+                    if len(EDGEBANDING) > 0 and i < len(EDGEBANDING):
+                        if MATERIAL_PARTS_LIST[i][4] == EDGEBANDING[i][0]:
+                            sheet1["Q" + str((i + 1) + 1)] = str(EDGEBANDING[i][1]) + " " + str(EDGEBANDING[i][2])
                 if 'LF' in MATERIAL_PARTS_LIST[i][13]:
                     if MATERIAL_PARTS_LIST[i][14] is not None:
                         eb_length = get_eb_measurements(MATERIAL_PARTS_LIST[i][14], float(MATERIAL_PARTS_LIST[i][8]), float(MATERIAL_PARTS_LIST[i][9]))
@@ -1425,18 +1433,22 @@ def calculate_project_price(xml_file):
                                         eb_orientation = eb1
                                         eb_counter = 2
                                         print(eb_orientation)
+                                        S_COUNT.append(eb_orientation)
                                     elif eb2 is not None and eb_counter == 2 or eb_counter == 1:
                                         eb_orientation = eb2
                                         eb_counter = 3
                                         print(eb_orientation)
+                                        L_COUNT.append(eb_orientation)
                                     elif eb3 is not None and eb_counter == 3:
                                         eb_orientation = eb3
                                         eb_counter = 4
                                         print(eb_orientation)
+                                        S_COUNT.append(eb_orientation)
                                     elif eb4 is not None and eb_counter == 4:
                                         eb_orientation = eb4
                                         eb_counter = 1
                                         print(eb_orientation)
+                                        L_COUNT.append(eb_orientation)
                                 # Continue statement to skip over edgebanding for glass shelves
                                 if 'Glass' in PART_NAME and sku_value[:2] in 'EB':
                                     continue
@@ -1483,6 +1495,9 @@ def calculate_project_price(xml_file):
                                 pricing_info = get_pricing_info(SKU_NUMBER, QUANTITY, LENGTH, WIDTH, None, False, None, None, PART_NAME)
                                 SPECIAL_ORDER_PARTS_LIST.append([DESCRIPTION, SKU_NUMBER, pricing_info[3], pricing_info[4], PART_LABEL_ID, pricing_info[2], PART_NAME, QUANTITY, LENGTH, WIDTH, THICKNESS, pricing_info[0], pricing_info[6], pricing_info[7], pricing_info[1]])
             eb_counter = 1
+            EDGEBANDING.append((label_id, len(S_COUNT), len(L_COUNT)))
+            S_COUNT.clear()
+            L_COUNT.clear()
 
         for assembly in item.findall("Assembly"):
 
@@ -1573,17 +1588,22 @@ def calculate_project_price(xml_file):
                                             eb_orientation = eb1
                                             eb_counter = 2
                                             print(eb_orientation)
+                                            S_COUNT.append(eb_orientation)
                                         elif eb2 is not None and eb_counter == 2 or eb_counter == 1:
                                             eb_orientation = eb2
                                             eb_counter = 3
                                             print(eb_orientation)
+                                            L_COUNT.append(eb_orientation)
                                         elif eb3 is not None and eb_counter == 3:
                                             eb_orientation = eb3
                                             eb_counter = 4
                                             print(eb_orientation)
+                                            S_COUNT.append(eb_orientation)
                                         elif eb4 is not None and eb_counter == 4:
                                             eb_orientation = eb4
                                             eb_counter = 1
+                                            print(eb_orientation)
+                                            L_COUNT.append(eb_orientation)
                                     # Continue statement to skip over edgebanding for glass shelves
                                     if 'Glass' in PART_NAME and sku_value[:2] in 'EB':
                                         continue
@@ -1630,6 +1650,9 @@ def calculate_project_price(xml_file):
                                     pricing_info = get_pricing_info(SKU_NUMBER, QUANTITY, LENGTH, WIDTH, None, False, None, None, PART_NAME)
                                     SPECIAL_ORDER_PARTS_LIST.append([DESCRIPTION, SKU_NUMBER, pricing_info[3], pricing_info[4], PART_LABEL_ID, pricing_info[2], PART_NAME, QUANTITY, LENGTH, WIDTH, THICKNESS, pricing_info[0], pricing_info[6], pricing_info[7], pricing_info[1]])
                 eb_counter = 1
+                EDGEBANDING.append((label_id, len(S_COUNT), len(L_COUNT)))
+                S_COUNT.clear()
+                L_COUNT.clear()
 
             for assembly in assembly.findall("Assembly"):
 
@@ -1719,15 +1742,23 @@ def calculate_project_price(xml_file):
                                             if eb1 is not None and eb_counter == 1:
                                                 eb_orientation = eb1
                                                 eb_counter = 2
+                                                print(eb_orientation)
+                                                S_COUNT.append(eb_orientation)
                                             elif eb2 is not None and eb_counter == 2 or eb_counter == 1:
                                                 eb_orientation = eb2
                                                 eb_counter = 3
+                                                print(eb_orientation)
+                                                L_COUNT.append(eb_orientation)
                                             elif eb3 is not None and eb_counter == 3:
                                                 eb_orientation = eb3
                                                 eb_counter = 4
+                                                print(eb_orientation)
+                                                S_COUNT.append(eb_orientation)
                                             elif eb4 is not None and eb_counter == 4:
                                                 eb_orientation = eb4
                                                 eb_counter = 1
+                                                print(eb_orientation)
+                                                L_COUNT.append(eb_orientation)
                                         # Continue statement to skip over edgebanding for glass shelves
                                         if 'Glass' in PART_NAME and sku_value[:2] in 'EB':
                                             continue
@@ -1774,6 +1805,9 @@ def calculate_project_price(xml_file):
                                         pricing_info = get_pricing_info(SKU_NUMBER, QUANTITY, LENGTH, WIDTH, None, False, None, None, PART_NAME)
                                         SPECIAL_ORDER_PARTS_LIST.append([DESCRIPTION, SKU_NUMBER, pricing_info[3], pricing_info[4], PART_LABEL_ID, pricing_info[2], PART_NAME, QUANTITY, LENGTH, WIDTH, THICKNESS, pricing_info[0], pricing_info[6], pricing_info[7], pricing_info[1]])
                     eb_counter = 1
+                    EDGEBANDING.append((label_id, len(S_COUNT), len(L_COUNT)))
+                    S_COUNT.clear()
+                    L_COUNT.clear()
 
         R_ROOM_TOTAL_PRICE = sum(map(float, R_MATERIAL_PRICES)) + sum(map(float, R_HARDWARE_PRICES)) + sum(map(float, R_ACCESSORY_PRICES)) + sum(map(float, R_WOOD_PANEL_PRICES))
         R_ROOM_PRICING_LIST.append([DESCRIPTION, sum(map(float, R_MATERIAL_SQUARE_FOOTAGE)), sum(map(float, R_MATERIAL_LINEAR_FOOTAGE)), sum(map(float, R_MATERIAL_PRICES)), sum(map(float, R_HARDWARE_PRICES)), sum(map(float, R_ACCESSORY_PRICES)), sum(map(float, R_WOOD_PANEL_PRICES)), len(R_SPECIAL_ORDER_PRICES), sum(map(float, R_LABOR_PRICES)), R_ROOM_TOTAL_PRICE])

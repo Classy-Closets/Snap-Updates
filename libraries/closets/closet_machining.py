@@ -976,6 +976,10 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
         macp = get_machining_props()
         self.remove_machining_token(assembly, 'Left Drilling')
         self.remove_machining_token(assembly, 'Right Drilling')
+        self.remove_machining_token(assembly, 'Left Drilling')
+        self.remove_machining_token(assembly, 'Right Drilling')
+        self.remove_machining_token(assembly, 'Left Drilling')
+        self.remove_machining_token(assembly, 'Right Drilling')
         
         is_lock_shelf = assembly.get_prompt("Is Locked Shelf")
         if is_lock_shelf and is_lock_shelf.get_value():
@@ -1002,7 +1006,8 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
                         token.face_bore_depth_2 = macp.cam_depth
                         token.face_bore_dia_2 = macp.cam_dia
                         token.backset = width - macp.dim_to_front_system_hole
-                        token.cam_face = '5'                    
+                        token.cam_face = '5'  
+                    self.remove_machining_token(assembly, 'Left Drilling')                
                 
                 if not remove_right_holes.get_value():
                     if assembly.add_machine_token('Right Drilling' ,'CAMLOCK','5'):
@@ -1019,6 +1024,7 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
                         token.face_bore_dia_2 = macp.cam_dia
                         token.backset = macp.dim_to_rear_system_hole
                         token.cam_face = '5'
+                    self.remove_machining_token(assembly, 'Right Drilling')
 
     def add_toe_kick_machining(self,assembly):
         '''

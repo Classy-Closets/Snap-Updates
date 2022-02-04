@@ -408,7 +408,6 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                     self.closet.obj_z.location.z = height
                     self.hang_height = height
             else:
-                remove_btm_kd.set_value(False)
                 self.update_opening_inserts()
 
     def get_panel(self, num):

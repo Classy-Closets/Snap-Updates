@@ -554,18 +554,6 @@ def add_toe_kick_stringer(assembly):
     return kick
 
 
-def add_countertop(assembly):
-    ctop = sn_types.Part(assembly.add_assembly_from_file(STRAIGHT_COUNTER_TOP))
-    assembly.add_assembly(ctop)
-    ctop.obj_bp.snap.comment_2 = "1605"
-    ctop.obj_bp['IS_BP_COUNTERTOP'] = True
-    props = ctop.obj_bp.sn_closets
-    props.is_countertop_bp = True  # TODO: remove
-    ctop.set_name("Countertop Deck")
-    ctop.material("Countertop_Surface")
-    return ctop
-
-
 def add_granite_countertop(assembly):
     ctop = sn_types.Part(assembly.add_assembly_from_file(STRAIGHT_COUNTER_TOP))
     assembly.add_assembly(ctop)
@@ -573,8 +561,8 @@ def add_granite_countertop(assembly):
     ctop.obj_bp['IS_BP_COUNTERTOP'] = True
     props = ctop.obj_bp.sn_closets
     props.is_countertop_bp = True
-    ctop.set_name("Countertop")
-    ctop.material("Countertop_Surface")
+    ctop.set_name("Countertop Deck")
+    ctop.material("Countertop_Granite_Surface")
     return ctop
 
 
@@ -666,7 +654,7 @@ def add_hpl_top(assembly):
     shelf.add_prompt("Exposed Back", 'CHECKBOX', False)  
     shelf.set_name("Top") 
     shelf.edgebanding('Edge', l1=True, l2=True, w1=True, w2=True)
-    shelf.material("Countertop_Surface")
+    shelf.material("Countertop_HPL_Surface")
     for child in shelf.obj_bp.children:
         if child.snap.type_mesh == 'CUTPART':
             child.snap.use_multiple_edgeband_pointers = True    

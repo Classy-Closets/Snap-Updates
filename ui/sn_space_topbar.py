@@ -144,45 +144,48 @@ class TOPBAR_MT_help(Menu):
 
         show_developer = context.preferences.view.show_developer_ui
 
-        layout.operator("wm.url_open", text="SNaP Release Log", icon='URL').url = "https://classy-closets.github.io/SNaP-2.0/"
-        layout.separator()        
+        layout.operator("wm.url_open", text="SNaP Release Log", icon='URL').url = "https://classy-closets.github.io/SNaP-2.0/release_notes"
+        layout.operator("wm.url_open", text="SNaP Help", icon='URL').url = "https://classy-closets.github.io/SNaP-2.0/FAQ"
 
-        layout.operator("wm.url_open_preset", text="Manual",
-                        icon='HELP').type = 'MANUAL'
+        if context.scene.snap.ui.use_default_blender_interface:
+            layout.separator()
 
-        layout.operator(
-            "wm.url_open", text="Tutorials", icon='URL',
-        ).url = "https://www.blender.org/tutorials"
-        layout.operator(
-            "wm.url_open", text="Support", icon='URL',
-        ).url = "https://www.blender.org/support"
+            layout.operator("wm.url_open_preset", text="Manual",
+                            icon='HELP').type = 'MANUAL'
 
-        layout.separator()
-
-        layout.operator(
-            "wm.url_open", text="User Communities", icon='URL',
-        ).url = "https://www.blender.org/community/"
-        layout.operator(
-            "wm.url_open", text="Developer Community", icon='URL',
-        ).url = "https://devtalk.blender.org"
-
-        layout.separator()
-
-        layout.operator(
-            "wm.url_open", text="Python API Reference", icon='URL',
-        ).url = bpy.types.WM_OT_doc_view._prefix
-
-        if show_developer:
             layout.operator(
-                "wm.url_open", text="Developer Documentation", icon='URL',
-            ).url = "https://wiki.blender.org/wiki/Main_Page"
+                "wm.url_open", text="Tutorials", icon='URL',
+            ).url = "https://www.blender.org/tutorials"
+            layout.operator(
+                "wm.url_open", text="Support", icon='URL',
+            ).url = "https://www.blender.org/support"
 
-            layout.operator("wm.operator_cheat_sheet", icon='TEXT')
+            layout.separator()
 
-        layout.separator()
+            layout.operator(
+                "wm.url_open", text="User Communities", icon='URL',
+            ).url = "https://www.blender.org/community/"
+            layout.operator(
+                "wm.url_open", text="Developer Community", icon='URL',
+            ).url = "https://devtalk.blender.org"
 
-        layout.operator("wm.url_open_preset",
-                        text="Report a Bug", icon='URL').type = 'BUG'
+            layout.separator()
+
+            layout.operator(
+                "wm.url_open", text="Python API Reference", icon='URL',
+            ).url = bpy.types.WM_OT_doc_view._prefix
+
+            if show_developer:
+                layout.operator(
+                    "wm.url_open", text="Developer Documentation", icon='URL',
+                ).url = "https://wiki.blender.org/wiki/Main_Page"
+
+                layout.operator("wm.operator_cheat_sheet", icon='TEXT')
+
+            layout.separator()
+
+            layout.operator("wm.url_open_preset",
+                            text="Report a Bug", icon='URL').type = 'BUG'
 
         layout.separator()
 

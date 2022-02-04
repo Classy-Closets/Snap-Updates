@@ -350,7 +350,9 @@ class SNAP_OT_delete_closet_insert(Delete_Closet_Assembly):
         insert = sn_types.Assembly(obj_bp)
         if obj_bp.parent:
             for child in obj_bp.parent.children:
-                if child.snap.type_group == 'OPENING' and insert.obj_bp.location.x == child.location.x:
+                op_num = child.sn_closets.opening_name
+                insert_op_num = insert.obj_bp.sn_closets.opening_name
+                if child.snap.type_group == 'OPENING' and op_num == insert_op_num:
                     if insert.obj_bp.snap.placement_type == 'SPLITTER':
                         child.snap.interior_open = True
                         child.snap.exterior_open = True

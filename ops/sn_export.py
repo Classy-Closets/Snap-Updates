@@ -3464,7 +3464,7 @@ class OPS_Export_XML(Operator):
             elif(part_name == "Toe Kick Stringer"):
                 self.xml.add_element_with_text(elm_part, 'Routing', "No_Cut")  # Str literal okay
                 self.xml.add_element_with_text(elm_part, 'Class', "draw")  # Str literal okay
-            if self.is_wood_part(obj, assembly, mat_inventory_name):
+            elif self.is_wood_part(obj, assembly, mat_inventory_name):
                 self.xml.add_element_with_text(elm_part, 'Routing', "No_Cut")  # Str literal okay
                 self.xml.add_element_with_text(elm_part, 'Class', "draw")  # Str literal okay
             else:

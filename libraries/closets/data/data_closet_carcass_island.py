@@ -323,7 +323,7 @@ class Closet_Island_Carcass(sn_types.Assembly):
         Toe_Kick_Height = self.get_prompt('Toe Kick Height').get_var()
         No_Countertop = self.get_prompt('No Countertop').get_var()     
         
-        granite_ctop = common_parts.add_countertop(self)
+        granite_ctop = common_parts.add_granite_countertop(self)
         granite_ctop.set_name("Granite Countertop")
         granite_ctop.loc_x('IF(Left_Against_Wall,0,-Side_Deck_Overhang)',[Left_Against_Wall,Side_Deck_Overhang])
         granite_ctop.loc_y('Deck_Overhang',[Deck_Overhang])
